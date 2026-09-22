@@ -1,0 +1,40 @@
+# Tests des fonctions pures — sans site, sans MariaDB, sans bench. `frappe` est installé comme
+# simple paquet Python : les tests importent les modules de l'app, qui importent frappe.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install frappe (as a library) and the app
+        run: |
+          pip install --quiet "git+https://github.com/frappe/frappe.git@version-15"
+          pip install --quiet -e .
+      - name: Create the logs dir frappe's fallback logger expects
+        run: mkdir -p "$(dirname "$GITHUB_WORKSPACE")/logs"
+      - name: Run pure test modules
+        env:
+          MODULES: >-
+            aquaworld_ia.tests.test_geometrie
+            aquaworld_ia.tests.test_extraction
+            aquaworld_ia.tests.test_traduction
+            aquaworld_ia.tests.test_rendu
+            aquaworld_ia.tests.test_couts
+            aquaworld_ia.tests.test_codes
+            aquaworld_ia.tests.test_prompts
+            aquaworld_ia.tests.test_maquette
+        run: python -m unittest -v $MODULES

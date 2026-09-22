@@ -1,0 +1,14 @@
+/* Galerie des variantes (Design Emballage) et colonnes de textes. */
+.aqia-galerie { display: flex; flex-wrap: wrap; gap: 12px; }
+.aqia-carte { width: 220px; border: 1px solid var(--border-color, #d1d8dd); border-radius: 8px; overflow: hidden; background: var(--card-bg, #fff); display: flex; flex-direction: column; }
+.aqia-carte.choisie { border: 2px solid #2490ef; box-shadow: 0 0 0 2px rgba(36, 144, 239, .15); }
+.aqia-image { height: 220px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
+.aqia-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.aqia-vide { color: #6b7280; font-size: 12px; }
+.aqia-carte.statut-En_cours .aqia-vide::after { content: " …"; animation: aqia-clignote 1s infinite; }
+@keyframes aqia-clignote { 50% { opacity: .3; } }
+.aqia-legende { padding: 8px 10px; font-size: 12px; flex: 1; }
+.aqia-actions { padding: 6px 10px 10px; display: flex; gap: 6px; }
+.aqia-textes { display: flex; flex-wrap: wrap; gap: 16px; }
+.aqia-col { min-width: 220px; flex: 1; border-left: 3px solid #e5e7eb; padding-left: 10px; }
+.aqia-col ul { padding-left: 1.2em; margin: 0 0 6px; }

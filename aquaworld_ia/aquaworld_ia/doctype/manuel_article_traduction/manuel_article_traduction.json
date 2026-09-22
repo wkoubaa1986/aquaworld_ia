@@ -1,0 +1,98 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-22 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "langue",
+  "statut",
+  "fichier",
+  "blocs_reduits",
+  "blocs_non_places",
+  "cout_estime",
+  "duree_s",
+  "erreur"
+ ],
+ "fields": [
+  {
+   "fieldname": "langue",
+   "fieldtype": "Link",
+   "label": "Langue",
+   "options": "Aquaworld IA Langue",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "statut",
+   "fieldtype": "Select",
+   "label": "Statut",
+   "options": "En attente\nEn cours\nTerminé\nÉchec",
+   "default": "En attente",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "fichier",
+   "fieldtype": "Attach",
+   "label": "PDF traduit",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "blocs_reduits",
+   "fieldtype": "Int",
+   "label": "Blocs réduits",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "blocs_non_places",
+   "fieldtype": "Int",
+   "label": "Blocs non placés",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "cout_estime",
+   "fieldtype": "Float",
+   "label": "Coût (USD)",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1,
+   "precision": "3"
+  },
+  {
+   "fieldname": "duree_s",
+   "fieldtype": "Int",
+   "label": "Durée (s)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erreur",
+   "fieldtype": "Small Text",
+   "label": "Erreur",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-22 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Aquaworld IA",
+ "name": "Manuel Article Traduction",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1,
+ "issingle": 0,
+ "track_changes": 0,
+ "editable_grid": 1
+}

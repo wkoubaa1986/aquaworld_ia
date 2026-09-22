@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-22 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "article",
+  "titre",
+  "pdf_source",
+  "langue_source",
+  "cb_8",
+  "statut",
+  "pages",
+  "blocs",
+  "sb_consignes_de_traduction_7",
+  "glossaire",
+  "cb_9",
+  "contexte",
+  "sb_traductions_8",
+  "traductions",
+  "sb_journal_9",
+  "journal"
+ ],
+ "fields": [
+  {
+   "fieldname": "article",
+   "fieldtype": "Link",
+   "label": "Article",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "titre",
+   "fieldtype": "Data",
+   "label": "Titre",
+   "fetch_from": "article.item_name",
+   "fetch_if_empty": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "pdf_source",
+   "fieldtype": "Attach",
+   "label": "PDF source (anglais)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "langue_source",
+   "fieldtype": "Data",
+   "label": "Langue source",
+   "default": "en"
+  },
+  {
+   "fieldname": "cb_8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "statut",
+   "fieldtype": "Select",
+   "label": "Statut",
+   "options": "Brouillon\nEn cours\nTerminé\nPartiel\nÉchec",
+   "default": "Brouillon",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "pages",
+   "fieldtype": "Int",
+   "label": "Pages",
+   "read_only": 1
+  },
+  {
+   "fieldname": "blocs",
+   "fieldtype": "Int",
+   "label": "Blocs de texte",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_consignes_de_traduction_7",
+   "fieldtype": "Section Break",
+   "label": "Consignes de traduction"
+  },
+  {
+   "fieldname": "glossaire",
+   "fieldtype": "Small Text",
+   "label": "Glossaire",
+   "description": "Un terme par ligne : « terme anglais = traduction »."
+  },
+  {
+   "fieldname": "cb_9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contexte",
+   "fieldtype": "Small Text",
+   "label": "Contexte",
+   "description": "Ex. : pompe de piscine, public particulier."
+  },
+  {
+   "fieldname": "sb_traductions_8",
+   "fieldtype": "Section Break",
+   "label": "Traductions"
+  },
+  {
+   "fieldname": "traductions",
+   "fieldtype": "Table",
+   "label": "Traductions",
+   "options": "Manuel Article Traduction"
+  },
+  {
+   "fieldname": "sb_journal_9",
+   "fieldtype": "Section Break",
+   "label": "Journal",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "journal",
+   "fieldtype": "Long Text",
+   "label": "Journal",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-22 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Aquaworld IA",
+ "name": "Manuel Article",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Item Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 0,
+ "issingle": 0,
+ "track_changes": 1,
+ "autoname": "MAN-.YYYY.-.####",
+ "naming_rule": "Expression (old style)",
+ "title_field": "titre"
+}

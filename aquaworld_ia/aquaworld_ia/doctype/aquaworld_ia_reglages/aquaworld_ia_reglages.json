@@ -1,0 +1,217 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-22 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sb_mod_les_0",
+  "modele_texte",
+  "modele_image",
+  "qualite_image",
+  "cb_1",
+  "variantes_max",
+  "lot_paragraphes",
+  "sb_co_ts_usd_1",
+  "plafond_mensuel_usd",
+  "alerte_pourcentage",
+  "email_alerte",
+  "cb_2",
+  "prix_entree_par_million",
+  "prix_sortie_par_million",
+  "prix_image_low",
+  "prix_image_medium",
+  "prix_image_high",
+  "sb_manuels_2",
+  "glossaire_global",
+  "instructions_globales",
+  "sb_emballage_3",
+  "contact_par_defaut",
+  "cb_3",
+  "fond_perdu_mm",
+  "zone_securite_mm",
+  "patte_collage_mm"
+ ],
+ "fields": [
+  {
+   "fieldname": "sb_mod_les_0",
+   "fieldtype": "Section Break",
+   "label": "Modèles"
+  },
+  {
+   "fieldname": "modele_texte",
+   "fieldtype": "Data",
+   "label": "Modèle texte",
+   "description": "Vide = celui d'AI Settings (gpt-4o-mini par défaut)."
+  },
+  {
+   "fieldname": "modele_image",
+   "fieldtype": "Select",
+   "label": "Modèle image",
+   "options": "gpt-image-1\ngpt-image-1-mini\ngpt-image-1.5",
+   "default": "gpt-image-1"
+  },
+  {
+   "fieldname": "qualite_image",
+   "fieldtype": "Select",
+   "label": "Qualité image",
+   "options": "low\nmedium\nhigh",
+   "default": "medium"
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "variantes_max",
+   "fieldtype": "Int",
+   "label": "Variantes max par demande",
+   "default": "4"
+  },
+  {
+   "fieldname": "lot_paragraphes",
+   "fieldtype": "Int",
+   "label": "Paragraphes par appel (manuels)",
+   "default": "25"
+  },
+  {
+   "fieldname": "sb_co_ts_usd_1",
+   "fieldtype": "Section Break",
+   "label": "Coûts (USD)"
+  },
+  {
+   "fieldname": "plafond_mensuel_usd",
+   "fieldtype": "Float",
+   "label": "Plafond mensuel (USD)",
+   "default": "50",
+   "precision": "2",
+   "description": "0 = pas de limite. Au-delà, aucun appel IA ne part."
+  },
+  {
+   "fieldname": "alerte_pourcentage",
+   "fieldtype": "Int",
+   "label": "Alerte à (%)",
+   "default": "80"
+  },
+  {
+   "fieldname": "email_alerte",
+   "fieldtype": "Data",
+   "label": "E-mail d'alerte",
+   "options": "Email"
+  },
+  {
+   "fieldname": "cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "prix_entree_par_million",
+   "fieldtype": "Float",
+   "label": "Prix jetons entrée (USD / million)",
+   "default": "0.15",
+   "precision": "4"
+  },
+  {
+   "fieldname": "prix_sortie_par_million",
+   "fieldtype": "Float",
+   "label": "Prix jetons sortie (USD / million)",
+   "default": "0.60",
+   "precision": "4"
+  },
+  {
+   "fieldname": "prix_image_low",
+   "fieldtype": "Float",
+   "label": "Prix image low (USD)",
+   "default": "0.02",
+   "precision": "4"
+  },
+  {
+   "fieldname": "prix_image_medium",
+   "fieldtype": "Float",
+   "label": "Prix image medium (USD)",
+   "default": "0.07",
+   "precision": "4"
+  },
+  {
+   "fieldname": "prix_image_high",
+   "fieldtype": "Float",
+   "label": "Prix image high (USD)",
+   "default": "0.25",
+   "precision": "4"
+  },
+  {
+   "fieldname": "sb_manuels_2",
+   "fieldtype": "Section Break",
+   "label": "Manuels"
+  },
+  {
+   "fieldname": "glossaire_global",
+   "fieldtype": "Small Text",
+   "label": "Glossaire global",
+   "description": "Un terme par ligne : « terme anglais = traduction »."
+  },
+  {
+   "fieldname": "instructions_globales",
+   "fieldtype": "Small Text",
+   "label": "Consignes globales de traduction"
+  },
+  {
+   "fieldname": "sb_emballage_3",
+   "fieldtype": "Section Break",
+   "label": "Emballage"
+  },
+  {
+   "fieldname": "contact_par_defaut",
+   "fieldtype": "Small Text",
+   "label": "Contact par défaut (imprimé sur la boîte)"
+  },
+  {
+   "fieldname": "cb_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fond_perdu_mm",
+   "fieldtype": "Float",
+   "label": "Fond perdu (mm)",
+   "default": "3"
+  },
+  {
+   "fieldname": "zone_securite_mm",
+   "fieldtype": "Float",
+   "label": "Zone de sécurité (mm)",
+   "default": "3"
+  },
+  {
+   "fieldname": "patte_collage_mm",
+   "fieldtype": "Float",
+   "label": "Patte de collage (mm)",
+   "default": "15"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-22 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Aquaworld IA",
+ "name": "Aquaworld IA Reglages",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 0,
+ "issingle": 1,
+ "track_changes": 0
+}

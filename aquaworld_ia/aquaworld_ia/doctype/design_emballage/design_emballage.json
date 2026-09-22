@@ -1,0 +1,395 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-09-22 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "article",
+  "nom_produit",
+  "marque",
+  "logo",
+  "photo_produit",
+  "cb_10",
+  "statut",
+  "variante_choisie",
+  "faces_ia",
+  "sb_dimensions_mm_10",
+  "type_boite",
+  "longueur_mm",
+  "hauteur_mm",
+  "profondeur_mm",
+  "cb_11",
+  "fond_perdu_mm",
+  "zone_securite_mm",
+  "patte_collage_mm",
+  "sb_aper_u_du_plan_11",
+  "format_html",
+  "sb_contenus_12",
+  "caracteristiques",
+  "avertissements",
+  "contact",
+  "cb_12",
+  "langues",
+  "pictogrammes",
+  "type_code_barres",
+  "code_barres",
+  "url_qr",
+  "sb_textes_pr_par_s_par_l_ia_13",
+  "textes_ia_html",
+  "textes_ia",
+  "sb_style_14",
+  "brief_style",
+  "palette",
+  "nb_variantes",
+  "sb_variantes_15",
+  "galerie_html",
+  "variantes",
+  "sb_r_sultats_16",
+  "plan_a_plat",
+  "apercu_plan",
+  "cb_13",
+  "apercu_3d",
+  "sb_journal_17",
+  "journal"
+ ],
+ "fields": [
+  {
+   "fieldname": "article",
+   "fieldtype": "Link",
+   "label": "Article",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nom_produit",
+   "fieldtype": "Data",
+   "label": "Nom du produit",
+   "fetch_from": "article.item_name",
+   "fetch_if_empty": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "marque",
+   "fieldtype": "Link",
+   "label": "Marque",
+   "options": "Brand",
+   "fetch_from": "article.brand",
+   "fetch_if_empty": 1
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach",
+   "label": "Logo (SVG recommandé)"
+  },
+  {
+   "fieldname": "photo_produit",
+   "fieldtype": "Attach Image",
+   "label": "Photo produit"
+  },
+  {
+   "fieldname": "cb_10",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "statut",
+   "fieldtype": "Select",
+   "label": "Statut",
+   "default": "Brouillon",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "options": "Brouillon\nTextes prêts\nVariantes en cours\nVariantes prêtes\nPlan prêt\nÉchec"
+  },
+  {
+   "fieldname": "variante_choisie",
+   "fieldtype": "Int",
+   "label": "Variante choisie",
+   "read_only": 1
+  },
+  {
+   "fieldname": "faces_ia",
+   "fieldtype": "Check",
+   "label": "Faces secondaires générées par IA",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_dimensions_mm_10",
+   "fieldtype": "Section Break",
+   "label": "Dimensions (mm)"
+  },
+  {
+   "fieldname": "type_boite",
+   "fieldtype": "Select",
+   "label": "Type de boîte",
+   "options": "Étui à rabats\nCaisse américaine",
+   "default": "Étui à rabats",
+   "reqd": 1
+  },
+  {
+   "fieldname": "longueur_mm",
+   "fieldtype": "Float",
+   "label": "Largeur de la face avant (mm)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hauteur_mm",
+   "fieldtype": "Float",
+   "label": "Hauteur (mm)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "profondeur_mm",
+   "fieldtype": "Float",
+   "label": "Profondeur / largeur des côtés (mm)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_11",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fond_perdu_mm",
+   "fieldtype": "Float",
+   "label": "Fond perdu (mm)",
+   "default": "3"
+  },
+  {
+   "fieldname": "zone_securite_mm",
+   "fieldtype": "Float",
+   "label": "Zone de sécurité (mm)",
+   "default": "3"
+  },
+  {
+   "fieldname": "patte_collage_mm",
+   "fieldtype": "Float",
+   "label": "Patte de collage (mm)",
+   "default": "15"
+  },
+  {
+   "fieldname": "sb_aper_u_du_plan_11",
+   "fieldtype": "Section Break",
+   "label": "Aperçu du plan"
+  },
+  {
+   "fieldname": "format_html",
+   "fieldtype": "HTML",
+   "label": "Aperçu"
+  },
+  {
+   "fieldname": "sb_contenus_12",
+   "fieldtype": "Section Break",
+   "label": "Contenus"
+  },
+  {
+   "fieldname": "caracteristiques",
+   "fieldtype": "Small Text",
+   "label": "Caractéristiques (une par ligne)",
+   "description": "L'IA les reformule sans en inventer."
+  },
+  {
+   "fieldname": "avertissements",
+   "fieldtype": "Small Text",
+   "label": "Avertissements (une par ligne)"
+  },
+  {
+   "fieldname": "contact",
+   "fieldtype": "Small Text",
+   "label": "Contact"
+  },
+  {
+   "fieldname": "cb_12",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "langues",
+   "fieldtype": "Table MultiSelect",
+   "label": "Langues des textes",
+   "options": "Design Emballage Langue"
+  },
+  {
+   "fieldname": "pictogrammes",
+   "fieldtype": "Table MultiSelect",
+   "label": "Pictogrammes",
+   "options": "Design Emballage Pictogramme"
+  },
+  {
+   "fieldname": "type_code_barres",
+   "fieldtype": "Select",
+   "label": "Code-barres",
+   "options": "EAN-13\nQR\nEAN-13 + QR\nAucun",
+   "default": "EAN-13"
+  },
+  {
+   "fieldname": "code_barres",
+   "fieldtype": "Data",
+   "label": "EAN-13"
+  },
+  {
+   "fieldname": "url_qr",
+   "fieldtype": "Data",
+   "label": "URL du QR"
+  },
+  {
+   "fieldname": "sb_textes_pr_par_s_par_l_ia_13",
+   "fieldtype": "Section Break",
+   "label": "Textes préparés par l'IA"
+  },
+  {
+   "fieldname": "textes_ia_html",
+   "fieldtype": "HTML",
+   "label": "Textes"
+  },
+  {
+   "fieldname": "textes_ia",
+   "fieldtype": "JSON",
+   "label": "Textes IA (JSON)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb_style_14",
+   "fieldtype": "Section Break",
+   "label": "Style"
+  },
+  {
+   "fieldname": "brief_style",
+   "fieldtype": "Small Text",
+   "label": "Brief de style",
+   "description": "Ambiance, couleurs, cible, références."
+  },
+  {
+   "fieldname": "palette",
+   "fieldtype": "Data",
+   "label": "Palette (hex, séparés par des virgules)"
+  },
+  {
+   "fieldname": "nb_variantes",
+   "fieldtype": "Int",
+   "label": "Nombre de variantes",
+   "default": "3"
+  },
+  {
+   "fieldname": "sb_variantes_15",
+   "fieldtype": "Section Break",
+   "label": "Variantes"
+  },
+  {
+   "fieldname": "galerie_html",
+   "fieldtype": "HTML",
+   "label": "Galerie"
+  },
+  {
+   "fieldname": "variantes",
+   "fieldtype": "Table",
+   "label": "Variantes",
+   "options": "Design Emballage Variante"
+  },
+  {
+   "fieldname": "sb_r_sultats_16",
+   "fieldtype": "Section Break",
+   "label": "Résultats"
+  },
+  {
+   "fieldname": "plan_a_plat",
+   "fieldtype": "Attach",
+   "label": "Plan à plat (PDF imprimeur)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "apercu_plan",
+   "fieldtype": "Attach Image",
+   "label": "Aperçu du plan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_13",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "apercu_3d",
+   "fieldtype": "Attach Image",
+   "label": "Aperçu 3D (illustration)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_journal_17",
+   "fieldtype": "Section Break",
+   "label": "Journal",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "journal",
+   "fieldtype": "Long Text",
+   "label": "Journal",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-22 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Aquaworld IA",
+ "name": "Design Emballage",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Item Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 0,
+ "issingle": 0,
+ "track_changes": 1,
+ "autoname": "EMB-.YYYY.-.####",
+ "naming_rule": "Expression (old style)",
+ "title_field": "nom_produit"
+}

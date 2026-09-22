@@ -7,8 +7,14 @@ description = "Manuels multilingues et design d'emballage par IA (OpenAI)"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
+# Installées au build de l'image de prod (comme pour les autres apps custom). Pillow, pypdf et
+# requests arrivent avec frappe : on ne les redéclare pas.
 dependencies = [
     # "frappe~=15.0.0" # Installed and managed by bench.
+    "openai~=2.15",          # chat JSON + images.edit / images.generate (gpt-image-1)
+    "pymupdf~=1.28",         # extraction, réécriture en place (insert_htmlbox, RTL), composition à l'échelle
+    "python-barcode~=0.15",  # EAN-13 en SVG (pur Python)
+    "segno~=1.6",            # QR en SVG (pur Python, sans dépendance)
 ]
 
 [build-system]
