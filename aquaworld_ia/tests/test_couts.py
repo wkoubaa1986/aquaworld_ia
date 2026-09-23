@@ -12,9 +12,11 @@ class TestCouts(unittest.TestCase):
 		self.assertAlmostEqual(C.estimer_cout(2000, 1000), 0.0009)
 
 	def test_images_par_qualite(self):
-		self.assertAlmostEqual(C.estimer_cout(images=3, qualite="high"), 0.75)
-		self.assertAlmostEqual(C.estimer_cout(images=1, qualite="inconnue"), 0.07)
-		self.assertAlmostEqual(C.cout_variantes(4, "low"), 0.08)
+		"""Grille gpt-image-2 (septembre 2026) : 0,006 / 0,053 / 0,211 ; une qualité inconnue
+		compte comme medium."""
+		self.assertAlmostEqual(C.estimer_cout(images=3, qualite="high"), 0.633)
+		self.assertAlmostEqual(C.estimer_cout(images=1, qualite="inconnue"), 0.053)
+		self.assertAlmostEqual(C.cout_variantes(4, "low"), 0.024)
 
 	def test_tarifs_depuis_reglages(self):
 		class R:

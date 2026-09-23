@@ -40,6 +40,8 @@ frappe.ui.form.on("Design Emballage", {
 		const textes_ok = !!frm.doc.textes_ia;
 		const variantes_pretes = (frm.doc.variantes || []).some((v) => v.statut === "Prête");
 		const grp = __("Aquaworld IA");
+		// Le studio : la même fiche, en plein écran, avec le plan au centre (23/09/2026).
+		frm.add_custom_button(__("🎨 Ouvrir le studio"), () => frappe.set_route("studio-emballage", frm.doc.name));
 
 		frm.add_custom_button(__("1. Préparer textes et styles"), () => {
 			frappe.call({ method: "aquaworld_ia.emballage.textes.preparer", args: { design: frm.doc.name }, freeze: true,

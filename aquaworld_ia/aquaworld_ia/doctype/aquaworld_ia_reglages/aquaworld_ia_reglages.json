@@ -41,20 +41,23 @@
    "label": "Modèles"
   },
   {
-   "description": "Vide = celui d'AI Settings (gpt-4o-mini par défaut).",
+   "description": "Vide = celui d'AI Settings (gpt-5.2 en prod). Traductions et textes d'emballage.",
    "fieldname": "modele_texte",
-   "fieldtype": "Data",
-   "label": "Modèle texte"
+   "fieldtype": "Autocomplete",
+   "label": "Modèle texte",
+   "options": "gpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
   },
   {
-   "default": "gpt-image-1",
+   "default": "gpt-image-2",
+   "description": "gpt-image-2 : le modèle vedette (meilleure fidélité aux références, tailles souples, moins cher). gpt-image-1 est arrêté par OpenAI le 23/10/2026, gpt-image-1.5 le 01/12/2026. gpt-image-1-mini : brouillons à 0,005 $. Vous pouvez taper un autre identifiant (ex. une version 2.5).",
    "fieldname": "modele_image",
-   "fieldtype": "Select",
+   "fieldtype": "Autocomplete",
    "label": "Modèle image",
-   "options": "gpt-image-1\ngpt-image-1-mini\ngpt-image-1.5"
+   "options": "gpt-image-2\ngpt-image-1.5\ngpt-image-1-mini\ngpt-image-1"
   },
   {
    "default": "medium",
+   "description": "medium pour explorer les variantes, high pour la variante retenue et ses faces avant impression.",
    "fieldname": "qualite_image",
    "fieldtype": "Select",
    "label": "Qualité image",
@@ -120,21 +123,21 @@
    "precision": "4"
   },
   {
-   "default": "0.02",
+   "default": "0.006",
    "fieldname": "prix_image_low",
    "fieldtype": "Float",
    "label": "Prix image low (USD)",
    "precision": "4"
   },
   {
-   "default": "0.07",
+   "default": "0.053",
    "fieldname": "prix_image_medium",
    "fieldtype": "Float",
    "label": "Prix image medium (USD)",
    "precision": "4"
   },
   {
-   "default": "0.25",
+   "default": "0.211",
    "fieldname": "prix_image_high",
    "fieldtype": "Float",
    "label": "Prix image high (USD)",

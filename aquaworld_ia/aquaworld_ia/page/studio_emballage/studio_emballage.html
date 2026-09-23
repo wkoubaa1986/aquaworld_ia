@@ -1,0 +1,82 @@
+<style>
+  .se-wrap { padding: 8px 12px 40px; }
+  .se-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0 10px;
+            border-bottom: 1px solid var(--border-color, #e6e9ee); }
+  .se-bar select { height: 32px; font-size: 13px; padding: 2px 8px; border-radius: 6px; min-width: 260px;
+                   border: 1px solid var(--border-color, #d5dae1); background: var(--control-bg, #fff); color: inherit; }
+  .se-titre { font-size: 18px; font-weight: 600; margin: 0 6px 0 0; }
+  .se-chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 500;
+             background: #eef2f7; color: #334155; }
+  .se-chip.ok { background: #dcfce7; color: #166534; }
+  .se-chip.encours { background: #fef3c7; color: #92400e; }
+  .se-chip.echec { background: #fee2e2; color: #991b1b; }
+  .se-cout { margin-left: auto; font-size: 12.5px; color: var(--text-muted, #6b7683); }
+  .se-progress { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 8px 0 0; display: none; }
+  .se-progress > div { height: 100%; background: #2563eb; width: 0; transition: width .3s; }
+  .se-progress-txt { font-size: 12px; color: #1d4ed8; margin-top: 4px; display: none; }
+  .se-grid { display: grid; grid-template-columns: 330px minmax(0, 1fr) 260px; gap: 14px; margin-top: 12px; }
+  @media (max-width: 1100px) { .se-grid { grid-template-columns: 1fr; } }
+  .se-col { min-width: 0; }
+  .se-etape { border: 1px solid var(--border-color, #e6e9ee); border-radius: 10px; margin-bottom: 10px;
+              background: var(--card-bg, #fff); }
+  .se-etape > .se-tete { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer;
+                          font-weight: 600; font-size: 13.5px; }
+  .se-etape > .se-tete .num { width: 22px; height: 22px; border-radius: 50%; background: #e5e7eb; color: #374151;
+                              display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+  .se-etape.faite > .se-tete .num { background: #16a34a; color: #fff; }
+  .se-etape.active > .se-tete .num { background: #2563eb; color: #fff; }
+  .se-etape > .se-corps { padding: 4px 12px 12px; display: none; }
+  .se-etape.active > .se-corps { display: block; }
+  .se-etape label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted, #6b7683);
+                    margin: 8px 0 3px; display: block; }
+  .se-etape input[type=text], .se-etape input[type=number], .se-etape textarea, .se-etape select {
+      width: 100%; font-size: 13px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color, #d5dae1);
+      background: var(--control-bg, #fff); color: inherit; }
+  .se-etape textarea { min-height: 58px; resize: vertical; }
+  .se-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .se-types { display: flex; gap: 6px; flex-wrap: wrap; }
+  .se-type { flex: 1 1 90px; border: 1px solid var(--border-color, #ddd); border-radius: 8px; padding: 5px; cursor: pointer;
+             text-align: center; }
+  .se-type:hover { border-color: #2563eb; }
+  .se-type.active { border: 2px solid #2563eb; background: #eff6ff; }
+  .se-type svg { width: 100%; height: 46px; }
+  .se-type .nom { font-size: 10.5px; line-height: 1.15; margin-top: 3px; }
+  .se-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .se-chips .c { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border-color, #d5dae1); font-size: 12px;
+                 cursor: pointer; user-select: none; }
+  .se-chips .c.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .se-fichier { display: flex; align-items: center; gap: 8px; }
+  .se-fichier img { width: 46px; height: 46px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 6px;
+                    background: #fff; }
+  .se-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .se-centre { border: 1px solid var(--border-color, #e6e9ee); border-radius: 10px; background: var(--card-bg, #fff);
+               min-height: 520px; display: flex; flex-direction: column; }
+  .se-onglets { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--border-color, #e6e9ee); }
+  .se-onglets .o { padding: 6px 12px; font-size: 13px; cursor: pointer; border-radius: 8px 8px 0 0; color: #475569; }
+  .se-onglets .o.on { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+  .se-scene { padding: 12px; flex: 1; overflow: auto; }
+  .se-scene svg.aqia-plan { width: 100%; height: auto; max-height: 70vh; }
+  .se-scene .aqia-plan rect.aqia-face.imprimable { cursor: pointer; transition: fill .12s; }
+  .se-scene .aqia-plan rect.aqia-face.imprimable:hover, .se-scene .aqia-plan rect.aqia-face.epinglee { fill: #93c5fd; }
+  .se-galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .se-carte { border: 1px solid var(--border-color, #e6e9ee); border-radius: 10px; overflow: hidden; }
+  .se-carte.choisie { border: 2px solid #16a34a; }
+  .se-carte img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block; background: #f1f5f9; }
+  .se-carte .vide { aspect-ratio: 2 / 3; display: flex; align-items: center; justify-content: center; color: #64748b;
+                    background: #f1f5f9; font-size: 13px; }
+  .se-carte .leg { padding: 8px 10px; font-size: 12.5px; }
+  .se-carte .act { display: flex; gap: 6px; padding: 0 10px 10px; }
+  .se-img { max-width: 100%; max-height: 72vh; display: block; margin: 0 auto; border: 1px solid #e5e7eb; }
+  .se-droite .bloc { border: 1px solid var(--border-color, #e6e9ee); border-radius: 10px; padding: 10px 12px;
+                     margin-bottom: 10px; font-size: 12.5px; background: var(--card-bg, #fff); }
+  .se-droite h6 { margin: 0 0 6px; font-size: 13px; }
+  .se-droite ul { padding-left: 16px; margin: 0; }
+  .se-vide { color: var(--text-muted, #6b7683); font-size: 13px; padding: 30px; text-align: center; }
+  .se-textes table { font-size: 12px; }
+</style>
+<div class="se-wrap">
+  <div class="se-bar" data-role="barre"></div>
+  <div class="se-progress" data-role="progress"><div></div></div>
+  <div class="se-progress-txt" data-role="progress-txt"></div>
+  <div data-role="corps"></div>
+</div>

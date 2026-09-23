@@ -15,7 +15,8 @@ import frappe
 from frappe import _
 
 MODELE_TEXTE_DEFAUT = "gpt-4o-mini"
-MODELE_IMAGE_DEFAUT = "gpt-image-1"
+# gpt-image-2 : le modèle vedette d'OpenAI (avril 2026) ; gpt-image-1 est arrêté le 23/10/2026.
+MODELE_IMAGE_DEFAUT = "gpt-image-2"
 QUALITE_IMAGE_DEFAUT = "medium"
 
 

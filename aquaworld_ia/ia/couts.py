@@ -11,8 +11,10 @@ TARIFS_DEFAUT = {
 	# USD par million de jetons (ordre de grandeur gpt-4o-mini)
 	"entree_par_million": 0.15,
 	"sortie_par_million": 0.60,
-	# USD par image gpt-image-1 selon la qualité (1024×1024 à 1536×1024)
-	"image": {"low": 0.02, "medium": 0.07, "high": 0.25},
+	# USD par image gpt-image-2 en 1024×1024 (grille OpenAI de septembre 2026) ; gpt-image-1
+	# coûtait 0,02 / 0,07 / 0,25. Une image 1536 px coûte un peu plus : l'estimation reste
+	# indicative, le plafond se lit sur le journal.
+	"image": {"low": 0.006, "medium": 0.053, "high": 0.211},
 }
 
 
