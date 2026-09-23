@@ -221,13 +221,55 @@ def _rect_pt(x, y, w, h):
 
 def html_bloc(lignes: list[str], *, taille_pt: float, rtl: bool, famille: str, couleur: str = "#111827",
               gras: bool = False, puces: bool = False, align: str | None = None) -> str:
-	style = ("font-family:'%s';font-size:%.1fpt;color:%s;direction:%s;text-align:%s;font-weight:%d;line-height:1.25"
-	         % (famille, taille_pt, couleur, "rtl" if rtl else "ltr",
-	            align or ("right" if rtl else "left"), 700 if gras else 400))
-	if puces:
-		return "<ul style=\"%s;margin:0;padding-%s:1.1em\">%s</ul>" % (
-			style, "right" if rtl else "left", "".join("<li>%s</li>" % html.escape(l) for l in lignes))
-	return "".join("<p style=\"%s;margin:0 0 0.3em 0\">%s</p>" % (style, html.escape(l)) for l in lignes)
+	style = ("font-family:'%s';font-size:%.1fpt;color:%s;direction:%s;%sfont-weight:%d;line-height:1.25"
+	         % (famille, taille_pt, couleur, "rtl" if rtl else "ltr", alignement_css(align, rtl),
+	            700 if gras else 400))
+	# ⚠️ PAS DE <ul> : le moteur d'insert_htmlbox pose le marqueur de liste à GAUCHE quoi qu'en
+	# dise `direction:rtl` (constaté sur la fiche EMB-2026-0001 le 23/09/2026 : puces arabes
+	# à gauche du texte, bloc collé à gauche). Une puce typographique dans le paragraphe suit,
+	# elle, le sens d'écriture.
+	prefixe = PUCE + " " if puces else ""
+	return "".join("<p style=\"%s;margin:0 0 0.3em 0\">%s%s</p>" % (style, prefixe, html.escape(l)) for l in lignes)
+
+
+PUCE = "•"
+
+
+def alignement_css(align: str | None, rtl: bool) -> str:
+	"""⚠️ MUPDF INVERSE L'ALIGNEMENT SOUS `direction:rtl` : `text-align:right` y colle le texte à
+	GAUCHE, et l'absence de consigne (ou `left`) le range à droite — mesuré le 23/09/2026 sur
+	insert_htmlbox (x0=20 avec right, x1=380 sans). On ne demande donc jamais « right » à un
+	paragraphe RTL : son alignement naturel EST la droite. Seul « center » se dit. Pur."""
+	if rtl:
+		return "text-align:center;" if align == "center" else ""
+	return "text-align:%s;" % (align or "left")
+
+
+def taille_langue(base_pt: float, rang: int, rtl: bool) -> float:
+	"""La taille d'une langue dans une zone : la première un peu plus grande, et l'arabe
+	relevé — Noto Naskh Arabic paraît nettement plus petit que Noto Sans à corps égal (les
+	caractéristiques arabes étaient illisibles à 0,85 × 8,5 pt). Pur."""
+	taille = base_pt if rang == 0 else base_pt * 0.9
+	if rtl:
+		taille *= 1.15
+	return round(taille, 2)
+
+
+#: Les zones de PETIT texte posées sur un visuel reçoivent un cartouche translucide : sans
+#: lui, un texte sombre sur un bleu moyen (ou clair sur un ciel pâle) ne se lit pas — le
+#: contraste dépend du visuel IA, que personne ne contrôle. Le nom et l'accroche, gros et
+#: gras, s'en passent.
+ZONES_CARTOUCHE = ("caracteristiques", "avertissements", "contact")
+CARTOUCHE_MARGE_MM = 2.0
+
+
+def panneau_pour(zone: str, couleur_texte: str, sur_visuel: bool):
+	"""-> (rgb 0..1, opacité) du cartouche derrière une zone de texte, ou None. Pur."""
+	if not sur_visuel or zone not in ZONES_CARTOUCHE:
+		return None
+	if couleur_texte.lower() == "#ffffff":
+		return ((0.04, 0.07, 0.13), 0.45)
+	return ((1.0, 1.0, 1.0), 0.82)
 
 
 def poser_texte(page, rect, contenu_html: str, archive, css: str) -> float:
@@ -235,6 +277,19 @@ def poser_texte(page, rect, contenu_html: str, archive, css: str) -> float:
 
 	spare, echelle = page.insert_htmlbox(pymupdf.Rect(*rect), contenu_html, css=css, scale_low=0.4, archive=archive)
 	return echelle if spare >= 0 else 0.0
+
+
+def hauteur_texte(rect, contenu_html: str, archive, css: str) -> float:
+	"""La hauteur (pt) qu'occupera le texte dans `rect`, mesurée sur une page jetable — le
+	cartouche se dessine AVANT le texte et doit épouser le contenu, pas la zone : la zone des
+	caractéristiques prend tout le milieu de la face, et un cartouche à sa taille effaçait le
+	visuel (constaté le 23/09/2026)."""
+	import pymupdf
+
+	r = pymupdf.Rect(*rect)
+	brouillon = pymupdf.open().new_page(width=max(r.x1, 1) + 10, height=max(r.y1, 1) + 10)
+	spare, _ = brouillon.insert_htmlbox(r, contenu_html, css=css, scale_low=0.4, archive=archive)
+	return r.height if spare < 0 else r.height - spare
 
 
 def _famille(langue: dict) -> str:
@@ -247,7 +302,7 @@ def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: floa
 	for k, (code, t) in enumerate(textes.items()):
 		lg = langues.get(code) or {}
 		rtl, fam = bool(lg.get("rtl")), _famille(lg)
-		taille = taille_pt if k == 0 else taille_pt * 0.85
+		taille = taille_langue(taille_pt, k, rtl)
 		if nom_zone == "nom":
 			continue
 		if nom_zone == "accroche" and t.get("accroche"):
@@ -341,6 +396,12 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				base = {"accroche": 11.0, "caracteristiques": 8.5, "avertissements": 7.0, "contact": 7.0}[z["zone"]]
 				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_texte)
 				if contenu_html:
+					panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels)
+					if panneau:
+						m = MM(CARTOUCHE_MARGE_MM)
+						h_texte = hauteur_texte(rect, contenu_html, archive, css)
+						page.draw_rect(pymupdf.Rect(rect[0] - m, rect[1] - m, rect[2] + m, rect[1] + h_texte + m),
+						               color=None, fill=panneau[0], fill_opacity=panneau[1])
 					poser_texte(page, rect, contenu_html, archive, css)
 			elif z["zone"] == "code_barres":
 				if ean:

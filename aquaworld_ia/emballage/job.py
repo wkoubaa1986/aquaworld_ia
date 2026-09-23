@@ -8,7 +8,7 @@ from frappe import _
 from frappe.utils import cint, flt
 
 from aquaworld_ia.emballage import geometrie
-from aquaworld_ia.emballage.variantes import GENRE
+from aquaworld_ia.emballage.variantes import CHAMPS_FACES, GENRE
 from aquaworld_ia.ia import couts, etat, journal
 from aquaworld_ia.ia.client import qualite_image, reglages
 
@@ -73,7 +73,16 @@ def regenerer_variante(design: str, numero) -> dict:
 	v = next((x for x in doc.variantes if x.numero == cint(numero)), None)
 	if not v:
 		frappe.throw(_("Variante introuvable."))
-	frappe.db.set_value("Design Emballage Variante", v.name, {"statut": "À générer", "image": None}, update_modified=False)
+	# ⚠️ UNE VARIANTE RÉGÉNÉRÉE REPART DE ZÉRO. Ses faces secondaires ont été dessinées dans le
+	# style de l'ANCIEN visuel ; et si c'est la variante retenue, le plan à plat, son aperçu et
+	# le rendu 3D montrent une image qui n'existe plus. Les laisser, c'est livrer à l'imprimeur
+	# un PDF périmé sans que rien ne le dise (constaté le 23/09/2026).
+	faces = {champ: None for champ in CHAMPS_FACES.values()}
+	frappe.db.set_value("Design Emballage Variante", v.name, dict(faces, statut="À générer", image=None),
+	                    update_modified=False)
+	if cint(doc.variante_choisie) == cint(numero):
+		frappe.db.set_value("Design Emballage", design, {"plan_a_plat": None, "apercu_plan": None,
+		                                                 "apercu_3d": None, "faces_ia": 0}, update_modified=False)
 	frappe.db.commit()
 	return lancer_variantes(design, [cint(numero)])
 

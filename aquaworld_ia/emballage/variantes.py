@@ -126,7 +126,18 @@ def generer_faces_secondaires(design: str, utilisateur: str | None = None) -> No
 		except Exception:
 			frappe.log_error(title="Aquaworld IA : face %s de %s" % (code, design), message=frappe.get_traceback())
 		frappe.db.commit()
-	frappe.db.set_value("Design Emballage", design, "faces_ia", 1, update_modified=False)
+	# L'aperçu 3D a été rendu depuis l'ancien plan : il ne montre pas ces faces.
+	frappe.db.set_value("Design Emballage", design, {"faces_ia": 1, "apercu_3d": None}, update_modified=False)
 	frappe.db.commit()
+	# Le plan se recompose ici, sans clic : c'est gratuit (≈ 1 s) et c'est ce qu'on est venu
+	# chercher — un plan où ces faces figurent. Sans cela, le PDF attaché restait celui d'avant
+	# et le bouton 3 ne disait pas qu'il fallait le refaire.
+	etat.progresser(GENRE, design, "recomposition du plan à plat", 95, EVENEMENT, utilisateur)
+	try:
+		from aquaworld_ia.emballage.composition import composer_et_attacher
+
+		composer_et_attacher(design, v.numero)
+	except Exception:
+		frappe.log_error(title="Aquaworld IA : recomposition après faces %s" % design, message=frappe.get_traceback())
 	etat.terminer(GENRE, design, "termine")
 	etat.progresser(GENRE, design, "terminé", 100, EVENEMENT, utilisateur, fin=1)
