@@ -120,6 +120,7 @@ function aqia_emb_contenu(frm) {
 		contact: !!(premiere.contact || (d.contact || "").trim()),
 		pictos: (d.pictogrammes || []).length,
 		code_barres: d.type_code_barres !== "Aucun" && !!(d.code_barres || d.url_qr),
+		faces_identiques: !!d.faces_identiques,
 	};
 }
 

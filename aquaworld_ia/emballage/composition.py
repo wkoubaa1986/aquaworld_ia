@@ -19,7 +19,7 @@ from frappe.utils import cint, flt
 from frappe.utils.file_manager import save_file
 
 from aquaworld_ia.emballage import codes, geometrie, pictos
-from aquaworld_ia.emballage.variantes import CHAMPS_FACES, plan_du_design, url_logo
+from aquaworld_ia.emballage.variantes import CHAMPS_FACES, plan_du_design, url_logo, url_photo
 from aquaworld_ia.ia import fichiers
 from aquaworld_ia.manuels import rendu
 from aquaworld_ia.manuels.rendu import css_base, polices_archive
@@ -80,10 +80,19 @@ def maquette_face(face: dict, contenu: dict) -> list[dict]:
 			zone("nom", x, haut, w, h * 0.12)
 			haut += h * 0.14
 		bas = y + h
+		# Quand le dos est le miroir de l'avant, l'EAN et les avertissements déménagent ici.
+		cb = contenu.get("code_barres_cote")
+		if cb:
+			cw, ch = _taille_code(cb, w, h * 0.2)
+			zone("code_barres", x + w - cw, bas - ch, cw, ch)
+			bas -= ch + h * 0.02
 		if contenu.get("pictos"):
 			taille = min(w / max(1, contenu["pictos"]) * 0.8, h * 0.1)
 			zone("pictos", x, bas - taille, w, taille)
 			bas -= taille + h * 0.02
+		if contenu.get("avertissements_cote"):
+			zone("avertissements", x, bas - h * 0.18, w, h * 0.18)
+			bas -= h * 0.2
 		if contenu.get("contact"):
 			zone("contact", x, bas - h * 0.22, w, h * 0.22)
 			bas -= h * 0.24
@@ -100,6 +109,37 @@ def maquette_face(face: dict, contenu: dict) -> list[dict]:
 		if contenu.get("pictos"):
 			zone("pictos", x + w * 0.62, y + h * 0.3, w * 0.38, h * 0.4)
 	return zones
+
+
+def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False) -> dict:
+	"""{code: zones} pour toutes les faces imprimables. Pur.
+
+	`faces_identiques` (demande utilisateur 23/09/2026 : « face avant et arrière la même ») : le
+	dos reçoit la MAQUETTE DE L'AVANT (logo, nom, accroche) ; l'EAN et les avertissements, qui
+	vivaient au dos, passent sur le côté droit s'il existe. Sans côté (sachet doypack), le dos
+	garde sa maquette : mieux vaut un dos différent qu'un EAN nulle part."""
+	codes = {f["code"] for f in plan["faces"] if f["imprimable"]}
+	miroir = faces_identiques and "cote_droit" in codes
+	out = {}
+	for f in plan["faces"]:
+		if not f["imprimable"]:
+			continue
+		c = dict(contenu)
+		if miroir and f["code"] == "arriere":
+			out[f["code"]] = maquette_face(dict(f, code="avant"), c)
+			continue
+		if miroir and f["code"] == "cote_droit":
+			c["code_barres_cote"] = contenu.get("code_barres")
+			c["avertissements_cote"] = contenu.get("avertissements")
+		out[f["code"]] = maquette_face(f, c)
+	return out
+
+
+def hero_photo_rect(face: dict) -> tuple:
+	"""Où poser la photo produit sur une face avant SANS visuel IA : entre le logo (haut) et le
+	nom + accroche (bas), avec de l'air. (x, y, w, h) en mm. Pur."""
+	z = face["zone_sure"]
+	return (z["x"] + z["w"] * 0.08, z["y"] + z["h"] * 0.16, z["w"] * 0.84, z["h"] * 0.56)
 
 
 def taille_nom(w_pt: float, h_pt: float, texte: str, maximum: float = 40.0, minimum: float = 7.0) -> float:
@@ -367,18 +407,33 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	pdf = pymupdf.open()
 	page = pdf.new_page(width=W, height=H)
 
-	visuel_avant = fichiers.lire(variante.image) if variante.image else None
-	dominantes = couleurs_dominantes(visuel_avant) if visuel_avant else ["#e5e7eb", "#ffffff"]
-	fond = _hex_rgb(dominantes[0])
-	couleur_texte = "#111827" if _luminance(dominantes[0]) > 0.5 else "#ffffff"
+	identiques = bool(cint(doc.get("faces_identiques")))
+	visuel_avant = fichiers.lire(variante.image) if (variante is not None and variante.image) else None
+	image_fond = fichiers.lire(doc.image_fond) if doc.get("image_fond") else None
+	# Le fond : la couleur CHOISIE d'abord (demande utilisateur 23/09/2026 : « le background,
+	# comment je le fais ? »), sinon la dominante du visuel IA, sinon celle de l'image de fond.
+	dominantes = (couleurs_dominantes(visuel_avant) if visuel_avant
+	              else couleurs_dominantes(image_fond) if image_fond else ["#e5e7eb", "#ffffff"])
+	base = doc.get("couleur_fond") or dominantes[0]
+	fond = _hex_rgb(base)
+	couleur_texte = "#111827" if _luminance(base) > 0.5 else "#ffffff"
 	logo = fichiers.lire(url_logo(doc)) if url_logo(doc) else None
 	visuels = {}
 	for code, champ in CHAMPS_FACES.items():
-		url = getattr(variante, champ, None)
+		url = getattr(variante, champ, None) if variante is not None else None
 		if url:
 			visuels[code] = fichiers.lire(url)
 	if visuel_avant:
 		visuels["avant"] = visuel_avant
+		if identiques:
+			visuels["arriere"] = visuel_avant
+	photo_hero = None
+	photo_url = url_photo(doc)   # la photo de la fiche, sinon l'image de l'article
+	if not visuel_avant and photo_url:
+		try:
+			photo_hero = fond_blanc_en_transparence(fichiers.lire(photo_url))
+		except Exception:
+			photo_hero = fichiers.lire(photo_url)
 	dpi = {}
 
 	# 1. fonds : rabats et pattes (aplat), puis faces imprimables (visuel ou aplat + bandeau)
@@ -399,9 +454,17 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			x0, y0, x1, y1 = geometrie.cadrage(r[2], r[3], im.width, im.height)
 			dpi[face["code"]] = geometrie.dpi_effectif(x1 - x0, r[2])
 			poser_image(page, _rect_pt(*r), recadrer(visuel, r[2], r[3]), garder_proportions=False)
+		elif image_fond:
+			# L'image de fond choisie couvre la face entière (recadrée, jamais déformée).
+			poser_image(page, _rect_pt(*r), recadrer(image_fond, r[2], r[3]), garder_proportions=False)
 		elif visuel_avant:
 			hb = min(r[3] * 0.3, 40.0)
 			poser_image(page, _rect_pt(r[0], r[1], r[2], hb), recadrer(bandeau(visuel_avant), r[2], hb), garder_proportions=False)
+	# Sans visuel IA, la photo du produit est le héros de la face avant (et du dos miroir).
+	if photo_hero:
+		for f in plan["faces"]:
+			if f["code"] == "avant" or (identiques and f["code"] == "arriere" and "cote_droit" in {x["code"] for x in plan["faces"] if x["imprimable"]}):
+				poser_image(page, _rect_pt(*hero_photo_rect(f)), photo_hero, garder_proportions=True)
 
 	# 2. contenus vectoriels par face
 	ean = None
@@ -414,15 +477,16 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	nom_produit = doc.nom_produit or doc.article
 	fam_titres = famille_titres(rendu.FAMILLE_TITRES in {f for f, _u in rendu.polices_personnalisees()})
 	premiere = next(iter(langues.values()), {}) if langues else {}
+	contenu = {
+		"logo": bool(logo), "nom": True, "accroche": bool(textes), "caracteristiques": bool(textes),
+		"avertissements": bool(textes), "contact": bool(textes), "pictos": len(pictos_svg),
+		"code_barres": geometrie.EAN_NOMINAL_MM if (ean or qr) else None,
+	}
+	zones = zones_par_face(plan, contenu, identiques)
 	for face in plan["faces"]:
 		if not face["imprimable"]:
 			continue
-		contenu = {
-			"logo": bool(logo), "nom": True, "accroche": bool(textes), "caracteristiques": bool(textes),
-			"avertissements": bool(textes), "contact": bool(textes), "pictos": len(pictos_svg),
-			"code_barres": geometrie.EAN_NOMINAL_MM if (ean or qr) else None,
-		}
-		for z in maquette_face(face, contenu):
+		for z in zones[face["code"]]:
 			rect = _rect_pt(z["x"], z["y"], z["w"], z["h"])
 			if z["zone"] == "logo" and logo:
 				poser_logo(page, rect, logo)
@@ -499,8 +563,11 @@ def fiche_technique_html(doc, variante, plan, textes, langues, dpi, pictos_svg, 
 		for f in plan["faces"])
 	return (
 		"<h2 style=\"font-family:'Noto Sans'\">Fiche technique — %s</h2>" % esc(doc.nom_produit or doc.article)
-		+ "<p style=\"font-family:'Noto Sans';font-size:10pt\">Fiche %s · Article %s · Variante %s « %s » · Type : %s</p>" % (
-			esc(doc.name), esc(doc.article), variante.numero, esc(variante.titre or ""), esc(plan["type"]))
+		+ "<p style=\"font-family:'Noto Sans';font-size:10pt\">Fiche %s · Article %s · %s · Type : %s%s</p>" % (
+			esc(doc.name), esc(doc.article),
+			("Variante %s « %s »" % (variante.numero, esc(variante.titre or ""))) if variante is not None
+			else "Sans visuel IA (fond choisi + photo produit)",
+			esc(plan["type"]), " · Dos identique à l'avant" if cint(doc.get("faces_identiques")) else "")
 		+ "<p style=\"font-family:'Noto Sans';font-size:10pt\">Feuille : <b>%.1f × %.1f mm</b> (fond perdu %.1f mm inclus) · "
 		  "Boîte : L %.1f × H %.1f × P %.1f mm · Langues : %s · EAN : %s · QR : %s · Pictogrammes : %s</p>" % (
 			plan["feuille"]["w"], plan["feuille"]["h"], plan.get("fond_perdu", 0), plan["dimensions"]["L"],
@@ -526,7 +593,12 @@ def composer_et_attacher(design: str, variante: int) -> dict:
 	doc.check_permission("write")
 	v = next((x for x in doc.variantes if x.numero == cint(variante)), None)
 	if not v or v.statut != "Prête" or not v.image:
-		frappe.throw(_("Choisissez une variante prête (avec son visuel)."))
+		# Sans variante IA, on compose quand même si l'utilisateur a choisi son fond : couleur
+		# ou image, plus la photo du produit en héros. C'est l'emballage « sans IA ».
+		if doc.get("couleur_fond") or doc.get("image_fond"):
+			v = None
+		else:
+			frappe.throw(_("Choisissez une variante prête, ou définissez un fond (couleur ou image) pour composer sans IA."))
 	plan = plan_du_design(doc)
 	problemes = geometrie.verifier(plan)
 	if problemes:
@@ -538,9 +610,9 @@ def composer_et_attacher(design: str, variante: int) -> dict:
 
 	apercu = pymupdf.open("pdf", pdf)[0].get_pixmap(dpi=100).tobytes("png")
 	apercu_f = save_file("%s-apercu.png" % doc.name, apercu, "Design Emballage", doc.name, is_private=1)
-	frappe.db.set_value("Design Emballage", design, {
-		"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "variante_choisie": cint(variante),
-		"statut": "Plan prêt",
-	}, update_modified=False)
+	valeurs = {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "statut": "Plan prêt"}
+	if v is not None:
+		valeurs["variante_choisie"] = cint(variante)
+	frappe.db.set_value("Design Emballage", design, valeurs, update_modified=False)
 	frappe.db.commit()
 	return {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "feuille": plan["feuille"]}

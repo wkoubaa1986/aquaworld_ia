@@ -40,7 +40,10 @@
   "textes_ia_html",
   "textes_ia",
   "sb_style_14",
+  "couleur_fond",
   "brief_style",
+  "image_fond",
+  "faces_identiques",
   "palette",
   "nb_variantes",
   "sb_variantes_15",
@@ -255,6 +258,24 @@
    "fieldname": "sb_style_14",
    "fieldtype": "Section Break",
    "label": "Style"
+  },
+  {
+   "description": "Votre couleur, à la place de la dominante du visuel IA. Avec la photo produit, permet de composer SANS IA.",
+   "fieldname": "couleur_fond",
+   "fieldtype": "Color",
+   "label": "Couleur de fond"
+  },
+  {
+   "description": "Texture ou motif posé sur les faces sans visuel IA, recadré sans déformation.",
+   "fieldname": "image_fond",
+   "fieldtype": "Attach Image",
+   "label": "Image de fond"
+  },
+  {
+   "description": "Le dos reprend le visuel et la maquette de l'avant ; l'EAN et les avertissements passent sur le côté droit.",
+   "fieldname": "faces_identiques",
+   "fieldtype": "Check",
+   "label": "Face arrière identique à la face avant"
   },
   {
    "description": "Ambiance, couleurs, cible, références.",

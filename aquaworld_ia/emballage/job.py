@@ -61,10 +61,11 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 			securite=flt(zone_securite_mm) if zone_securite_mm not in (None, "") else flt(getattr(r, "zone_securite_mm", 3)))
 	except ValueError as e:
 		return {"erreur": str(e)}
-	from aquaworld_ia.emballage.composition import maquette_face
+	from aquaworld_ia.emballage.composition import zones_par_face
 
 	c = _contenu(contenu)
-	zones = {f["code"]: maquette_face(f, c) for f in plan["faces"] if f["imprimable"]}
+	brut = frappe.parse_json(contenu) if isinstance(contenu, str) else (contenu or {})
+	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")))
 	return {"feuille": plan["feuille"], "famille": plan["famille"], "dimensions": geometrie.DIMENSIONS_TYPE.get(plan["type"]),
 	        "svg": geometrie.apercu_svg(plan, zones=zones), "problemes": geometrie.verifier(plan),
 	        "faces": [{"code": f["code"], "libelle": f["libelle"], "w": f["w"], "h": f["h"],

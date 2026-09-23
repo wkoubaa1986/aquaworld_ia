@@ -23,7 +23,7 @@ CHAMPS_EDITABLES = (
 	"nom_produit", "marque", "logo", "photo_produit", "type_boite", "longueur_mm", "hauteur_mm",
 	"profondeur_mm", "fond_perdu_mm", "zone_securite_mm", "patte_collage_mm", "caracteristiques",
 	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "brief_style", "palette",
-	"nb_variantes",
+	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques",
 )
 CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "fond_perdu_mm", "zone_securite_mm",
                      "patte_collage_mm")
@@ -41,6 +41,7 @@ def _contenu_du_doc(doc) -> dict:
 		"contact": bool(premiere.get("contact") or (doc.contact or "").strip()),
 		"pictos": len(doc.pictogrammes or []),
 		"code_barres": doc.type_code_barres != "Aucun" and bool(doc.code_barres or doc.url_qr),
+		"faces_identiques": bool(doc.get("faces_identiques")),
 	}
 
 
@@ -68,10 +69,47 @@ def charger(design: str) -> dict:
 		"types": job.types_emballage(),
 		"langues": frappe.get_all("Aquaworld IA Langue", filters={"actif": 1}, fields=["code", "libelle", "rtl"],
 		                          order_by="code"),
-		"pictos": frappe.get_all("Aquaworld IA Pictogramme", filters={"actif": 1},
-		                         fields=["code", "libelle", "categorie", "image", "fichier"], order_by="categorie, code"),
+		"pictos": pictos_avec_vignette(),
 		"estimation": job.estimation_variantes(1),
 	}
+
+
+def url_pictogramme(p) -> str | None:
+	"""L'image à montrer pour un pictogramme : la sienne, sinon le SVG livré (servi en asset)."""
+	if p.get("image"):
+		return p["image"]
+	if p.get("fichier"):
+		return "/assets/aquaworld_ia/pictos/%s" % p["fichier"].split("/")[-1]
+	return None
+
+
+def pictos_avec_vignette() -> list:
+	out = frappe.get_all("Aquaworld IA Pictogramme", filters={"actif": 1},
+	                     fields=["code", "libelle", "categorie", "image", "fichier"], order_by="categorie, code")
+	for p in out:
+		p["url"] = url_pictogramme(p)
+	return out
+
+
+@frappe.whitelist()
+def ajouter_pictogramme(libelle: str, image: str, categorie: str = "Certification", taille_mm=12) -> dict:
+	"""Un pictogramme ou une certification ajouté DEPUIS le studio, image à l'appui (demande
+	utilisateur 23/09/2026). Le code se déduit du libellé et reste unique."""
+	frappe.only_for(("System Manager", "Item Manager", "Stock Manager", "Sales Manager"))
+	libelle = (libelle or "").strip()
+	if not libelle:
+		frappe.throw(_("Donnez un nom au pictogramme."))
+	if not image:
+		frappe.throw(_("Téléversez l'image du pictogramme."))
+	base = frappe.scrub(libelle)[:40] or "picto"
+	code, n = base, 2
+	while frappe.db.exists("Aquaworld IA Pictogramme", code):
+		code = "%s_%d" % (base, n)
+		n += 1
+	doc = frappe.get_doc({"doctype": "Aquaworld IA Pictogramme", "code": code, "libelle": libelle,
+	                      "categorie": categorie or "Certification", "image": image, "taille_mm": flt(taille_mm) or 12,
+	                      "actif": 1}).insert()
+	return {"code": doc.code, "libelle": doc.libelle, "url": image}
 
 
 @frappe.whitelist()

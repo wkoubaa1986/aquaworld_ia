@@ -125,7 +125,8 @@ class StudioEmballage {
 		const type = (this.data.types || []).find((t) => t.type === d.type_boite);
 		const dims = type ? type.dimensions : ["Largeur", "Hauteur", "Profondeur"];
 		const langues = (this.data.langues || []).map((l) => `<span class="c ${(d.langues || []).some((x) => x.langue === l.code) ? "on" : ""}" data-langue="${esc(l.code)}">${esc(l.libelle)}</span>`).join("");
-		const pictos = (this.data.pictos || []).map((p) => `<span class="c ${(d.pictogrammes || []).some((x) => x.pictogramme === p.code) ? "on" : ""}" data-picto="${esc(p.code)}" title="${esc(p.categorie || "")}">${esc(p.libelle)}</span>`).join("");
+		const pictos = (this.data.pictos || []).map((p) => `<span class="c pic ${(d.pictogrammes || []).some((x) => x.pictogramme === p.code) ? "on" : ""}" data-picto="${esc(p.code)}" title="${esc(p.categorie || "")}">${p.url ? `<img src="${esc(p.url)}" alt="">` : ""}${esc(p.libelle)}</span>`).join("")
+			+ `<span class="c ajout" data-ajouter-picto="1" title="${__("Ajouter un pictogramme ou une certification depuis une image")}">＋ ${__("Ajouter")}</span>`;
 		const fichier = (champ, libelle) => `
 			<label>${libelle}</label>
 			<div class="se-fichier">
@@ -177,6 +178,14 @@ class StudioEmballage {
 			<div class="se-etape" data-etape="3">
 				<div class="se-tete"><span class="num">3</span>${__("Style et variantes")}</div>
 				<div class="se-corps">
+					<label>${__("Fond de l'emballage")}</label>
+					<div class="se-3" style="grid-template-columns:auto 1fr;align-items:center">
+						<input type="color" data-champ="couleur_fond" value="${esc(d.couleur_fond || "#e5e7eb")}" style="width:44px;height:30px;padding:2px" title="${__("Couleur de fond")}">
+						<span class="small text-muted">${d.couleur_fond ? esc(d.couleur_fond) + ` <a href="#" data-effacer="couleur_fond">✕</a>` : __("Sans couleur choisie : la dominante du visuel IA.")}</span>
+					</div>
+					${fichier("image_fond", __("Image de fond (texture, motif)"))}
+					<label class="se-check"><input type="checkbox" data-champ="faces_identiques" ${d.faces_identiques ? "checked" : ""}> ${__("Face arrière identique à la face avant")}</label>
+					<p class="text-muted small" style="margin:2px 0 6px">${__("Avec une couleur ou une image de fond et la photo du produit, le plan se compose aussi SANS variante IA.")}</p>
 					<label>${__("Brief de style")}</label><textarea data-champ="brief_style" placeholder="${__("ex. haut de gamme, bleu profond, minimaliste")}">${esc(d.brief_style || "")}</textarea>
 					<div class="se-3" style="grid-template-columns:1.6fr 1fr">
 						<div><label>${__("Palette (hex)")}</label><input type="text" data-champ="palette" value="${esc(d.palette || "")}"></div>
@@ -194,7 +203,7 @@ class StudioEmballage {
 				<div class="se-tete"><span class="num">4</span>${__("Plan à plat et rendus")}</div>
 				<div class="se-corps">
 					<div class="se-btns">
-						<button class="btn btn-sm btn-primary" data-action="composer" ${d.variante_choisie ? "" : "disabled"}>${__("Composer le plan à plat")}</button>
+						<button class="btn btn-sm btn-primary" data-action="composer" ${d.variante_choisie || d.couleur_fond || d.image_fond ? "" : "disabled"}>${d.variante_choisie ? __("Composer le plan à plat") : __("Composer sans IA (fond + photo)")}</button>
 						<button class="btn btn-sm btn-default" data-action="faces" ${d.variante_choisie ? "" : "disabled"}>${__("Faces secondaires par IA · 5 images")}</button>
 						<button class="btn btn-sm btn-default" data-action="mockup" ${d.plan_a_plat ? "" : "disabled"}>${__("Aperçu 3D · 1 image")}</button>
 					</div>
@@ -232,9 +241,12 @@ class StudioEmballage {
 		const sauver = frappe.utils.debounce((champ, val) => this.modifier({ [champ]: val }, false), 500);
 		$g.find("[data-champ]").on("input change", (e) => {
 			const $i = $(e.currentTarget), champ = $i.attr("data-champ");
+			if ($i.is("input[type=checkbox]")) { if (e.type === "change") this.modifier({ [champ]: $i.is(":checked") ? 1 : 0 }, true); return; }
+			if ($i.is("input[type=color]")) { if (e.type === "change") this.modifier({ [champ]: $i.val() }, true); return; }
 			if (e.type === "change" || $i.is("textarea, input[type=text]")) sauver(champ, $i.val());
 			if (e.type === "input" && $i.is("input[type=number]")) sauver(champ, $i.val());
 		});
+		$g.find("[data-ajouter-picto]").on("click", () => this.ajouter_picto());
 		$g.find("[data-liste] .c").on("click", (e) => {
 			const $c = $(e.currentTarget), liste = $c.parent().attr("data-liste");
 			$c.toggleClass("on");
@@ -243,7 +255,7 @@ class StudioEmballage {
 			this.modifier({ [liste]: codes }, false);
 		});
 		$g.find("[data-televerser]").on("click", (e) => this.televerser($(e.currentTarget).attr("data-televerser")));
-		$g.find("[data-effacer]").on("click", (e) => this.modifier({ [$(e.currentTarget).attr("data-effacer")]: "" }, true));
+		$g.find("[data-effacer]").on("click", (e) => { e.preventDefault(); this.modifier({ [$(e.currentTarget).attr("data-effacer")]: "" }, true); });
 		$g.find("[data-action]").on("click", (e) => this.action($(e.currentTarget).attr("data-action")));
 	}
 
@@ -409,6 +421,29 @@ class StudioEmballage {
 					avertissements: (v[`ave_${c}`] || "").split("\n").filter(Boolean), contact: v[`con_${c}`] || "" }; });
 				await frappe.call({ method: "aquaworld_ia.emballage.textes.enregistrer_textes", args: { design: this.nom, textes: out } });
 				dlg.hide(); await this.recharger();
+			} });
+		dlg.show();
+	}
+
+	ajouter_picto() {
+		const dlg = new frappe.ui.Dialog({ title: __("Nouveau pictogramme ou certification"),
+			fields: [
+				{ fieldtype: "Data", fieldname: "libelle", label: __("Nom"), reqd: 1 },
+				{ fieldtype: "Select", fieldname: "categorie", label: __("Catégorie"), default: "Certification",
+				  options: ["Certification", "Réglementaire", "Manutention", "Recyclage", "Sécurité", "Autre"].join("\n") },
+				{ fieldtype: "Float", fieldname: "taille_mm", label: __("Taille sur l'emballage (mm)"), default: 12 },
+				{ fieldtype: "Attach", fieldname: "image", label: __("Image (PNG, JPEG ou SVG)"), reqd: 1,
+				  description: __("Un fond blanc uniforme devient transparent à l'impression.") },
+			],
+			primary_action_label: __("Ajouter et cocher"),
+			primary_action: async (v) => {
+				try {
+					const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.ajouter_pictogramme",
+						args: { libelle: v.libelle, categorie: v.categorie, image: v.image, taille_mm: v.taille_mm } });
+					dlg.hide();
+					const codes = (this.d.pictogrammes || []).map((x) => x.pictogramme).concat([r.message.code]);
+					await this.modifier({ pictogrammes: codes }, true);
+				} catch (e) { frappe.msgprint(this._msg(e)); }
 			} });
 		dlg.show();
 	}

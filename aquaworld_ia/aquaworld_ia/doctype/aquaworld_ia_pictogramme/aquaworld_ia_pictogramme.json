@@ -37,7 +37,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Catégorie",
-   "options": "Réglementaire\nManutention\nRecyclage\nSécurité"
+   "options": "Réglementaire\nCertification\nManutention\nRecyclage\nSécurité\nAutre"
   },
   {
    "fieldname": "cb_5",
@@ -48,7 +48,7 @@
    "fieldname": "fichier",
    "fieldtype": "Data",
    "label": "Fichier SVG (public/pictos/)",
-   "reqd": 1
+   "reqd": 0
   },
   {
    "description": "Votre propre pictogramme ou certificat scanné : il prime sur le fichier livré. Un fond blanc uniforme devient transparent.",
