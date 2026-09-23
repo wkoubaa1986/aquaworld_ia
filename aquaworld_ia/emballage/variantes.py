@@ -101,6 +101,48 @@ def generer(design: str, numeros=None, utilisateur: str | None = None) -> None:
 	etat.progresser(GENRE, design, "terminé", 100, EVENEMENT, utilisateur, fin=1)
 
 
+def generer_fond(design: str, utilisateur: str | None = None) -> None:
+	"""Un fond d'ambiance par IA (sans produit), posé en image de fond. En mode continu, le
+	panorama couvre la bande entière et sera découpé face par face à la composition. Puis le plan
+	se recompose de lui-même si une variante est choisie ou si l'on compose sans IA."""
+	doc = frappe.get_doc("Design Emballage", design)
+	try:
+		plan = plan_du_design(doc)
+		bande = geometrie.bande(plan) or geometrie.face(plan, "avant")
+		continu = bool(cint(doc.get("fond_continu")))
+		cible = bande if continu else geometrie.face(plan, "avant")
+		taille = geometrie.taille_image_pour(cible)
+		style = next(({"titre": v.titre, "description": v.description} for v in doc.variantes
+		              if v.numero == cint(doc.variante_choisie)), None)
+		prompt = prompts.prompt_fond(style, doc.nom_produit or doc.article, palette=doc.palette,
+		                             brief=doc.brief_style or "", famille=plan.get("famille"), continu=continu)
+		etat.progresser(GENRE, design, "génération du fond", 30, EVENEMENT, utilisateur)
+		qualite = qualite_image()
+		logo = url_logo(doc)
+		if logo:
+			png = images.editer(prompt, [("logo", fichiers.lire(logo))], taille=taille, qualite=qualite,
+			                    fonctionnalite="Emballage fond", doc=doc, fidelite=None)[0]
+		else:
+			png = images.generer(prompt, taille=taille, qualite=qualite, fonctionnalite="Emballage fond", doc=doc)[0]
+		fichier = save_file("%s-fond.png" % doc.name, png, "Design Emballage", doc.name, is_private=1)
+		frappe.db.set_value("Design Emballage", design, {"image_fond": fichier.file_url, "apercu_3d": None},
+		                    update_modified=False)
+		frappe.db.commit()
+		etat.progresser(GENRE, design, "recomposition du plan à plat", 90, EVENEMENT, utilisateur)
+		try:
+			from aquaworld_ia.emballage.composition import composer_et_attacher
+
+			composer_et_attacher(design, cint(doc.variante_choisie))
+		except Exception:
+			frappe.log_error(title="Aquaworld IA : recomposition après fond %s" % design, message=frappe.get_traceback())
+		etat.terminer(GENRE, design, "termine")
+	except Exception as e:
+		frappe.log_error(title="Aquaworld IA : fond %s" % design, message=frappe.get_traceback())
+		etat.terminer(GENRE, design, "echec", erreur=str(e)[:300])
+		frappe.db.commit()
+	etat.progresser(GENRE, design, "terminé", 100, EVENEMENT, utilisateur, fin=1)
+
+
 def generer_faces_secondaires(design: str, utilisateur: str | None = None) -> None:
 	doc = frappe.get_doc("Design Emballage", design)
 	v = next((x for x in doc.variantes if x.numero == cint(doc.variante_choisie) and x.image), None)

@@ -23,7 +23,7 @@ CHAMPS_EDITABLES = (
 	"nom_produit", "marque", "logo", "photo_produit", "type_boite", "longueur_mm", "hauteur_mm",
 	"profondeur_mm", "fond_perdu_mm", "zone_securite_mm", "patte_collage_mm", "caracteristiques",
 	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "brief_style", "palette",
-	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques",
+	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques", "fond_continu", "mise_en_page",
 )
 CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "fond_perdu_mm", "zone_securite_mm",
                      "patte_collage_mm")
@@ -42,6 +42,7 @@ def _contenu_du_doc(doc) -> dict:
 		"pictos": len(doc.pictogrammes or []),
 		"code_barres": doc.type_code_barres != "Aucun" and bool(doc.code_barres or doc.url_qr),
 		"faces_identiques": bool(doc.get("faces_identiques")),
+		"mise_en_page": doc.get("mise_en_page") or None,
 	}
 
 
@@ -123,6 +124,8 @@ def enregistrer(design: str, valeurs) -> dict:
 			val = v[champ]
 			if champ in CHAMPS_NUMERIQUES:
 				val = flt(val)
+			if champ == "mise_en_page" and not isinstance(val, str):
+				val = json.dumps(val, ensure_ascii=False) if val else None
 			doc.set(champ, val)
 	if "langues" in v:
 		doc.set("langues", [{"langue": c} for c in (v["langues"] or []) if c])
@@ -152,6 +155,59 @@ def nouveau(article: str | None = None) -> dict:
 			doc.logo = frappe.db.get_value("Brand", item.brand, "image")
 	doc.insert()
 	return {"name": doc.name}
+
+
+@frappe.whitelist()
+def zones_ajoutables() -> list:
+	from aquaworld_ia.emballage.composition import ZONES_AJOUTABLES
+
+	return [{"zone": z, "libelle": geometrie.ZONES_LIBELLES.get(z, z)} for z in ZONES_AJOUTABLES]
+
+
+@frappe.whitelist()
+def retoucher_logo(design: str, instruction: str) -> dict:
+	"""L'atelier logo (demande utilisateur 23/09/2026) : redessiner le logo par IA d'après le
+	logo actuel — changer ses couleurs, l'épurer — SANS le poser encore. Le résultat est un
+	candidat attaché à la fiche ; l'utilisateur compare et adopte, ou réessaie.
+
+	⚠️ L'IA redessine les LETTRES à sa façon : le candidat se relit lettre par lettre."""
+	from aquaworld_ia.emballage.variantes import url_logo
+	from aquaworld_ia.ia import fichiers, images
+	from aquaworld_ia.ia.client import qualite_image
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	source = url_logo(doc)
+	if not source:
+		frappe.throw(_("Attachez d'abord un logo."))
+	instruction = (instruction or "").strip()
+	if not instruction:
+		frappe.throw(_("Dites ce que vous voulez changer : couleurs, épuration, style…"))
+	prompt = (
+		"Redraw the logo given as the reference image as a clean, flat, vector-style logo on a PURE WHITE background, "
+		"centered, filling the frame, keeping its shapes, proportions and lettering EXACTLY as in the reference. "
+		"Apply only this change: %s. No background scene, no shadows, no extra elements, no extra text." % instruction)
+	png = images.editer(prompt, [("logo", fichiers.lire(source))], taille="1024x1024", qualite=qualite_image(),
+	                    fonctionnalite="Logo IA", doc=doc, fidelite="high")[0]
+	fichier = save_file("%s-logo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1)
+	return {"candidat": fichier.file_url, "source": source}
+
+
+@frappe.whitelist()
+def adopter_logo(design: str, url: str) -> dict:
+	"""Le candidat devient le logo : fond blanc rendu transparent, fichier propre attaché."""
+	from aquaworld_ia.emballage.composition import fond_blanc_en_transparence
+	from aquaworld_ia.ia import fichiers
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	png = fond_blanc_en_transparence(fichiers.lire(url))
+	fichier = save_file("%s-logo.png" % doc.name, png, "Design Emballage", doc.name, is_private=1)
+	doc.logo = fichier.file_url
+	doc.save()
+	return charger(design)
 
 
 @frappe.whitelist()

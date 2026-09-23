@@ -75,3 +75,28 @@ class TestPictosDuStudio(unittest.TestCase):
 	def test_les_nouveaux_champs_sont_editables(self):
 		for champ in ("couleur_fond", "image_fond", "faces_identiques"):
 			self.assertIn(champ, S.CHAMPS_EDITABLES)
+
+
+class TestMiseEnPagePersonnalisee(unittest.TestCase):
+	"""Déplacer, agrandir, supprimer, ajouter des zones — sans jamais sortir de la face."""
+
+	def test_une_face_absente_garde_sa_maquette(self):
+		auto = C.zones_par_face(PLAN, CONTENU)
+		perso = C.zones_par_face(PLAN, CONTENU, mise_en_page={"arriere": [{"zone": "logo", "x": 200, "y": 100, "w": 30, "h": 10}]})
+		self.assertEqual(perso["avant"], auto["avant"])
+		self.assertEqual([z["zone"] for z in perso["arriere"]], ["logo"])
+
+	def test_une_zone_ajoutee_hors_face_est_ramenee_dedans(self):
+		f = G.face(PLAN, "avant")
+		z = C.borner_zone({"zone": "photo", "x": -500, "y": -500, "w": 9999, "h": 9999}, f)
+		self.assertEqual((z["x"], z["y"], z["w"], z["h"]), (f["x"], f["y"], f["w"], f["h"]))
+		z = C.borner_zone({"zone": "nom", "x": f["x"] + f["w"] - 5, "y": f["y"], "w": 40, "h": 10}, f)
+		self.assertAlmostEqual(z["x"] + z["w"], f["x"] + f["w"], places=3)
+
+	def test_une_zone_inconnue_est_ignoree_et_une_supprimee_disparait(self):
+		perso = C.zones_par_face(PLAN, CONTENU, mise_en_page={"avant": [{"zone": "n_importe_quoi", "x": 1, "y": 1, "w": 5, "h": 5}]})
+		self.assertEqual(perso["avant"], [])
+
+	def test_la_photo_est_une_zone_ajoutable(self):
+		self.assertIn("photo", C.ZONES_AJOUTABLES)
+		self.assertIn("photo", G.ZONES_LIBELLES)

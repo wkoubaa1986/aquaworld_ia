@@ -75,6 +75,26 @@ def prompt_face_secondaire(style: dict, produit: str, face_code: str, palette=No
 	)
 
 
+def prompt_fond(style: dict | None, produit: str, palette=None, brief: str = "", famille: str | None = None,
+                continu: bool = True) -> str:
+	"""Un FOND d'ambiance seul — ni produit, ni objet : la photo du produit et les textes sont
+	posés par-dessus en vectoriel. En mode continu, une seule image panoramique fait le tour de
+	l'emballage et se découpe face par face : elle doit se lire d'un seul tenant, sans
+	composition centrée qui serait coupée par un pli."""
+	return (
+		"Abstract background artwork for the packaging (%s) of the product \"%s\": an atmosphere, not a scene. " % (
+			forme(famille), produit)
+		+ _style(style or {}, palette)
+		+ (" Client brief: %s." % brief.strip().rstrip(".") if brief and brief.strip() else "")
+		+ (" Wide seamless horizontal panorama that wraps around the package and reads continuously from left to "
+		   "right, with NO centered focal point and no framing; gentle variation only, so any vertical slice looks good. "
+		   if continu else " Even, balanced composition with no focal point. ")
+		+ "Soft gradients, subtle textures, low detail, calm areas suitable for typography and for a product photo "
+		"placed on top later. If a reference image is given it is the brand logo: match its colors and spirit but DO "
+		"NOT draw or reproduce it. No product, no objects, no people. " + clause_interdiction()
+	)
+
+
 NOMS_FACES = {"avant": "front panel", "arriere": "back panel", "cote_gauche": "left side panel",
               "cote_droit": "right side panel", "dessus": "top panel", "dessous": "bottom panel"}
 ORDINAUX = ("first", "second", "third", "fourth", "fifth", "sixth")

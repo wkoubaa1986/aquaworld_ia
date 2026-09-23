@@ -53,6 +53,7 @@ class StudioEmballage {
 			return;
 		}
 		this.d = this.data.doc;
+		this._lire_mep();
 		this.etape = this._etape_par_defaut();
 		this.onglet = this._onglet_par_defaut();
 		this.rendre();
@@ -61,14 +62,18 @@ class StudioEmballage {
 
 	async recharger() {
 		const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.charger", args: { design: this.nom } });
-		this.data = r.message; this.d = this.data.doc;
+		this.data = r.message; this.d = this.data.doc; this._lire_mep();
 		this.rendre();
+	}
+
+	_lire_mep() {
+		try { this.mep = JSON.parse(this.d.mise_en_page || "{}") || {}; } catch (e) { this.mep = {}; }
 	}
 
 	async enregistrer(valeurs) {
 		const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.enregistrer",
 			args: { design: this.nom, valeurs }, freeze: false });
-		this.data = r.message; this.d = this.data.doc;
+		this.data = r.message; this.d = this.data.doc; this._lire_mep();
 		this.rendre_scene(); this.rendre_droite(); this.rendre_barre(); this.rendre_etats_etapes();
 	}
 
@@ -133,6 +138,7 @@ class StudioEmballage {
 				${d[champ] ? `<img src="${esc(d[champ])}" alt="">` : `<span class="text-muted small">${__("aucun fichier")}</span>`}
 				<button class="btn btn-xs btn-default" data-televerser="${champ}">${d[champ] ? __("Remplacer") : __("Choisir un fichier")}</button>
 				${d[champ] ? `<button class="btn btn-xs btn-default" data-effacer="${champ}">✕</button>` : ""}
+				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_ia" title="${__("Changer les couleurs, épurer, moderniser — par IA, avant de le poser")}">✨ ${__("Retoucher par IA")}</button>` : ""}
 			</div>`;
 		const pretes = (d.variantes || []).filter((v) => v.statut === "Prête").length;
 		const a_generer = (d.variantes || []).filter((v) => ["À générer", "Échec"].includes(v.statut)).length;
@@ -184,6 +190,8 @@ class StudioEmballage {
 						<span class="small text-muted">${d.couleur_fond ? esc(d.couleur_fond) + ` <a href="#" data-effacer="couleur_fond">✕</a>` : __("Sans couleur choisie : la dominante du visuel IA.")}</span>
 					</div>
 					${fichier("image_fond", __("Image de fond (texture, motif)"))}
+					<div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${d.longueur_mm > 0 ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button></div>
+					<label class="se-check"><input type="checkbox" data-champ="fond_continu" ${d.fond_continu ? "checked" : ""}> ${__("Fond continu sur toutes les faces (panorama découpé aux plis)")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="faces_identiques" ${d.faces_identiques ? "checked" : ""}> ${__("Face arrière identique à la face avant")}</label>
 					<p class="text-muted small" style="margin:2px 0 6px">${__("Avec une couleur ou une image de fond et la photo du produit, le plan se compose aussi SANS variante IA.")}</p>
 					<label>${__("Brief de style")}</label><textarea data-champ="brief_style" placeholder="${__("ex. haut de gamme, bleu profond, minimaliste")}">${esc(d.brief_style || "")}</textarea>
@@ -313,7 +321,63 @@ class StudioEmballage {
 				if (this.epinglee === code) { this.epinglee = null; $s.find(".aqia-zones").hide(); this.face_info(null); return; }
 				this.epinglee = code; $(e.currentTarget).addClass("epinglee"); montrer(code);
 			});
-		if (this.epinglee && infos[this.epinglee]) { $s.find(`rect.aqia-face[data-face="${this.epinglee}"]`).addClass("epinglee"); montrer(this.epinglee); }
+		if (this.epinglee && infos[this.epinglee]) {
+			$s.find(`rect.aqia-face[data-face="${this.epinglee}"]`).addClass("epinglee");
+			montrer(this.epinglee);
+			this.editer_zones($s, infos[this.epinglee]);
+		}
+	}
+
+	// ─── éditeur de zones : déplacer, agrandir, supprimer, ajouter ──────────────
+	editer_zones($s, face) {
+		const svg = $s.find("svg.aqia-plan")[0];
+		if (!svg) return;
+		$s.find(`.aqia-zones[data-face="${face.code}"]`).hide();
+		const NS = "http://www.w3.org/2000/svg";
+		const W = svg.viewBox.baseVal.width, POIGNEE = Math.max(2.5, W / 90);
+		const g = document.createElementNS(NS, "g"); g.setAttribute("class", "se-edit"); svg.appendChild(g);
+		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle }));
+		const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); g.appendChild(n); return n; };
+		const point = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+		const sauver = () => { this.mep[face.code] = zones.map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h })); this.modifier({ mise_en_page: this.mep }, false); };
+		zones.forEach((z, i) => {
+			const r = el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, fill: "#f59e0b", "fill-opacity": "0.18", stroke: "#d97706", "stroke-width": W / 700, style: "cursor:move" });
+			const t = el("text", { x: z.x + W / 400, y: z.y + Math.max(2, Math.min(z.w, z.h) / 4), "font-size": Math.max(2, Math.min(Math.min(z.w, z.h) / 4, W / 70)), fill: "#92400e", "font-family": "sans-serif", style: "pointer-events:none" });
+			t.textContent = z.libelle || z.zone;
+			const p = el("rect", { x: z.x + z.w - POIGNEE, y: z.y + z.h - POIGNEE, width: POIGNEE, height: POIGNEE, fill: "#d97706", style: "cursor:nwse-resize" });
+			const x = el("text", { x: z.x + z.w - POIGNEE * 0.9, y: z.y + POIGNEE * 1.1, "font-size": POIGNEE * 1.3, fill: "#b91c1c", "font-family": "sans-serif", style: "cursor:pointer;font-weight:bold" });
+			x.textContent = "×"; x.addEventListener("click", (e) => { e.stopPropagation(); zones.splice(i, 1); sauver(); });
+			const glisser = (mode) => (e) => {
+				e.preventDefault(); e.stopPropagation();
+				const p0 = point(e), z0 = { ...z };
+				const bouger = (ev) => {
+					const q = point(ev), dx = q.x - p0.x, dy = q.y - p0.y;
+					if (mode === "move") { z.x = Math.min(Math.max(z0.x + dx, face.x), face.x + face.w - z.w); z.y = Math.min(Math.max(z0.y + dy, face.y), face.y + face.h - z.h); }
+					else { z.w = Math.max(3, Math.min(z0.w + dx, face.x + face.w - z.x)); z.h = Math.max(3, Math.min(z0.h + dy, face.y + face.h - z.y)); }
+					r.setAttribute("x", z.x); r.setAttribute("y", z.y); r.setAttribute("width", z.w); r.setAttribute("height", z.h);
+					p.setAttribute("x", z.x + z.w - POIGNEE); p.setAttribute("y", z.y + z.h - POIGNEE);
+					t.setAttribute("x", z.x + W / 400); t.setAttribute("y", z.y + Math.max(2, Math.min(z.w, z.h) / 4));
+					x.setAttribute("x", z.x + z.w - POIGNEE * 0.9); x.setAttribute("y", z.y + POIGNEE * 1.1);
+				};
+				const lacher = () => { document.removeEventListener("mousemove", bouger); document.removeEventListener("mouseup", lacher); if (z.x !== z0.x || z.y !== z0.y || z.w !== z0.w || z.h !== z0.h) sauver(); };
+				document.addEventListener("mousemove", bouger); document.addEventListener("mouseup", lacher);
+			};
+			r.addEventListener("mousedown", glisser("move")); p.addEventListener("mousedown", glisser("resize"));
+		});
+		this._zones_en_cours = { face, zones, sauver };
+	}
+
+	ajouter_zone(type) {
+		const c = this._zones_en_cours;
+		if (!c) return;
+		const f = c.face;
+		c.zones.push({ zone: type, x: f.x + f.w * 0.3, y: f.y + f.h * 0.4, w: f.w * 0.4, h: f.h * 0.15, libelle: type });
+		c.sauver();
+	}
+
+	reinitialiser_face(code) {
+		delete this.mep[code];
+		this.modifier({ mise_en_page: this.mep }, false);
 	}
 
 	scene_variantes($s) {
@@ -361,9 +425,19 @@ class StudioEmballage {
 		const $b = this.$root.find('[data-role="face"]');
 		if (!f) return $b.html(`<span class="text-muted">${__("Survolez une face du plan.")}</span>`);
 		const zones = (f.zones || []).map((z) => `<li>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span></li>`).join("");
-		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span></h6>
+		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
+		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
+		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}</h6>
 			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
-			${this.epinglee === f.code ? `<div class="text-muted small" style="margin-top:6px">${__("Épinglée — cliquez à nouveau pour libérer.")}</div>` : ""}`);
+			${this.epinglee === f.code ? `
+				<div class="small" style="margin-top:8px">${__("Sur le plan : glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer.")}</div>
+				<div style="display:flex;gap:4px;margin-top:6px"><select class="form-control input-xs" data-role="type-zone" style="height:26px;font-size:12px">${types.map((t) => `<option value="${t}">${libs[t]}</option>`).join("")}</select>
+					<button class="btn btn-xs btn-default" data-role="ajouter-zone">＋ ${__("Ajouter")}</button></div>
+				${f.personnalisee ? `<button class="btn btn-xs btn-default" style="margin-top:6px" data-role="reinit-face">${__("Revenir à la maquette automatique")}</button>` : ""}
+				<div class="text-muted small" style="margin-top:6px">${__("Cliquez à nouveau la face pour la libérer.")}</div>`
+			: `<div class="text-muted small" style="margin-top:6px">${__("Cliquez la face pour modifier ses zones.")}</div>`}`);
+		$b.find('[data-role="ajouter-zone"]').on("click", () => this.ajouter_zone($b.find('[data-role="type-zone"]').val()));
+		$b.find('[data-role="reinit-face"]').on("click", () => this.reinitialiser_face(f.code));
 	}
 
 	// ─── actions ────────────────────────────────────────────────────────────────
@@ -382,6 +456,14 @@ class StudioEmballage {
 				frappe.confirm(__("Générer {0} variante(s), qualité {1}, coût estimé <b>{2} $</b> (dépensé ce mois : {3} $) ?", [a_faire.length, e.qualite, (e.cout || 0).toFixed(2), (e.mois || 0).toFixed(2)]), async () => {
 					await frappe.call({ method: "aquaworld_ia.emballage.job.lancer_variantes", args: { design: this.nom, numeros: a_faire } });
 					this.onglet = "variantes"; this.rendre_scene(); this.suivre();
+				});
+			} else if (nom === "logo_ia") {
+				this.atelier_logo();
+			} else if (nom === "fond") {
+				const continu = this.$root.find('[data-champ="fond_continu"]').is(":checked") ? 1 : 0;
+				frappe.confirm(__("Générer un fond d'ambiance par IA (sans produit) à partir du brief et des couleurs du logo, {0} ? (1 image facturée, puis recomposition du plan)", [continu ? __("en panorama continu autour de l'emballage") : __("pour chaque face séparément")]), async () => {
+					await frappe.call({ method: "aquaworld_ia.emballage.job.lancer_fond", args: { design: this.nom, continu } });
+					this.onglet = "artwork"; this.rendre_scene(); this.suivre();
 				});
 			} else if (nom === "composer") {
 				const r = await frappe.call({ method: "aquaworld_ia.emballage.composition.composer_et_attacher",
@@ -421,6 +503,39 @@ class StudioEmballage {
 					avertissements: (v[`ave_${c}`] || "").split("\n").filter(Boolean), contact: v[`con_${c}`] || "" }; });
 				await frappe.call({ method: "aquaworld_ia.emballage.textes.enregistrer_textes", args: { design: this.nom, textes: out } });
 				dlg.hide(); await this.recharger();
+			} });
+		dlg.show();
+	}
+
+	atelier_logo() {
+		const est = this.data.estimation || {};
+		const dlg = new frappe.ui.Dialog({ title: __("Retoucher le logo par IA"),
+			fields: [
+				{ fieldtype: "HTML", options: `<img src="${this._esc(this.d.logo || "")}" style="max-height:90px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
+				{ fieldtype: "Small Text", fieldname: "instruction", label: __("Que changer ?"), reqd: 1,
+				  description: __("ex. « passer le bleu en bleu marine et le texte en blanc », « version épurée à plat », « fond blanc, sans dégradé ». Les formes et les lettres sont conservées, mais relisez-les : l'IA redessine.") },
+				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("1 image, qualité {0}, ≈ {1} $. Le résultat ne remplace pas le logo tant que vous ne l'adoptez pas.", [est.qualite || "", (est.cout || 0).toFixed(2)])}</p>` },
+			],
+			primary_action_label: __("Générer"),
+			primary_action: async (v) => {
+				let r;
+				try {
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_logo", args: { design: this.nom, instruction: v.instruction }, freeze: true, freeze_message: __("L'IA redessine le logo…") });
+				} catch (e) { frappe.msgprint(this._msg(e)); return; }
+				dlg.hide();
+				const c = r.message;
+				const cmp = new frappe.ui.Dialog({ title: __("Avant / après"), size: "large",
+					fields: [{ fieldtype: "HTML", options: `<div style="display:flex;gap:16px;align-items:flex-start">
+						<div style="flex:1;text-align:center"><div class="text-muted small">${__("Actuel")}</div><img src="${this._esc(c.source)}" style="max-width:100%;max-height:260px;background:#fff;border:1px solid #e5e7eb"></div>
+						<div style="flex:1;text-align:center"><div class="text-muted small">${__("Proposition IA")}</div><img src="${this._esc(c.candidat)}" style="max-width:100%;max-height:260px;background:#fff;border:1px solid #e5e7eb"></div></div>
+						<p class="small text-muted" style="margin-top:8px">${__("Vérifiez chaque lettre. En adoptant, le fond blanc devient transparent.")}</p>` }],
+					primary_action_label: __("Utiliser ce logo"),
+					primary_action: async () => {
+						const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_logo", args: { design: this.nom, url: c.candidat }, freeze: true });
+						cmp.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
+					},
+					secondary_action_label: __("Réessayer"), secondary_action: () => { cmp.hide(); this.atelier_logo(); } });
+				cmp.show();
 			} });
 		dlg.show();
 	}

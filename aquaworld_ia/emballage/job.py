@@ -65,10 +65,13 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 
 	c = _contenu(contenu)
 	brut = frappe.parse_json(contenu) if isinstance(contenu, str) else (contenu or {})
-	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")))
+	mep = brut.get("mise_en_page")
+	mep = frappe.parse_json(mep) if isinstance(mep, str) else mep
+	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")), mep or None)
 	return {"feuille": plan["feuille"], "famille": plan["famille"], "dimensions": geometrie.DIMENSIONS_TYPE.get(plan["type"]),
 	        "svg": geometrie.apercu_svg(plan, zones=zones), "problemes": geometrie.verifier(plan),
-	        "faces": [{"code": f["code"], "libelle": f["libelle"], "w": f["w"], "h": f["h"],
+	        "faces": [{"code": f["code"], "libelle": f["libelle"], "x": f["x"], "y": f["y"], "w": f["w"], "h": f["h"],
+	                   "personnalisee": bool(mep and f["code"] in mep),
 	                   "zones": [dict(z, libelle=geometrie.ZONES_LIBELLES.get(z["zone"], z["zone"])) for z in zones[f["code"]]]}
 	                  for f in plan["faces"] if f["imprimable"]]}
 
@@ -140,6 +143,23 @@ def lancer_faces(design: str) -> dict:
 	journal.verifier_plafond(couts.cout_variantes(5, qualite_image(), couts.tarifs_depuis_reglages(reglages())))
 	etat.demarrer(GENRE, design, tache="faces")
 	frappe.enqueue("aquaworld_ia.emballage.variantes.generer_faces_secondaires", queue="long", timeout=3600,
+	               job_id="aqia-emballage-%s" % design, deduplicate=True, design=design, utilisateur=frappe.session.user)
+	return etat.lire_etat(GENRE, design)
+
+
+@frappe.whitelist()
+def lancer_fond(design: str, continu=None) -> dict:
+	"""Un fond d'ambiance par IA (1 image). `continu` : le panorama qui fait le tour."""
+	doc = _doc(design)
+	if not (flt(doc.longueur_mm) > 0 and flt(doc.hauteur_mm) > 0 and flt(doc.profondeur_mm) > 0):
+		frappe.throw(_("Renseignez d'abord les dimensions."))
+	_verifier_libre(design)
+	if continu is not None:
+		frappe.db.set_value("Design Emballage", design, "fond_continu", cint(continu), update_modified=False)
+		frappe.db.commit()
+	journal.verifier_plafond(couts.cout_variantes(1, qualite_image(), couts.tarifs_depuis_reglages(reglages())))
+	etat.demarrer(GENRE, design, tache="fond")
+	frappe.enqueue("aquaworld_ia.emballage.variantes.generer_fond", queue="long", timeout=900,
 	               job_id="aqia-emballage-%s" % design, deduplicate=True, design=design, utilisateur=frappe.session.user)
 	return etat.lire_etat(GENRE, design)
 

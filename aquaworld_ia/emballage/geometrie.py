@@ -67,6 +67,7 @@ LIBELLES = {
 ZONES_LIBELLES = {
 	"logo": "Logo", "nom": "Nom du produit", "accroche": "Accroche", "caracteristiques": "Caractéristiques",
 	"avertissements": "Avertissements", "contact": "Contact", "pictos": "Pictogrammes", "code_barres": "Code-barres",
+	"photo": "Photo produit",
 }
 
 
@@ -257,6 +258,24 @@ def cadrage(face_w: float, face_h: float, img_w: int, img_h: int) -> tuple[int, 
 	h = int(round(img_w / cible))
 	y0 = (img_h - h) // 2
 	return (0, y0, img_w, y0 + h)
+
+
+def bande(plan: dict) -> dict | None:
+	"""La BANDE : les faces imprimables alignées sur la face avant (même y, même hauteur),
+	de gauche à droite — celles qui se suivent autour de l'objet et où un fond doit se
+	raccorder aux plis. {x, y, w, h, faces: [codes dans l'ordre]}. Pur.
+
+	Étui / caisse / sac / étiquette : côté G, avant, côté D, arrière (ou avant, côté, arrière,
+	côté). Doypack : avant, arrière. Le dessus et le dessous, hors bande, reçoivent le même
+	fond recadré : aucune continuité n'y est possible, il n'y a pas d'arête commune."""
+	avant = face(plan, "avant")
+	if not avant:
+		return None
+	faces = sorted((f for f in plan["faces"] if f["imprimable"] and abs(f["y"] - avant["y"]) < 0.01
+	                and abs(f["h"] - avant["h"]) < 0.01), key=lambda f: f["x"])
+	x0 = min(f["x"] for f in faces)
+	x1 = max(f["x"] + f["w"] for f in faces)
+	return {"x": round(x0, 3), "y": avant["y"], "w": round(x1 - x0, 3), "h": avant["h"], "faces": [f["code"] for f in faces]}
 
 
 def face(plan: dict, code: str) -> dict | None:

@@ -43,6 +43,8 @@
   "couleur_fond",
   "brief_style",
   "image_fond",
+  "fond_continu",
+  "mise_en_page",
   "faces_identiques",
   "palette",
   "nb_variantes",
@@ -270,6 +272,18 @@
    "fieldname": "image_fond",
    "fieldtype": "Attach Image",
    "label": "Image de fond"
+  },
+  {
+   "description": "L'image de fond est un panorama qui fait le tour : chaque face en reçoit la tranche située à sa place, le motif se poursuit aux plis.",
+   "fieldname": "fond_continu",
+   "fieldtype": "Check",
+   "label": "Fond continu sur toutes les faces"
+  },
+  {
+   "description": "Zones déplacées, agrandies, supprimées ou ajoutées dans le studio, face par face. Vide = maquette automatique.",
+   "fieldname": "mise_en_page",
+   "fieldtype": "JSON",
+   "label": "Mise en page personnalisée (JSON)"
   },
   {
    "description": "Le dos reprend le visuel et la maquette de l'avant ; l'EAN et les avertissements passent sur le côté droit.",

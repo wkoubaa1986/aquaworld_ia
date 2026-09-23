@@ -111,7 +111,36 @@ def maquette_face(face: dict, contenu: dict) -> list[dict]:
 	return zones
 
 
-def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False) -> dict:
+ZONES_AJOUTABLES = ("logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos",
+                    "code_barres", "photo")
+
+
+def borner_zone(zone: dict, face: dict) -> dict:
+	"""Une zone dessinée à la main reste DANS la face (jamais dans le fond perdu ni chez le
+	voisin) et garde une taille minimale. Pur."""
+	w = max(3.0, min(float(zone.get("w", 0)), face["w"]))
+	h = max(3.0, min(float(zone.get("h", 0)), face["h"]))
+	x = min(max(float(zone.get("x", face["x"])), face["x"]), face["x"] + face["w"] - w)
+	y = min(max(float(zone.get("y", face["y"])), face["y"]), face["y"] + face["h"] - h)
+	return {"zone": zone.get("zone"), "x": round(x, 3), "y": round(y, 3), "w": round(w, 3), "h": round(h, 3)}
+
+
+def appliquer_mise_en_page(zones: dict, plan: dict, mise_en_page: dict | None) -> dict:
+	"""Les zones dessinées par l'utilisateur REMPLACENT celles de la maquette, face par face
+	(demande utilisateur 23/09/2026 : agrandir, déplacer, supprimer, ajouter). Une face absente
+	de `mise_en_page` garde sa maquette. Pur."""
+	if not mise_en_page:
+		return zones
+	out = dict(zones)
+	for code, liste in mise_en_page.items():
+		f = geometrie.face(plan, code)
+		if not f or not f["imprimable"] or not isinstance(liste, list):
+			continue
+		out[code] = [borner_zone(z, f) for z in liste if z.get("zone") in ZONES_AJOUTABLES]
+	return out
+
+
+def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False, mise_en_page: dict | None = None) -> dict:
 	"""{code: zones} pour toutes les faces imprimables. Pur.
 
 	`faces_identiques` (demande utilisateur 23/09/2026 : « face avant et arrière la même ») : le
@@ -132,7 +161,7 @@ def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False) ->
 			c["code_barres_cote"] = contenu.get("code_barres")
 			c["avertissements_cote"] = contenu.get("avertissements")
 		out[f["code"]] = maquette_face(f, c)
-	return out
+	return appliquer_mise_en_page(out, plan, mise_en_page)
 
 
 def hero_photo_rect(face: dict) -> tuple:
@@ -213,6 +242,29 @@ def recadrer(png: bytes, face_w: float, face_h: float) -> bytes:
 	x0, y0, x1, y1 = geometrie.cadrage(face_w, face_h, im.width, im.height)
 	sortie = io.BytesIO()
 	im.crop((x0, y0, x1, y1)).save(sortie, format="JPEG", quality=92)
+	return sortie.getvalue()
+
+
+def boite_tranche(bande: dict, face_rect: tuple, img_w: int, img_h: int) -> tuple[int, int, int, int]:
+	"""La boîte (pixels) à découper dans le panorama pour UNE face : le panorama couvre la bande
+	(recadré « couvrant » sur son ratio), la face en prend la tranche située à sa place. Deux
+	faces voisines reçoivent deux tranches contiguës : le motif se poursuit au pli. Pur."""
+	x0, y0, x1, y1 = geometrie.cadrage(bande["w"], bande["h"], img_w, img_h)
+	k = (x1 - x0) / bande["w"]
+	fx, fy, fw, fh = face_rect
+	bx0 = x0 + (fx - bande["x"]) * k
+	by0 = y0 + (fy - bande["y"]) * k
+	return (int(round(bx0)), int(round(by0)), int(round(bx0 + fw * k)), int(round(by0 + fh * k)))
+
+
+def tranche_panorama(png: bytes, bande: dict, face_rect: tuple) -> bytes:
+	from PIL import Image
+
+	im = Image.open(io.BytesIO(png)).convert("RGB")
+	boite = boite_tranche(bande, face_rect, im.width, im.height)
+	boite = (max(0, boite[0]), max(0, boite[1]), min(im.width, boite[2]), min(im.height, boite[3]))
+	sortie = io.BytesIO()
+	im.crop(boite).save(sortie, format="JPEG", quality=92)
 	return sortie.getvalue()
 
 
@@ -408,8 +460,23 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	page = pdf.new_page(width=W, height=H)
 
 	identiques = bool(cint(doc.get("faces_identiques")))
+	image_fond_url = doc.get("image_fond")
+	# ⚠️ LE FOND CONTINU REMPLACE LES VISUELS IA DES FACES : c'est tout son sens — un seul motif
+	# qui fait le tour. La variante IA (scène avec le produit) reste disponible en décochant
+	# « fond continu » ; ici la photo du produit devient le héros posé sur le fond.
+	continu = bool(cint(doc.get("fond_continu"))) and bool(image_fond_url)
+	if continu:
+		variante = None
+	bande = geometrie.bande(plan) if continu else None
+	# En mode continu, la bande est prise AVEC son fond perdu : les tranches tuilent exactement
+	# les rectangles peints, et le motif déborde en coupe comme il se doit.
+	if bande:
+		rects = [rect_avec_fond_perdu(f, plan) for f in plan["faces"] if f["code"] in bande["faces"]]
+		bx0, by0 = min(r[0] for r in rects), min(r[1] for r in rects)
+		bx1, by1 = max(r[0] + r[2] for r in rects), max(r[1] + r[3] for r in rects)
+		bande = dict(bande, x=bx0, y=by0, w=bx1 - bx0, h=by1 - by0)
 	visuel_avant = fichiers.lire(variante.image) if (variante is not None and variante.image) else None
-	image_fond = fichiers.lire(doc.image_fond) if doc.get("image_fond") else None
+	image_fond = fichiers.lire(image_fond_url) if image_fond_url else None
 	# Le fond : la couleur CHOISIE d'abord (demande utilisateur 23/09/2026 : « le background,
 	# comment je le fais ? »), sinon la dominante du visuel IA, sinon celle de l'image de fond.
 	dominantes = (couleurs_dominantes(visuel_avant) if visuel_avant
@@ -454,6 +521,9 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			x0, y0, x1, y1 = geometrie.cadrage(r[2], r[3], im.width, im.height)
 			dpi[face["code"]] = geometrie.dpi_effectif(x1 - x0, r[2])
 			poser_image(page, _rect_pt(*r), recadrer(visuel, r[2], r[3]), garder_proportions=False)
+		elif image_fond and bande and face["code"] in bande["faces"]:
+			# Fond continu : la tranche du panorama située à la place de cette face.
+			poser_image(page, _rect_pt(*r), tranche_panorama(image_fond, bande, r), garder_proportions=False)
 		elif image_fond:
 			# L'image de fond choisie couvre la face entière (recadrée, jamais déformée).
 			poser_image(page, _rect_pt(*r), recadrer(image_fond, r[2], r[3]), garder_proportions=False)
@@ -461,7 +531,8 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			hb = min(r[3] * 0.3, 40.0)
 			poser_image(page, _rect_pt(r[0], r[1], r[2], hb), recadrer(bandeau(visuel_avant), r[2], hb), garder_proportions=False)
 	# Sans visuel IA, la photo du produit est le héros de la face avant (et du dos miroir).
-	if photo_hero:
+	mep_brut = frappe.parse_json(doc.get("mise_en_page")) if doc.get("mise_en_page") else {}
+	if photo_hero and not any(z.get("zone") == "photo" for l in (mep_brut or {}).values() if isinstance(l, list) for z in l):
 		for f in plan["faces"]:
 			if f["code"] == "avant" or (identiques and f["code"] == "arriere" and "cote_droit" in {x["code"] for x in plan["faces"] if x["imprimable"]}):
 				poser_image(page, _rect_pt(*hero_photo_rect(f)), photo_hero, garder_proportions=True)
@@ -482,13 +553,23 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		"avertissements": bool(textes), "contact": bool(textes), "pictos": len(pictos_svg),
 		"code_barres": geometrie.EAN_NOMINAL_MM if (ean or qr) else None,
 	}
-	zones = zones_par_face(plan, contenu, identiques)
+	mise_en_page = frappe.parse_json(doc.get("mise_en_page")) if doc.get("mise_en_page") else None
+	zones = zones_par_face(plan, contenu, identiques, mise_en_page)
+	photo_zone = None
+	if any(z["zone"] == "photo" for liste in zones.values() for z in liste):
+		try:
+			photo_zone = fond_blanc_en_transparence(fichiers.lire(photo_url)) if photo_url else None
+		except Exception:
+			photo_zone = fichiers.lire(photo_url) if photo_url else None
 	for face in plan["faces"]:
 		if not face["imprimable"]:
 			continue
 		for z in zones[face["code"]]:
 			rect = _rect_pt(z["x"], z["y"], z["w"], z["h"])
-			if z["zone"] == "logo" and logo:
+			if z["zone"] == "photo":
+				if photo_zone:
+					poser_image(page, rect, photo_zone, garder_proportions=True)
+			elif z["zone"] == "logo" and logo:
 				poser_logo(page, rect, logo)
 			elif z["zone"] == "nom":
 				taille = taille_nom(MM(z["w"]), MM(z["h"]), nom_produit)
@@ -498,7 +579,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				base = {"accroche": 11.0, "caracteristiques": 8.5, "avertissements": 7.0, "contact": 7.0}[z["zone"]]
 				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_texte)
 				if contenu_html:
-					panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels)
+					panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels or bool(image_fond))
 					if panneau:
 						m = MM(CARTOUCHE_MARGE_MM)
 						h_texte = hauteur_texte(rect, contenu_html, archive, css)
