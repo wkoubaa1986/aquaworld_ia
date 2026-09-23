@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 0,
+ "autoname": "EMB-.YYYY.-.####",
  "creation": "2026-09-22 14:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -57,32 +58,34 @@
   {
    "fieldname": "article",
    "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Article",
    "options": "Item",
-   "reqd": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1
+   "reqd": 1
   },
   {
-   "fieldname": "nom_produit",
-   "fieldtype": "Data",
-   "label": "Nom du produit",
    "fetch_from": "article.item_name",
    "fetch_if_empty": 1,
-   "in_list_view": 1
+   "fieldname": "nom_produit",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Nom du produit"
   },
   {
+   "description": "Facultatif : sert seulement à pré-remplir le logo depuis la fiche Marque.",
+   "fetch_from": "article.brand",
+   "fetch_if_empty": 1,
    "fieldname": "marque",
    "fieldtype": "Link",
    "label": "Marque",
-   "options": "Brand",
-   "fetch_from": "article.brand",
-   "fetch_if_empty": 1
+   "options": "Brand"
   },
   {
+   "description": "Posé tel quel sur l'emballage. Un fond blanc uniforme devient transparent. Le SVG reste net à toute taille.",
    "fieldname": "logo",
    "fieldtype": "Attach",
-   "label": "Logo (SVG recommandé)"
+   "label": "Logo (photo PNG/JPEG ou SVG)"
   },
   {
    "fieldname": "photo_produit",
@@ -94,14 +97,14 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "Brouillon",
    "fieldname": "statut",
    "fieldtype": "Select",
-   "label": "Statut",
-   "default": "Brouillon",
-   "read_only": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "options": "Brouillon\nTextes prêts\nVariantes en cours\nVariantes prêtes\nPlan prêt\nÉchec"
+   "label": "Statut",
+   "options": "Brouillon\nTextes prêts\nVariantes en cours\nVariantes prêtes\nPlan prêt\nÉchec",
+   "read_only": 1
   },
   {
    "fieldname": "variante_choisie",
@@ -121,11 +124,11 @@
    "label": "Dimensions (mm)"
   },
   {
+   "default": "Étui à rabats",
    "fieldname": "type_boite",
    "fieldtype": "Select",
-   "label": "Type de boîte",
-   "options": "Étui à rabats\nCaisse américaine",
-   "default": "Étui à rabats",
+   "label": "Type d'emballage",
+   "options": "Étui à rabats\nCaisse américaine\nSac à soufflets latéraux\nSachet doypack (fond plat)\nÉtiquette enveloppante",
    "reqd": 1
   },
   {
@@ -143,7 +146,7 @@
   {
    "fieldname": "profondeur_mm",
    "fieldtype": "Float",
-   "label": "Profondeur / largeur des côtés (mm)",
+   "label": "Profondeur / soufflet / côtés (mm)",
    "reqd": 1
   },
   {
@@ -151,22 +154,22 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "3",
    "fieldname": "fond_perdu_mm",
    "fieldtype": "Float",
-   "label": "Fond perdu (mm)",
-   "default": "3"
+   "label": "Fond perdu (mm)"
   },
   {
+   "default": "3",
    "fieldname": "zone_securite_mm",
    "fieldtype": "Float",
-   "label": "Zone de sécurité (mm)",
-   "default": "3"
+   "label": "Zone de sécurité (mm)"
   },
   {
+   "default": "15",
    "fieldname": "patte_collage_mm",
    "fieldtype": "Float",
-   "label": "Patte de collage (mm)",
-   "default": "15"
+   "label": "Patte de collage (mm)"
   },
   {
    "fieldname": "sb_aper_u_du_plan_11",
@@ -184,10 +187,10 @@
    "label": "Contenus"
   },
   {
+   "description": "L'IA les reformule sans en inventer.",
    "fieldname": "caracteristiques",
    "fieldtype": "Small Text",
-   "label": "Caractéristiques (une par ligne)",
-   "description": "L'IA les reformule sans en inventer."
+   "label": "Caractéristiques (une par ligne)"
   },
   {
    "fieldname": "avertissements",
@@ -216,11 +219,11 @@
    "options": "Design Emballage Pictogramme"
   },
   {
+   "default": "EAN-13",
    "fieldname": "type_code_barres",
    "fieldtype": "Select",
    "label": "Code-barres",
-   "options": "EAN-13\nQR\nEAN-13 + QR\nAucun",
-   "default": "EAN-13"
+   "options": "EAN-13\nQR\nEAN-13 + QR\nAucun"
   },
   {
    "fieldname": "code_barres",
@@ -245,8 +248,8 @@
   {
    "fieldname": "textes_ia",
    "fieldtype": "JSON",
-   "label": "Textes IA (JSON)",
-   "hidden": 1
+   "hidden": 1,
+   "label": "Textes IA (JSON)"
   },
   {
    "fieldname": "sb_style_14",
@@ -254,10 +257,10 @@
    "label": "Style"
   },
   {
+   "description": "Ambiance, couleurs, cible, références.",
    "fieldname": "brief_style",
    "fieldtype": "Small Text",
-   "label": "Brief de style",
-   "description": "Ambiance, couleurs, cible, références."
+   "label": "Brief de style"
   },
   {
    "fieldname": "palette",
@@ -265,10 +268,10 @@
    "label": "Palette (hex, séparés par des virgules)"
   },
   {
+   "default": "3",
    "fieldname": "nb_variantes",
    "fieldtype": "Int",
-   "label": "Nombre de variantes",
-   "default": "3"
+   "label": "Nombre de variantes"
   },
   {
    "fieldname": "sb_variantes_15",
@@ -314,10 +317,10 @@
    "read_only": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "sb_journal_17",
    "fieldtype": "Section Break",
-   "label": "Journal",
-   "collapsible": 1
+   "label": "Journal"
   },
   {
    "fieldname": "journal",
@@ -327,69 +330,68 @@
   }
  ],
  "index_web_pages_for_search": 1,
+ "issingle": 0,
+ "istable": 0,
  "links": [],
  "modified": "2026-09-22 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Design Emballage",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "System Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Item Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Stock Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
-   "role": "Sales Manager",
-   "read": 1,
-   "print": 1,
+   "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
+   "print": 1,
+   "read": 1,
    "report": 1,
+   "role": "Sales Manager",
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "istable": 0,
- "issingle": 0,
- "track_changes": 1,
- "autoname": "EMB-.YYYY.-.####",
- "naming_rule": "Expression (old style)",
- "title_field": "nom_produit"
+ "title_field": "nom_produit",
+ "track_changes": 1
 }

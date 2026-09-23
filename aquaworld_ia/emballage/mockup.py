@@ -36,7 +36,8 @@ def generer_apercu_3d(design: str, utilisateur: str | None = None) -> None:
 		etat.progresser(GENRE, design, "rendu des faces", 20, EVENEMENT, utilisateur)
 		refs = faces_rendues(fichiers.lire(doc.plan_a_plat), plan)
 		etat.progresser(GENRE, design, "génération du rendu 3D", 50, EVENEMENT, utilisateur)
-		png = images.editer(prompts.prompt_mockup(doc.nom_produit or doc.article), refs, taille="1024x1024",
+		png = images.editer(prompts.prompt_mockup(doc.nom_produit or doc.article, famille=plan.get("famille"),
+		                                          references=[code for code, _png in refs]), refs, taille="1024x1024",
 		                    qualite=qualite_image(), fonctionnalite="Mockup 3D", doc=doc, fidelite="high")[0]
 		fichier = save_file("%s-apercu-3d.png" % doc.name, png, "Design Emballage", doc.name, is_private=1)
 		frappe.db.set_value("Design Emballage", design, "apercu_3d", fichier.file_url, update_modified=False)

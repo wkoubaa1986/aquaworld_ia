@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 0,
+ "autoname": "field:code",
  "creation": "2026-09-22 14:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -12,42 +13,43 @@
   "actif",
   "rtl",
   "police",
+  "police_fichier",
   "sb_consignes_4",
   "instructions"
  ],
  "fields": [
   {
+   "description": "fr, ar, de…",
    "fieldname": "code",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Code (ISO)",
    "reqd": 1,
-   "unique": 1,
-   "in_list_view": 1,
-   "description": "fr, ar, de…"
+   "unique": 1
   },
   {
    "fieldname": "libelle",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Libellé",
-   "reqd": 1,
-   "in_list_view": 1
+   "reqd": 1
   },
   {
    "fieldname": "libelle_natif",
    "fieldtype": "Data",
-   "label": "Libellé natif",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "label": "Libellé natif"
   },
   {
    "fieldname": "cb_4",
    "fieldtype": "Column Break"
   },
   {
+   "default": "1",
    "fieldname": "actif",
    "fieldtype": "Check",
-   "label": "Actif",
-   "default": "1",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "label": "Actif"
   },
   {
    "fieldname": "rtl",
@@ -55,11 +57,17 @@
    "label": "Écriture de droite à gauche (RTL)"
   },
   {
+   "default": "Noto Sans",
    "fieldname": "police",
    "fieldtype": "Select",
    "label": "Police",
-   "options": "Noto Sans\nNoto Naskh Arabic",
-   "default": "Noto Sans"
+   "options": "Noto Sans\nNoto Naskh Arabic"
+  },
+  {
+   "description": "Remplace la police choisie ci-dessus pour cette langue, sur l'emballage et dans les manuels. Elle doit couvrir l'alphabet de la langue.",
+   "fieldname": "police_fichier",
+   "fieldtype": "Attach",
+   "label": "Police personnalisée (TTF/OTF)"
   },
   {
    "fieldname": "sb_consignes_4",
@@ -73,69 +81,68 @@
   }
  ],
  "index_web_pages_for_search": 1,
+ "issingle": 0,
+ "istable": 0,
  "links": [],
  "modified": "2026-09-22 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Aquaworld IA Langue",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "System Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Item Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Stock Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
-   "role": "Sales Manager",
-   "read": 1,
-   "print": 1,
+   "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
+   "print": 1,
+   "read": 1,
    "report": 1,
+   "role": "Sales Manager",
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "istable": 0,
- "issingle": 0,
- "track_changes": 1,
- "autoname": "field:code",
- "naming_rule": "By fieldname",
- "title_field": "libelle"
+ "title_field": "libelle",
+ "track_changes": 1
 }

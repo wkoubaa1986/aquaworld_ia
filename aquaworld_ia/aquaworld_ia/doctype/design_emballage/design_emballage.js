@@ -94,19 +94,115 @@ frappe.ui.form.on("Design Emballage", {
 	},
 });
 
+// ─── Aperçu interactif du plan ───────────────────────────────────────────────────────────
+// Sélecteur visuel de la forme (vignettes), survol d'une face = ses emplacements (logo, nom,
+// EAN…), clic = la face reste épinglée avec ses dimensions et sa liste de zones.
+function aqia_emb_types(frm) {
+	if (frm._aqia_types) return Promise.resolve(frm._aqia_types);
+	return frappe.call({ method: "aquaworld_ia.emballage.job.types_emballage" }).then((r) => {
+		frm._aqia_types = r.message || [];
+		return frm._aqia_types;
+	});
+}
+
+function aqia_emb_contenu(frm) {
+	const d = frm.doc;
+	let textes = null;
+	try { textes = d.textes_ia ? JSON.parse(d.textes_ia) : null; } catch (e) { textes = null; }
+	const premiere = textes ? textes[Object.keys(textes)[0]] || {} : {};
+	return {
+		logo: !!(d.logo || d.marque),
+		textes: !!(premiere.accroche),
+		caracteristiques: !!((premiere.caracteristiques || []).length || (d.caracteristiques || "").trim()),
+		avertissements: !!((premiere.avertissements || []).length || (d.avertissements || "").trim()),
+		contact: !!(premiere.contact || (d.contact || "").trim()),
+		pictos: (d.pictogrammes || []).length,
+		code_barres: d.type_code_barres !== "Aucun" && !!(d.code_barres || d.url_qr),
+	};
+}
+
 function aqia_emb_apercu(frm) {
 	const d = frm.doc;
 	const w = frm.fields_dict.format_html && frm.fields_dict.format_html.$wrapper;
 	if (!w) return;
-	if (!(d.longueur_mm > 0 && d.hauteur_mm > 0 && d.profondeur_mm > 0)) { w.html(`<p class="text-muted">${__("Saisissez les trois dimensions pour voir le plan.")}</p>`); return; }
-	frappe.call({ method: "aquaworld_ia.emballage.job.apercu", args: {
-		type_boite: d.type_boite, longueur_mm: d.longueur_mm, hauteur_mm: d.hauteur_mm, profondeur_mm: d.profondeur_mm,
-		patte_collage_mm: d.patte_collage_mm, fond_perdu_mm: d.fond_perdu_mm, zone_securite_mm: d.zone_securite_mm } })
-		.then((r) => {
-			const m = r.message || {};
-			if (m.erreur) { w.html(`<p class="text-danger">${frappe.utils.escape_html(m.erreur)}</p>`); return; }
-			const pb = (m.problemes || []).length ? `<p class="text-danger">⛔ ${m.problemes.map(frappe.utils.escape_html).join(" · ")}</p>` : "";
-			w.html(`<p class="text-muted">${__("Feuille : <b>{0} × {1} mm</b> (fond perdu inclus). Bleu = faces imprimables, rouge = coupe, pointillé = pli.", [m.feuille.w, m.feuille.h])}</p>${pb}${m.svg}`);
+	aqia_emb_types(frm).then((types) => {
+		const cartes = types.map((t) => `
+			<div class="aqia-type${t.type === d.type_boite ? " active" : ""}" data-type="${frappe.utils.escape_html(t.type)}" title="${frappe.utils.escape_html(t.description)}">
+				<div class="aqia-type-svg">${t.svg}</div>
+				<div class="aqia-type-nom">${frappe.utils.escape_html(t.type)}</div>
+			</div>`).join("");
+		const actuel = types.find((t) => t.type === d.type_boite);
+		const dims = actuel ? `<p class="text-muted small">${__("Ici : <b>L</b> = {0} · <b>H</b> = {1} · <b>P</b> = {2}.", actuel.dimensions.map(frappe.utils.escape_html))}</p>` : "";
+		const entete = `<style>
+			.aqia-types{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+			.aqia-type{flex:0 0 132px;border:1px solid var(--border-color,#ddd);border-radius:8px;padding:6px;cursor:pointer;text-align:center;background:var(--card-bg,#fff)}
+			.aqia-type:hover{border-color:#2563eb}
+			.aqia-type.active{border:2px solid #2563eb;background:#eff6ff}
+			.aqia-type-svg svg{width:100%;height:64px}
+			.aqia-type-nom{font-size:11px;margin-top:4px;line-height:1.2}
+			.aqia-plan-wrap{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+			.aqia-plan-svg{flex:1 1 380px;min-width:0}
+			.aqia-plan rect.aqia-face.imprimable{cursor:pointer;transition:fill .12s}
+			.aqia-plan rect.aqia-face.imprimable:hover, .aqia-plan rect.aqia-face.epinglee{fill:#93c5fd}
+			.aqia-face-info{flex:0 0 240px;border:1px solid var(--border-color,#ddd);border-radius:8px;padding:10px;font-size:12px;min-height:60px}
+			.aqia-face-info h6{margin:0 0 6px;font-size:13px}
+			.aqia-face-info ul{padding-left:16px;margin:0}
+		</style>
+		<div class="aqia-types">${cartes}</div>${dims}`;
+		if (!(d.longueur_mm > 0 && d.hauteur_mm > 0 && d.profondeur_mm > 0)) {
+			w.html(entete + `<p class="text-muted">${__("Saisissez les trois dimensions pour voir le plan.")}</p>`);
+			aqia_emb_lier_types(frm, w);
+			return;
+		}
+		frappe.call({ method: "aquaworld_ia.emballage.job.apercu", args: {
+			type_boite: d.type_boite, longueur_mm: d.longueur_mm, hauteur_mm: d.hauteur_mm, profondeur_mm: d.profondeur_mm,
+			patte_collage_mm: d.patte_collage_mm, fond_perdu_mm: d.fond_perdu_mm, zone_securite_mm: d.zone_securite_mm,
+			contenu: aqia_emb_contenu(frm) } })
+			.then((r) => {
+				const m = r.message || {};
+				if (m.erreur) { w.html(entete + `<p class="text-danger">${frappe.utils.escape_html(m.erreur)}</p>`); aqia_emb_lier_types(frm, w); return; }
+				const pb = (m.problemes || []).length ? `<p class="text-danger">⛔ ${m.problemes.map(frappe.utils.escape_html).join(" · ")}</p>` : "";
+				w.html(entete + `<p class="text-muted">${__("Feuille : <b>{0} × {1} mm</b> (fond perdu inclus). Bleu = faces imprimables, rouge = coupe, pointillé = pli. Survolez une face pour voir ses emplacements, cliquez pour l'épingler.", [m.feuille.w, m.feuille.h])}</p>${pb}
+					<div class="aqia-plan-wrap"><div class="aqia-plan-svg">${m.svg}</div>
+					<div class="aqia-face-info"><span class="text-muted">${__("Survolez une face du plan.")}</span></div></div>`);
+				aqia_emb_lier_types(frm, w);
+				aqia_emb_lier_faces(frm, w, m.faces || []);
+			});
+	});
+}
+
+function aqia_emb_lier_types(frm, w) {
+	w.find(".aqia-type").on("click", function () {
+		const t = $(this).attr("data-type");
+		if (t && t !== frm.doc.type_boite) frm.set_value("type_boite", t);
+	});
+}
+
+function aqia_emb_lier_faces(frm, w, faces) {
+	const infos = {};
+	faces.forEach((f) => { infos[f.code] = f; });
+	const $info = w.find(".aqia-face-info");
+	let epinglee = null;
+	const montrer = (code) => {
+		w.find(".aqia-zones").hide();
+		w.find(`.aqia-zones[data-face="${code}"]`).show();
+		const f = infos[code];
+		if (!f) return;
+		const zones = (f.zones || []).map((z) => `<li>${frappe.utils.escape_html(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span></li>`).join("");
+		$info.html(`<h6>${frappe.utils.escape_html(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span></h6>
+			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
+			${epinglee === code ? `<div class="text-muted small" style="margin-top:6px">${__("Épinglée — cliquez à nouveau pour libérer.")}</div>` : ""}`);
+	};
+	w.find("rect.aqia-face.imprimable")
+		.on("mouseenter", function () { if (!epinglee) montrer($(this).attr("data-face")); })
+		.on("mouseleave", function () { if (!epinglee) { w.find(".aqia-zones").hide(); } })
+		.on("click", function () {
+			const code = $(this).attr("data-face");
+			w.find("rect.aqia-face").removeClass("epinglee");
+			if (epinglee === code) { epinglee = null; w.find(".aqia-zones").hide(); $info.html(`<span class="text-muted">${__("Survolez une face du plan.")}</span>`); return; }
+			epinglee = code;
+			$(this).addClass("epinglee");
+			montrer(code);
 		});
 }
 

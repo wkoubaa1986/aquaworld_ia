@@ -24,9 +24,34 @@ def _verifier_libre(design: str) -> None:
 		frappe.throw(_("Un traitement est déjà en cours pour cette fiche."))
 
 
+def _contenu(contenu) -> dict:
+	"""Les drapeaux de contenu envoyés par la fiche -> le `contenu` de maquette_face."""
+	c = frappe.parse_json(contenu) if isinstance(contenu, str) else (contenu or {})
+	return {
+		"logo": bool(c.get("logo")), "nom": True, "accroche": bool(c.get("textes")),
+		"caracteristiques": bool(c.get("caracteristiques")), "avertissements": bool(c.get("avertissements")),
+		"contact": bool(c.get("contact")), "pictos": cint(c.get("pictos")),
+		"code_barres": geometrie.EAN_NOMINAL_MM if c.get("code_barres") else None,
+	}
+
+
 @frappe.whitelist()
-def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=None, fond_perdu_mm=None, zone_securite_mm=None) -> dict:
-	"""Le plan (feuille, faces, SVG) pour la fiche — recalculé à chaque changement de dimension."""
+def types_emballage() -> list:
+	"""Les formes disponibles, chacune avec sa vignette — le sélecteur visuel de la fiche."""
+	out = []
+	for t in geometrie.TYPES:
+		L, H, P = geometrie.DIMENSIONS_EXEMPLE[t]
+		plan = geometrie.plan_a_plat(t, L, H, P)
+		out.append({"type": t, "famille": plan["famille"], "description": geometrie.DESCRIPTIONS[t],
+		            "dimensions": geometrie.DIMENSIONS_TYPE[t], "svg": geometrie.apercu_svg(plan, 180, compact=True)})
+	return out
+
+
+@frappe.whitelist()
+def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=None, fond_perdu_mm=None,
+           zone_securite_mm=None, contenu=None) -> dict:
+	"""Le plan (feuille, faces, SVG) pour la fiche — recalculé à chaque changement de dimension.
+	Avec `contenu`, chaque face imprimable rend aussi ses zones (logo, nom, EAN…) pour le survol."""
 	r = reglages()
 	try:
 		plan = geometrie.plan_a_plat(
@@ -36,8 +61,15 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 			securite=flt(zone_securite_mm) if zone_securite_mm not in (None, "") else flt(getattr(r, "zone_securite_mm", 3)))
 	except ValueError as e:
 		return {"erreur": str(e)}
-	return {"feuille": plan["feuille"], "svg": geometrie.apercu_svg(plan), "problemes": geometrie.verifier(plan),
-	        "faces": [{"code": f["code"], "libelle": f["libelle"], "w": f["w"], "h": f["h"]} for f in plan["faces"] if f["imprimable"]]}
+	from aquaworld_ia.emballage.composition import maquette_face
+
+	c = _contenu(contenu)
+	zones = {f["code"]: maquette_face(f, c) for f in plan["faces"] if f["imprimable"]}
+	return {"feuille": plan["feuille"], "famille": plan["famille"], "dimensions": geometrie.DIMENSIONS_TYPE.get(plan["type"]),
+	        "svg": geometrie.apercu_svg(plan, zones=zones), "problemes": geometrie.verifier(plan),
+	        "faces": [{"code": f["code"], "libelle": f["libelle"], "w": f["w"], "h": f["h"],
+	                   "zones": [dict(z, libelle=geometrie.ZONES_LIBELLES.get(z["zone"], z["zone"])) for z in zones[f["code"]]]}
+	                  for f in plan["faces"] if f["imprimable"]]}
 
 
 @frappe.whitelist()

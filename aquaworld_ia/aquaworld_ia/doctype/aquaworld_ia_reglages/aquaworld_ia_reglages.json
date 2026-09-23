@@ -26,6 +26,8 @@
   "glossaire_global",
   "instructions_globales",
   "sb_emballage_3",
+  "police_titres",
+  "police_textes",
   "contact_par_defaut",
   "cb_3",
   "fond_perdu_mm",
@@ -39,40 +41,40 @@
    "label": "Modèles"
   },
   {
+   "description": "Vide = celui d'AI Settings (gpt-4o-mini par défaut).",
    "fieldname": "modele_texte",
    "fieldtype": "Data",
-   "label": "Modèle texte",
-   "description": "Vide = celui d'AI Settings (gpt-4o-mini par défaut)."
+   "label": "Modèle texte"
   },
   {
+   "default": "gpt-image-1",
    "fieldname": "modele_image",
    "fieldtype": "Select",
    "label": "Modèle image",
-   "options": "gpt-image-1\ngpt-image-1-mini\ngpt-image-1.5",
-   "default": "gpt-image-1"
+   "options": "gpt-image-1\ngpt-image-1-mini\ngpt-image-1.5"
   },
   {
+   "default": "medium",
    "fieldname": "qualite_image",
    "fieldtype": "Select",
    "label": "Qualité image",
-   "options": "low\nmedium\nhigh",
-   "default": "medium"
+   "options": "low\nmedium\nhigh"
   },
   {
    "fieldname": "cb_1",
    "fieldtype": "Column Break"
   },
   {
+   "default": "4",
    "fieldname": "variantes_max",
    "fieldtype": "Int",
-   "label": "Variantes max par demande",
-   "default": "4"
+   "label": "Variantes max par demande"
   },
   {
+   "default": "25",
    "fieldname": "lot_paragraphes",
    "fieldtype": "Int",
-   "label": "Paragraphes par appel (manuels)",
-   "default": "25"
+   "label": "Paragraphes par appel (manuels)"
   },
   {
    "fieldname": "sb_co_ts_usd_1",
@@ -80,18 +82,18 @@
    "label": "Coûts (USD)"
   },
   {
+   "default": "50",
+   "description": "0 = pas de limite. Au-delà, aucun appel IA ne part.",
    "fieldname": "plafond_mensuel_usd",
    "fieldtype": "Float",
    "label": "Plafond mensuel (USD)",
-   "default": "50",
-   "precision": "2",
-   "description": "0 = pas de limite. Au-delà, aucun appel IA ne part."
+   "precision": "2"
   },
   {
+   "default": "80",
    "fieldname": "alerte_pourcentage",
    "fieldtype": "Int",
-   "label": "Alerte à (%)",
-   "default": "80"
+   "label": "Alerte à (%)"
   },
   {
    "fieldname": "email_alerte",
@@ -104,38 +106,38 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "0.15",
    "fieldname": "prix_entree_par_million",
    "fieldtype": "Float",
    "label": "Prix jetons entrée (USD / million)",
-   "default": "0.15",
    "precision": "4"
   },
   {
+   "default": "0.60",
    "fieldname": "prix_sortie_par_million",
    "fieldtype": "Float",
    "label": "Prix jetons sortie (USD / million)",
-   "default": "0.60",
    "precision": "4"
   },
   {
+   "default": "0.02",
    "fieldname": "prix_image_low",
    "fieldtype": "Float",
    "label": "Prix image low (USD)",
-   "default": "0.02",
    "precision": "4"
   },
   {
+   "default": "0.07",
    "fieldname": "prix_image_medium",
    "fieldtype": "Float",
    "label": "Prix image medium (USD)",
-   "default": "0.07",
    "precision": "4"
   },
   {
+   "default": "0.25",
    "fieldname": "prix_image_high",
    "fieldtype": "Float",
    "label": "Prix image high (USD)",
-   "default": "0.25",
    "precision": "4"
   },
   {
@@ -144,10 +146,10 @@
    "label": "Manuels"
   },
   {
+   "description": "Un terme par ligne : « terme anglais = traduction ».",
    "fieldname": "glossaire_global",
    "fieldtype": "Small Text",
-   "label": "Glossaire global",
-   "description": "Un terme par ligne : « terme anglais = traduction »."
+   "label": "Glossaire global"
   },
   {
    "fieldname": "instructions_globales",
@@ -160,6 +162,18 @@
    "label": "Emballage"
   },
   {
+   "description": "Nom du produit sur l'emballage. Vide = Noto Sans gras.",
+   "fieldname": "police_titres",
+   "fieldtype": "Attach",
+   "label": "Police des titres (TTF/OTF)"
+  },
+  {
+   "description": "Accroche, caractéristiques, avertissements, contact — langues de gauche à droite. Vide = Noto Sans. L'arabe garde la police de sa fiche Langue.",
+   "fieldname": "police_textes",
+   "fieldtype": "Attach",
+   "label": "Police des textes latins (TTF/OTF)"
+  },
+  {
    "fieldname": "contact_par_defaut",
    "fieldtype": "Small Text",
    "label": "Contact par défaut (imprimé sur la boîte)"
@@ -169,25 +183,27 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "3",
    "fieldname": "fond_perdu_mm",
    "fieldtype": "Float",
-   "label": "Fond perdu (mm)",
-   "default": "3"
+   "label": "Fond perdu (mm)"
   },
   {
+   "default": "3",
    "fieldname": "zone_securite_mm",
    "fieldtype": "Float",
-   "label": "Zone de sécurité (mm)",
-   "default": "3"
+   "label": "Zone de sécurité (mm)"
   },
   {
+   "default": "15",
    "fieldname": "patte_collage_mm",
    "fieldtype": "Float",
-   "label": "Patte de collage (mm)",
-   "default": "15"
+   "label": "Patte de collage (mm)"
   }
  ],
  "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "istable": 0,
  "links": [],
  "modified": "2026-09-22 14:00:00.000000",
  "modified_by": "Administrator",
@@ -196,22 +212,20 @@
  "owner": "Administrator",
  "permissions": [
   {
-   "role": "System Manager",
-   "read": 1,
-   "print": 1,
+   "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
+   "print": 1,
+   "read": 1,
    "report": 1,
+   "role": "System Manager",
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "istable": 0,
- "issingle": 1,
  "track_changes": 0
 }

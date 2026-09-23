@@ -101,7 +101,8 @@ def _langues_du_design(doc) -> list[dict]:
 	codes = [l.langue for l in (doc.get("langues") or []) if l.langue] or ["fr"]
 	infos = []
 	for code in codes:
-		d = frappe.db.get_value("Aquaworld IA Langue", code, ["code", "libelle", "libelle_natif", "rtl", "police"], as_dict=True)
+		d = frappe.db.get_value("Aquaworld IA Langue", code,
+		                        ["code", "libelle", "libelle_natif", "rtl", "police", "police_fichier"], as_dict=True)
 		infos.append(d or {"code": code, "libelle": code, "rtl": 0})
 	return infos
 

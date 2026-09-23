@@ -80,7 +80,8 @@ def generer(design: str, numeros=None, utilisateur: str | None = None) -> None:
 		                EVENEMENT, utilisateur, numero=v.numero)
 		try:
 			prompt = v.prompt or prompts.prompt_variante(_style(v), doc.nom_produit or doc.article, doc.marque or "",
-			                                             palette=doc.palette, brief=doc.brief_style or "")
+			                                             palette=doc.palette, brief=doc.brief_style or "",
+			                                             famille=plan.get("famille"))
 			png = images.editer(prompt, refs, taille=geometrie.taille_image_pour(avant), qualite=qualite,
 			                    fonctionnalite="Emballage image", doc=doc)[0]
 			fichier = save_file("%s-v%d.png" % (doc.name, v.numero), png, "Design Emballage", doc.name, is_private=1)
@@ -118,7 +119,8 @@ def generer_faces_secondaires(design: str, utilisateur: str | None = None) -> No
 		etat.progresser(GENRE, design, "face %s (%d / %d)" % (face["libelle"], k + 1, len(codes)),
 		                int(100 * k / len(codes)), EVENEMENT, utilisateur)
 		try:
-			png = images.editer(prompts.prompt_face_secondaire(_style(v), doc.nom_produit or doc.article, code, palette=doc.palette),
+			png = images.editer(prompts.prompt_face_secondaire(_style(v), doc.nom_produit or doc.article, code,
+			                                                   palette=doc.palette, famille=plan.get("famille")),
 			                    reference, taille=geometrie.taille_image_pour(face), qualite=qualite,
 			                    fonctionnalite="Emballage faces", doc=doc)[0]
 			fichier = save_file("%s-v%d-%s.png" % (doc.name, v.numero, code), png, "Design Emballage", doc.name, is_private=1)

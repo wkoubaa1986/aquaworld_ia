@@ -32,12 +32,21 @@ def catalogue() -> list[dict]:
 
 
 def svg_bytes(code: str) -> bytes | None:
-	"""Le SVG d'un pictogramme (fiche en base, sinon catalogue), ou None s'il est introuvable."""
-	fichier = None
+	"""L'image d'un pictogramme : l'IMAGE ATTACHÉE à la fiche d'abord (photo de certification, logo
+	d'organisme, PNG/JPEG/SVG — demande utilisateur 23/09/2026), sinon le SVG du catalogue. None
+	s'il est introuvable. Le nom est historique : le résultat n'est plus forcément un SVG."""
+	fichier, image = None, None
 	try:
-		fichier = frappe.db.get_value("Aquaworld IA Pictogramme", code, "fichier")
+		fichier, image = frappe.db.get_value("Aquaworld IA Pictogramme", code, ["fichier", "image"]) or (None, None)
 	except Exception:
 		pass
+	if image:
+		try:
+			from aquaworld_ia.ia import fichiers
+
+			return fichiers.lire(image)
+		except Exception:
+			frappe.log_error(title="Aquaworld IA : image du pictogramme %s" % code, message=frappe.get_traceback())
 	if not fichier:
 		fichier = next((f for c, _l, _cat, f, _t, _o in CATALOGUE if c == code), None)
 	if not fichier:

@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 0,
+ "autoname": "field:code",
  "creation": "2026-09-22 14:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -10,6 +11,7 @@
   "categorie",
   "cb_5",
   "fichier",
+  "image",
   "taille_mm",
   "obligatoire",
   "actif"
@@ -18,40 +20,47 @@
   {
    "fieldname": "code",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Code",
    "reqd": 1,
-   "unique": 1,
-   "in_list_view": 1
+   "unique": 1
   },
   {
    "fieldname": "libelle",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Libellé",
-   "reqd": 1,
-   "in_list_view": 1
+   "reqd": 1
   },
   {
    "fieldname": "categorie",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Catégorie",
-   "options": "Réglementaire\nManutention\nRecyclage\nSécurité",
-   "in_list_view": 1
+   "options": "Réglementaire\nManutention\nRecyclage\nSécurité"
   },
   {
    "fieldname": "cb_5",
    "fieldtype": "Column Break"
   },
   {
+   "description": "Nom du SVG livré avec l'app (public/pictos). Ignoré si une image est attachée ci-dessous.",
    "fieldname": "fichier",
    "fieldtype": "Data",
    "label": "Fichier SVG (public/pictos/)",
    "reqd": 1
   },
   {
+   "description": "Votre propre pictogramme ou certificat scanné : il prime sur le fichier livré. Un fond blanc uniforme devient transparent.",
+   "fieldname": "image",
+   "fieldtype": "Attach",
+   "label": "Image (PNG, JPEG ou SVG)"
+  },
+  {
+   "default": "12",
    "fieldname": "taille_mm",
    "fieldtype": "Float",
-   "label": "Taille (mm)",
-   "default": "12"
+   "label": "Taille (mm)"
   },
   {
    "fieldname": "obligatoire",
@@ -59,77 +68,76 @@
    "label": "Obligatoire sur toute boîte"
   },
   {
+   "default": "1",
    "fieldname": "actif",
    "fieldtype": "Check",
-   "label": "Actif",
-   "default": "1",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "label": "Actif"
   }
  ],
  "index_web_pages_for_search": 1,
+ "issingle": 0,
+ "istable": 0,
  "links": [],
  "modified": "2026-09-22 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Aquaworld IA Pictogramme",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "System Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Item Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Stock Manager",
-   "read": 1,
-   "print": 1,
-   "email": 1,
-   "export": 1,
-   "report": 1,
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   },
   {
-   "role": "Sales Manager",
-   "read": 1,
-   "print": 1,
+   "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
+   "print": 1,
+   "read": 1,
    "report": 1,
+   "role": "Sales Manager",
    "share": 1,
-   "write": 1,
-   "create": 1,
-   "delete": 1
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "istable": 0,
- "issingle": 0,
- "track_changes": 1,
- "autoname": "field:code",
- "naming_rule": "By fieldname",
- "title_field": "libelle"
+ "title_field": "libelle",
+ "track_changes": 1
 }

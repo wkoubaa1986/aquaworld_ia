@@ -18,23 +18,81 @@ ECHELLE_REDUIT = 0.8        # en dessous, le bloc compte comme « réduit » (à
 EXTENSION_MAX = 0.4         # une boîte peut s'allonger vers le bas de 40 % au plus
 
 
+#: Les familles des polices PERSONNALISÉES (demande utilisateur 23/09/2026 : « je peux choisir la
+#: police ? »). Réglages : titres et textes latins ; Langue : une police par langue.
+FAMILLE_TITRES = "Police titres"
+FAMILLE_TEXTES = "Police textes"
+
+
+def famille_langue_perso(code: str) -> str:
+	return "Police %s" % code
+
+
+def polices_personnalisees() -> list[tuple[str, str]]:
+	"""[(famille, url du fichier)] — vide hors site ou sans réglage. Ne lève jamais."""
+	out = []
+	try:
+		r = frappe.get_cached_doc("Aquaworld IA Reglages")
+		if getattr(r, "police_titres", None):
+			out.append((FAMILLE_TITRES, r.police_titres))
+		if getattr(r, "police_textes", None):
+			out.append((FAMILLE_TEXTES, r.police_textes))
+		for lg in frappe.get_all("Aquaworld IA Langue", filters={"police_fichier": ("!=", "")},
+		                         fields=["code", "police_fichier"]):
+			out.append((famille_langue_perso(lg.code), lg.police_fichier))
+	except Exception:
+		return []
+	return out
+
+
+def nom_fichier_police(famille: str) -> str:
+	"""Le nom sous lequel la police entre dans l'archive : sans espace ni accent, .ttf. Pur."""
+	import re
+
+	return re.sub(r"[^A-Za-z0-9_-]+", "_", famille).strip("_") + ".ttf"
+
+
 def polices_archive():
+	"""L'archive des polices : celles livrées, plus les personnalisées (lues depuis les fichiers du
+	site). Une police illisible est ignorée, jamais bloquante : le PDF sort avec Noto."""
 	import pymupdf
 
-	return pymupdf.Archive(CHEMIN_POLICES)
+	archive = pymupdf.Archive(CHEMIN_POLICES)
+	for famille, url in polices_personnalisees():
+		try:
+			from aquaworld_ia.ia import fichiers
+
+			archive.add(fichiers.lire(url), nom_fichier_police(famille))
+		except Exception:
+			frappe.log_error(title="Aquaworld IA : police %s" % famille, message=frappe.get_traceback())
+	return archive
 
 
-def css_base() -> str:
-	return (
+def css_polices(personnalisees: list[tuple[str, str]] | None = None) -> str:
+	"""Les @font-face : Noto, puis chaque police personnalisée (un seul fichier pour 400 et 700 :
+	le gras est alors synthétique, mais la police est bien celle demandée). Pur."""
+	css = (
 		"@font-face{font-family:'Noto Sans';src:url(NotoSans-Regular.ttf);font-weight:400;}"
 		"@font-face{font-family:'Noto Sans';src:url(NotoSans-Bold.ttf);font-weight:700;}"
 		"@font-face{font-family:'Noto Naskh Arabic';src:url(NotoNaskhArabic-Regular.ttf);font-weight:400;}"
 		"@font-face{font-family:'Noto Naskh Arabic';src:url(NotoNaskhArabic-Bold.ttf);font-weight:700;}"
-		"body{margin:0;padding:0;}p{margin:0;padding:0;line-height:1.15;}"
 	)
+	for famille, _url in personnalisees or []:
+		f = nom_fichier_police(famille)
+		css += ("@font-face{font-family:'%s';src:url(%s);font-weight:400;}"
+		        "@font-face{font-family:'%s';src:url(%s);font-weight:700;}" % (famille, f, famille, f))
+	return css
+
+
+def css_base() -> str:
+	return css_polices(polices_personnalisees()) + "body{margin:0;padding:0;}p{margin:0;padding:0;line-height:1.15;}"
 
 
 def famille(langue: dict) -> str:
+	"""La famille de police d'une langue : sa police personnalisée d'abord, sinon son choix,
+	sinon Noto selon le sens d'écriture. Pur."""
+	if langue.get("police_fichier"):
+		return famille_langue_perso(langue.get("code") or "x")
 	return langue.get("police") or ("Noto Naskh Arabic" if langue.get("rtl") else "Noto Sans")
 
 

@@ -21,6 +21,7 @@ from frappe.utils.file_manager import save_file
 from aquaworld_ia.emballage import codes, geometrie, pictos
 from aquaworld_ia.emballage.variantes import CHAMPS_FACES, plan_du_design, url_logo
 from aquaworld_ia.ia import fichiers
+from aquaworld_ia.manuels import rendu
 from aquaworld_ia.manuels.rendu import css_base, polices_archive
 
 MM = geometrie.mm_vers_pt
@@ -204,11 +205,36 @@ def poser_image(page, rect, octets: bytes, garder_proportions: bool = True) -> N
 	page.insert_image(pymupdf.Rect(*rect), stream=octets, keep_proportion=garder_proportions)
 
 
+def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
+	"""Un logo donné en PHOTO (JPEG/PNG sur fond blanc) arrive avec son rectangle blanc : posé sur
+	un visuel, il ferait une étiquette collée. Si les quatre coins sont blancs, le blanc devient
+	transparent (demande utilisateur 23/09/2026 : « la marque, je la donne par photo »). Un logo
+	dont les coins sont colorés est laissé tel quel — on ne devine pas. Pur."""
+	from PIL import Image
+
+	im = Image.open(io.BytesIO(octets)).convert("RGBA")
+	w, h = im.size
+	if w < 2 or h < 2:
+		return octets
+	coins = [im.getpixel((0, 0)), im.getpixel((w - 1, 0)), im.getpixel((0, h - 1)), im.getpixel((w - 1, h - 1))]
+	if not all(min(c[:3]) >= seuil and c[3] > 0 for c in coins):
+		return octets
+	pixels = im.getdata()
+	im.putdata([(r, g, b, 0) if min(r, g, b) >= seuil else (r, g, b, a) for r, g, b, a in pixels])
+	sortie = io.BytesIO()
+	im.save(sortie, format="PNG")
+	return sortie.getvalue()
+
+
 def poser_logo(page, rect, logo: bytes) -> None:
 	debut = logo[:300].lstrip().lower()
 	if debut.startswith(b"<svg") or (debut.startswith(b"<?xml") and b"<svg" in logo[:2000].lower()):
 		poser_svg(page, rect, logo)
 	else:
+		try:
+			logo = fond_blanc_en_transparence(logo)
+		except Exception:
+			pass
 		poser_image(page, rect, logo)
 
 
@@ -292,16 +318,27 @@ def hauteur_texte(rect, contenu_html: str, archive, css: str) -> float:
 	return r.height if spare < 0 else r.height - spare
 
 
-def _famille(langue: dict) -> str:
-	return langue.get("police") or ("Noto Naskh Arabic" if langue.get("rtl") else "Noto Sans")
+def _famille(langue: dict, textes_perso: bool = False) -> str:
+	"""La police d'une langue sur l'emballage : la sienne (fiche Langue) d'abord ; sinon la police
+	des textes des Réglages pour les langues de gauche à droite ; sinon Noto. Pur."""
+	if langue.get("police_fichier"):
+		return rendu.famille_langue_perso(langue.get("code") or "x")
+	if textes_perso and not langue.get("rtl") and not langue.get("police"):
+		return rendu.FAMILLE_TEXTES
+	return rendu.famille(langue)
+
+
+def famille_titres(titres_perso: bool) -> str:
+	return rendu.FAMILLE_TITRES if titres_perso else "Noto Sans"
 
 
 def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: float, couleur: str) -> str:
 	"""Le HTML d'une zone, toutes langues empilées (première langue plus grande)."""
 	morceaux = []
+	perso = {f for f, _u in rendu.polices_personnalisees()}
 	for k, (code, t) in enumerate(textes.items()):
 		lg = langues.get(code) or {}
-		rtl, fam = bool(lg.get("rtl")), _famille(lg)
+		rtl, fam = bool(lg.get("rtl")), _famille(lg, rendu.FAMILLE_TEXTES in perso)
 		taille = taille_langue(taille_pt, k, rtl)
 		if nom_zone == "nom":
 			continue
@@ -375,6 +412,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	pictos_svg = [(p.pictogramme, pictos.svg_bytes(p.pictogramme)) for p in (doc.pictogrammes or [])]
 	pictos_svg = [(c, s) for c, s in pictos_svg if s]
 	nom_produit = doc.nom_produit or doc.article
+	fam_titres = famille_titres(rendu.FAMILLE_TITRES in {f for f, _u in rendu.polices_personnalisees()})
 	premiere = next(iter(langues.values()), {}) if langues else {}
 	for face in plan["faces"]:
 		if not face["imprimable"]:
@@ -390,7 +428,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				poser_logo(page, rect, logo)
 			elif z["zone"] == "nom":
 				taille = taille_nom(MM(z["w"]), MM(z["h"]), nom_produit)
-				poser_texte(page, rect, html_bloc([nom_produit], taille_pt=taille, rtl=False, famille="Noto Sans",
+				poser_texte(page, rect, html_bloc([nom_produit], taille_pt=taille, rtl=False, famille=fam_titres,
 				                                  couleur=couleur_texte, gras=True, align="center"), archive, css)
 			elif z["zone"] in ("accroche", "caracteristiques", "avertissements", "contact"):
 				base = {"accroche": 11.0, "caracteristiques": 8.5, "avertissements": 7.0, "contact": 7.0}[z["zone"]]
@@ -423,7 +461,8 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 					if x + taille > rect[2] + 0.5:
 						break
 					page.draw_rect(pymupdf.Rect(x, rect[1], x + taille, rect[1] + taille), color=None, fill=(1, 1, 1))
-					poser_svg(page, (x + 1, rect[1] + 1, x + taille - 1, rect[1] + taille - 1), svg)
+					# Un pictogramme peut être une image à soi (certificat scanné) : même détection que le logo.
+					poser_logo(page, (x + 1, rect[1] + 1, x + taille - 1, rect[1] + taille - 1), svg)
 					x += taille + MM(2)
 
 	# 3. calque « Découpe et plis » (activable dans le lecteur, imprimé par l'imprimeur sur demande)
