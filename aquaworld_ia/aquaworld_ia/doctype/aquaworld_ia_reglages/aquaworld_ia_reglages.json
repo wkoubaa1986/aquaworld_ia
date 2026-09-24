@@ -109,14 +109,13 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "0.15",
    "fieldname": "prix_entree_par_million",
    "fieldtype": "Float",
    "label": "Prix jetons entrée (USD / million)",
-   "precision": "4"
+   "precision": "4",
+   "description": "Vide = grille intégrée du modèle texte (gpt-5.2 : 1,75 $ entrée / 14 $ sortie par million, relevé le 23/09/2026). Saisissez une valeur pour l'imposer."
   },
   {
-   "default": "0.60",
    "fieldname": "prix_sortie_par_million",
    "fieldtype": "Float",
    "label": "Prix jetons sortie (USD / million)",
@@ -127,7 +126,8 @@
    "fieldname": "prix_image_low",
    "fieldtype": "Float",
    "label": "Prix image low (USD)",
-   "precision": "4"
+   "precision": "4",
+   "description": "Par image gpt-image-2 en 1024×1024 (0,006 / 0,053 / 0,211 $ en 09/2026). Indicatif : une image 1536 px coûte un peu plus."
   },
   {
    "default": "0.053",

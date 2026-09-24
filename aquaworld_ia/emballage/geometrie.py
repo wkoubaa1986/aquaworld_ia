@@ -306,7 +306,9 @@ def apercu_svg(plan: dict, largeur_px: int = 640, zones: dict | None = None, com
 
 	Chaque face porte `data-face` (le JS s'en sert pour le survol et le clic) ; `zones`
 	({code: [zone…]}) ajoute, par face, un groupe masqué des emplacements (logo, nom, EAN…) que
-	l'écran révèle au survol. `compact` : la vignette du sélecteur de type, sans texte."""
+	l'écran révèle au survol. `compact` : la vignette du sélecteur de type, sans texte.
+	Tout ce qui se superpose aux faces (libellés, traits, zones) est en `pointer-events: none` :
+	sinon le survol d'un libellé fait « sortir » de la face et le clic au centre ne l'épingle pas."""
 	W, Hf = plan["feuille"]["w"], plan["feuille"]["h"]
 	k = largeur_px / W
 	h_px = Hf * k
@@ -321,27 +323,27 @@ def apercu_svg(plan: dict, largeur_px: int = 640, zones: dict | None = None, com
 			continue
 		if f["imprimable"] or f["w"] * f["h"] > 0.02 * W * Hf:
 			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#334155' "
-			             "font-family='sans-serif'>%s</text>" % (
+			             "font-family='sans-serif' pointer-events='none'>%s</text>" % (
 				f["x"] + f["w"] / 2, f["y"] + f["h"] / 2, max(2.5, min(f["w"], f["h"]) / 6), f["libelle"]))
 			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#64748b' "
-			             "font-family='sans-serif'>%.0f × %.0f mm</text>" % (
+			             "font-family='sans-serif' pointer-events='none'>%.0f × %.0f mm</text>" % (
 				f["x"] + f["w"] / 2, f["y"] + f["h"] / 2 + max(2.5, min(f["w"], f["h"]) / 6) * 1.2,
 				max(2.0, min(f["w"], f["h"]) / 8), f["w"], f["h"]))
 	for x1, y1, x2, y2 in plan["traits"]["pli"]:
 		parts.append("<line x1='%.2f' y1='%.2f' x2='%.2f' y2='%.2f' stroke='#2563eb' stroke-width='%.2f' "
-		             "stroke-dasharray='%.1f,%.1f'/>" % (x1, y1, x2, y2, W / 640, W / 160, W / 320))
+		             "stroke-dasharray='%.1f,%.1f' pointer-events='none'/>" % (x1, y1, x2, y2, W / 640, W / 160, W / 320))
 	for x1, y1, x2, y2 in plan["traits"]["coupe"]:
-		parts.append("<line x1='%.2f' y1='%.2f' x2='%.2f' y2='%.2f' stroke='#dc2626' stroke-width='%.2f'/>" % (
+		parts.append("<line x1='%.2f' y1='%.2f' x2='%.2f' y2='%.2f' stroke='#dc2626' stroke-width='%.2f' pointer-events='none'/>" % (
 			x1, y1, x2, y2, W / 640))
 	for code, liste in (zones or {}).items():
-		parts.append("<g class='aqia-zones' data-face='%s' style='display:none'>" % code)
+		parts.append("<g class='aqia-zones' data-face='%s' style='display:none' pointer-events='none'>" % code)
 		for z in liste:
 			# `fill-opacity` et non rgba() : le rendu SVG de MuPDF (vignettes, contrôles) ignore rgba.
 			parts.append("<rect x='%.2f' y='%.2f' width='%.2f' height='%.2f' fill='#2563eb' fill-opacity='0.12' "
 			             "stroke='#2563eb' stroke-width='%.2f' stroke-dasharray='%.1f,%.1f'/>" % (
 				z["x"], z["y"], z["w"], z["h"], W / 900, W / 240, W / 480))
 			corps = max(2.0, min(min(z["w"], z["h"]) / 4, W / 70))
-			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' fill='#1d4ed8' font-family='sans-serif'>%s</text>" % (
+			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' fill='#1d4ed8' font-family='sans-serif' pointer-events='none'>%s</text>" % (
 				z["x"] + W / 400, z["y"] + corps, corps, ZONES_LIBELLES.get(z["zone"], z["zone"])))
 		parts.append("</g>")
 	parts.append("</svg>")

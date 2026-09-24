@@ -7,10 +7,25 @@ facturation.
 
 from __future__ import annotations
 
+# USD par million de jetons (entrée, sortie) selon le modèle texte. gpt-5.2 relevé sur la grille
+# OpenAI le 23/09/2026 ; les autres sont la grille de 2025, à vérifier si on les remet en service.
+# Correspondance par préfixe, le plus long d'abord : « gpt-5.2-2026-01-15 » prend la ligne gpt-5.2.
+TARIFS_TEXTE_PAR_MODELE = {
+	"gpt-5.2-pro": (10.50, 84.00),
+	"gpt-5.2": (1.75, 14.00),
+	"gpt-5-mini": (0.25, 2.00),
+	"gpt-5-nano": (0.05, 0.40),
+	"gpt-5": (1.25, 10.00),
+	"gpt-4.1-mini": (0.40, 1.60),
+	"gpt-4o-mini": (0.15, 0.60),
+	"gpt-4o": (2.50, 10.00),
+}
+MODELE_TEXTE_REFERENCE = "gpt-5.2"
+
 TARIFS_DEFAUT = {
-	# USD par million de jetons (ordre de grandeur gpt-4o-mini)
-	"entree_par_million": 0.15,
-	"sortie_par_million": 0.60,
+	# USD par million de jetons : gpt-5.2, le modèle texte en service (voir TARIFS_TEXTE_PAR_MODELE)
+	"entree_par_million": TARIFS_TEXTE_PAR_MODELE[MODELE_TEXTE_REFERENCE][0],
+	"sortie_par_million": TARIFS_TEXTE_PAR_MODELE[MODELE_TEXTE_REFERENCE][1],
 	# USD par image gpt-image-2 en 1024×1024 (grille OpenAI de septembre 2026) ; gpt-image-1
 	# coûtait 0,02 / 0,07 / 0,25. Une image 1536 px coûte un peu plus : l'estimation reste
 	# indicative, le plafond se lit sur le journal.
@@ -32,8 +47,19 @@ def estimer_cout(jetons_entree: int = 0, jetons_sortie: int = 0, images: int = 0
 	return round(cout, 4)
 
 
-def tarifs_depuis_reglages(reglages) -> dict:
-	"""Lit la grille dans le Single ; toute valeur vide ou nulle retombe sur le défaut."""
+def tarifs_texte(modele: str | None) -> tuple[float, float]:
+	"""(entrée, sortie) USD / million pour un modèle texte, par préfixe ; inconnu = gpt-5.2."""
+	nom = (modele or "").strip().lower()
+	for prefixe in sorted(TARIFS_TEXTE_PAR_MODELE, key=len, reverse=True):
+		if nom == prefixe or nom.startswith(prefixe + "-"):
+			return TARIFS_TEXTE_PAR_MODELE[prefixe]
+	return TARIFS_TEXTE_PAR_MODELE[MODELE_TEXTE_REFERENCE]
+
+
+def tarifs_depuis_reglages(reglages, modele: str | None = None) -> dict:
+	"""Lit la grille dans le Single. Jetons : une valeur saisie (> 0) l'emporte, sinon la grille
+	intégrée du modèle texte `modele` (celui de l'appel, ou celui des réglages). Images : toute
+	valeur vide ou nulle retombe sur le défaut."""
 
 	def val(champ, defaut):
 		try:
@@ -43,9 +69,10 @@ def tarifs_depuis_reglages(reglages) -> dict:
 		return v if v > 0 else defaut
 
 	d = TARIFS_DEFAUT
+	entree, sortie = tarifs_texte(modele or getattr(reglages, "modele_texte", None))
 	return {
-		"entree_par_million": val("prix_entree_par_million", d["entree_par_million"]),
-		"sortie_par_million": val("prix_sortie_par_million", d["sortie_par_million"]),
+		"entree_par_million": val("prix_entree_par_million", entree),
+		"sortie_par_million": val("prix_sortie_par_million", sortie),
 		"image": {
 			"low": val("prix_image_low", d["image"]["low"]),
 			"medium": val("prix_image_medium", d["image"]["medium"]),

@@ -316,10 +316,12 @@ class StudioEmballage {
 			.on("mouseenter", (e) => { if (!this.epinglee) montrer($(e.currentTarget).attr("data-face")); })
 			.on("mouseleave", () => { if (!this.epinglee) { $s.find(".aqia-zones").hide(); this.face_info(null); } })
 			.on("click", (e) => {
+				// Épingler ou libérer, puis redessiner la scène : c'est le rendu qui pose (ou retire)
+				// l'éditeur de zones, jamais le clic seul.
 				const code = $(e.currentTarget).attr("data-face");
-				$s.find("rect.aqia-face").removeClass("epinglee");
-				if (this.epinglee === code) { this.epinglee = null; $s.find(".aqia-zones").hide(); this.face_info(null); return; }
-				this.epinglee = code; $(e.currentTarget).addClass("epinglee"); montrer(code);
+				this.epinglee = this.epinglee === code ? null : code;
+				this.rendre_scene();
+				if (!this.epinglee) this.face_info(null);
 			});
 		if (this.epinglee && infos[this.epinglee]) {
 			$s.find(`rect.aqia-face[data-face="${this.epinglee}"]`).addClass("epinglee");
@@ -419,6 +421,10 @@ class StudioEmballage {
 			<div class="bloc" data-role="face"><span class="text-muted">${__("Survolez une face du plan.")}</span></div>
 			<div class="bloc se-textes"><h6>${__("Textes imprimés")}</h6>${this.data.textes_html || ""}</div>
 			<div class="bloc"><h6>${__("Fichiers")}</h6>${fichiers ? `<ul>${fichiers}</ul>` : `<span class="text-muted">${__("Rien encore.")}</span>`}</div>`);
+		// Une face épinglée garde son panneau (zones, « Ajouter », « Revenir ») après chaque
+		// enregistrement : sans cela, déplacer une zone effaçait le panneau qui sert à continuer.
+		const f = this.epinglee && ((this.data.apercu || {}).faces || []).find((x) => x.code === this.epinglee);
+		if (f) this.face_info(f);
 	}
 
 	face_info(f) {
@@ -431,8 +437,8 @@ class StudioEmballage {
 			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
 			${this.epinglee === f.code ? `
 				<div class="small" style="margin-top:8px">${__("Sur le plan : glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer.")}</div>
-				<div style="display:flex;gap:4px;margin-top:6px"><select class="form-control input-xs" data-role="type-zone" style="height:26px;font-size:12px">${types.map((t) => `<option value="${t}">${libs[t]}</option>`).join("")}</select>
-					<button class="btn btn-xs btn-default" data-role="ajouter-zone">＋ ${__("Ajouter")}</button></div>
+				<div style="display:flex;gap:4px;margin-top:6px;align-items:center"><select class="form-control input-xs" data-role="type-zone" style="height:26px;font-size:12px;flex:1;min-width:0">${types.map((t) => `<option value="${t}">${libs[t]}</option>`).join("")}</select>
+					<button class="btn btn-xs btn-default" data-role="ajouter-zone" style="white-space:nowrap">＋ ${__("Ajouter")}</button></div>
 				${f.personnalisee ? `<button class="btn btn-xs btn-default" style="margin-top:6px" data-role="reinit-face">${__("Revenir à la maquette automatique")}</button>` : ""}
 				<div class="text-muted small" style="margin-top:6px">${__("Cliquez à nouveau la face pour la libérer.")}</div>`
 			: `<div class="text-muted small" style="margin-top:6px">${__("Cliquez la face pour modifier ses zones.")}</div>`}`);

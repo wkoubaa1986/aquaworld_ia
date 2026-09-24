@@ -97,3 +97,14 @@ class TestOutils(unittest.TestCase):
 		svg = G.apercu_svg(G.plan_a_plat(G.ETUI, 120, 200, 60))
 		self.assertTrue(svg.startswith("<svg"))
 		self.assertIn("Face avant", svg)
+
+
+class TestApercuSvgPointeur(unittest.TestCase):
+	def test_superpositions_sans_pointeur(self):
+		"""Libellés, traits et zones ne captent pas la souris : seules les faces la reçoivent."""
+		import re
+		plan = G.plan_a_plat(list(G.TYPES)[0], 120, 200, 60)
+		svg = G.apercu_svg(plan, zones={"avant": [{"zone": "logo", "x": 80, "y": 90, "w": 40, "h": 20}]})
+		for tag in re.findall(r"<(?:text|line|g class='aqia-zones')[^>]*>", svg):
+			self.assertIn("pointer-events='none'", tag, tag)
+		self.assertNotIn("pointer-events", re.search(r"<rect class='aqia-face imprimable'[^>]*>", svg).group(0))

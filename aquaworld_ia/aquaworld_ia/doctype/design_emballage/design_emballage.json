@@ -140,19 +140,19 @@
    "fieldname": "longueur_mm",
    "fieldtype": "Float",
    "label": "Largeur de la face avant (mm)",
-   "reqd": 1
+   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
   },
   {
    "fieldname": "hauteur_mm",
    "fieldtype": "Float",
    "label": "Hauteur (mm)",
-   "reqd": 1
+   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
   },
   {
    "fieldname": "profondeur_mm",
    "fieldtype": "Float",
    "label": "Profondeur / soufflet / côtés (mm)",
-   "reqd": 1
+   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
   },
   {
    "fieldname": "cb_11",

@@ -37,7 +37,7 @@ def enregistrer(*, fonctionnalite: str, appel: str, modele: str, doc=None, usage
 	"""Insère une ligne de Journal IA. Ne lève jamais : un journal qui casse l'appel qu'il
 	trace serait pire que pas de journal (l'erreur part dans Error Log)."""
 	entree, sortie = _jetons(usage)
-	tarifs = couts.tarifs_depuis_reglages(reglages())
+	tarifs = couts.tarifs_depuis_reglages(reglages(), modele=modele)
 	doctype, name = _reference(doc)
 	try:
 		ligne = frappe.get_doc({

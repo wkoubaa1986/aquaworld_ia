@@ -8,7 +8,8 @@ variante laisse les deux premières (et leur coût) en place.
 from __future__ import annotations
 
 import frappe
-from frappe.utils import cint
+from frappe import _
+from frappe.utils import cint, flt
 from frappe.utils.file_manager import save_file
 
 from aquaworld_ia.emballage import geometrie, prompts
@@ -22,6 +23,11 @@ CHAMPS_FACES = {"arriere": "face_arriere", "cote_gauche": "face_gauche", "cote_d
 
 
 def plan_du_design(doc) -> dict:
+	"""Le plan à plat du design. Les dimensions ne sont pas obligatoires à la création (le studio
+	les saisit à l'étape 1) : toute action qui a besoin du plan passe ici et reçoit un message
+	clair plutôt qu'une ValueError de la géométrie."""
+	if not (flt(doc.longueur_mm) > 0 and flt(doc.hauteur_mm) > 0 and flt(doc.profondeur_mm) > 0):
+		frappe.throw(_("Renseignez d'abord les trois dimensions de l'emballage (largeur, hauteur, profondeur)."))
 	r = reglages()
 	return geometrie.plan_a_plat(
 		doc.type_boite or geometrie.ETUI, doc.longueur_mm, doc.hauteur_mm, doc.profondeur_mm,
