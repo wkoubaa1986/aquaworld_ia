@@ -116,6 +116,32 @@ ZONES_AJOUTABLES = ("logo", "nom", "accroche", "caracteristiques", "avertissemen
                     "code_barres", "photo")
 
 
+_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def style_zone(zone: dict) -> dict | None:
+	"""Le style « cartouche » d'une zone dessinée à la main (demande utilisateur 24/09/2026 :
+	« un peu arrondi, bleu, écriture en blanc ») : {fond, texte, rayon} normalisé — couleurs en
+	#rrggbb ou None, rayon en mm ≥ 0 — ou None s'il n'y a rien à styler. Pur."""
+	s = zone.get("style")
+	if not isinstance(s, dict):
+		return None
+	fond = s.get("fond") if isinstance(s.get("fond"), str) and _HEX.match(s.get("fond")) else None
+	texte = s.get("texte") if isinstance(s.get("texte"), str) and _HEX.match(s.get("texte")) else None
+	try:
+		rayon = max(0.0, min(50.0, float(s.get("rayon") or 0)))
+	except (TypeError, ValueError):
+		rayon = 0.0
+	if not fond and not texte:
+		return None
+	return {"fond": fond, "texte": texte, "rayon": rayon}
+
+
+#: Ce qu'une zone dessinée à la main transporte en plus de sa géométrie : son style et, pour un
+#: logo, le fichier d'une variante propre à cette face.
+CLES_ZONE_CONSERVEES = ("style", "logo")
+
+
 def borner_zone(zone: dict, face: dict) -> dict:
 	"""Une zone dessinée à la main reste DANS la partie utile de la face (jamais dans le fond
 	perdu, chez le voisin, ni dans une bande réservée comme le repli agrafé d'un sac) et garde
@@ -125,7 +151,11 @@ def borner_zone(zone: dict, face: dict) -> dict:
 	h = max(3.0, min(float(zone.get("h", 0)), u["h"]))
 	x = min(max(float(zone.get("x", u["x"])), u["x"]), u["x"] + u["w"] - w)
 	y = min(max(float(zone.get("y", u["y"])), u["y"]), u["y"] + u["h"] - h)
-	return {"zone": zone.get("zone"), "x": round(x, 3), "y": round(y, 3), "w": round(w, 3), "h": round(h, 3)}
+	out = {"zone": zone.get("zone"), "x": round(x, 3), "y": round(y, 3), "w": round(w, 3), "h": round(h, 3)}
+	for cle in CLES_ZONE_CONSERVEES:
+		if zone.get(cle):
+			out[cle] = zone[cle]
+	return out
 
 
 def appliquer_mise_en_page(zones: dict, plan: dict, mise_en_page: dict | None) -> dict:
@@ -492,6 +522,24 @@ def panneau_pour(zone: str, couleur_texte: str, sur_visuel: bool):
 	return ((1.0, 1.0, 1.0), 0.82)
 
 
+CARTOUCHE_STYLE_MARGE_MM = 2.0
+
+
+def dessiner_cartouche(page, rect, style: dict) -> tuple:
+	"""Le fond de couleur, coins arrondis, d'une zone stylée ; -> le rectangle intérieur (pt) où
+	poser le texte, en retrait de 2 mm. Sans fond, la zone est rendue telle quelle."""
+	import pymupdf
+
+	if not style or not style.get("fond"):
+		return rect
+	r = pymupdf.Rect(*rect)
+	rayon_pt = MM(style.get("rayon") or 0)
+	fraction = min(0.5, rayon_pt / max(1.0, min(r.width, r.height))) if rayon_pt else None
+	page.draw_rect(r, color=None, fill=_hex_rgb(style["fond"]), radius=fraction)
+	m = min(MM(CARTOUCHE_STYLE_MARGE_MM), r.width / 4, r.height / 4)
+	return (r.x0 + m, r.y0 + m, r.x1 - m, r.y1 - m)
+
+
 def poser_texte(page, rect, contenu_html: str, archive, css: str) -> float:
 	import pymupdf
 
@@ -652,6 +700,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				poser_image(page, _rect_pt(*hero_photo_rect(f)), photo_hero, garder_proportions=True)
 
 	# 2. contenus vectoriels par face
+	logos_par_url = {}
 	ean = None
 	if doc.type_code_barres in ("EAN-13", "EAN-13 + QR") and doc.code_barres:
 		if codes.valider_ean13(doc.code_barres):
@@ -683,16 +732,30 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			if z["zone"] == "photo":
 				if photo_zone:
 					poser_image(page, rect, photo_zone, garder_proportions=True)
-			elif z["zone"] == "logo" and logo:
-				poser_logo(page, rect, logo)
+			style = style_zone(z)
+			couleur_zone = (style or {}).get("texte") or couleur_texte
+			if z["zone"] == "logo" and (z.get("logo") or logo):
+				# Variante de logo propre à cette face (bibliothèque), sinon le logo du design.
+				logo_face = logo
+				if z.get("logo"):
+					try:
+						logo_face = logos_par_url.setdefault(z["logo"], fichiers.lire(z["logo"]))
+					except Exception:
+						logo_face = logo
+				if logo_face:
+					poser_logo(page, rect, logo_face)
 			elif z["zone"] == "nom":
-				taille = taille_nom(MM(z["w"]), MM(z["h"]), nom_produit)
-				poser_texte(page, rect, html_bloc([nom_produit], taille_pt=taille, rtl=False, famille=fam_titres,
-				                                  couleur=couleur_texte, gras=True, align="center"), archive, css)
+				interieur = dessiner_cartouche(page, rect, style)
+				taille = taille_nom(interieur[2] - interieur[0], interieur[3] - interieur[1], nom_produit)
+				poser_texte(page, interieur, html_bloc([nom_produit], taille_pt=taille, rtl=False, famille=fam_titres,
+				                                       couleur=couleur_zone, gras=True, align="center"), archive, css)
 			elif z["zone"] in ("accroche", "caracteristiques", "avertissements", "contact"):
 				base = {"accroche": 11.0, "caracteristiques": 8.5, "avertissements": 7.0, "contact": 7.0}[z["zone"]]
-				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_texte)
+				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_zone)
 				if contenu_html:
+					if style and style.get("fond"):
+						poser_texte(page, dessiner_cartouche(page, rect, style), contenu_html, archive, css)
+						continue
 					panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels or bool(image_fond))
 					if panneau:
 						m = MM(CARTOUCHE_MARGE_MM)

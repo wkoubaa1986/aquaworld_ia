@@ -450,9 +450,13 @@ def apercu_svg(plan: dict, largeur_px: int = 640, zones: dict | None = None, com
 		parts.append("<g class='aqia-zones' data-face='%s' style='display:none' pointer-events='none'>" % code)
 		for z in liste:
 			# `fill-opacity` et non rgba() : le rendu SVG de MuPDF (vignettes, contrôles) ignore rgba.
-			parts.append("<rect x='%.2f' y='%.2f' width='%.2f' height='%.2f' fill='#2563eb' fill-opacity='0.12' "
+			# Une zone stylée (cartouche) montre sa couleur et ses coins arrondis.
+			st = z.get("style") if isinstance(z.get("style"), dict) else {}
+			fond = st.get("fond") if isinstance(st.get("fond"), str) and st.get("fond", "").startswith("#") else None
+			parts.append("<rect x='%.2f' y='%.2f' width='%.2f' height='%.2f' rx='%.2f' fill='%s' fill-opacity='%s' "
 			             "stroke='#2563eb' stroke-width='%.2f' stroke-dasharray='%.1f,%.1f'/>" % (
-				z["x"], z["y"], z["w"], z["h"], W / 900, W / 240, W / 480))
+				z["x"], z["y"], z["w"], z["h"], float(st.get("rayon") or 0) if fond else 0, fond or "#2563eb",
+				"0.6" if fond else "0.12", W / 900, W / 240, W / 480))
 			corps = max(2.0, min(min(z["w"], z["h"]) / 4, W / 70))
 			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' fill='#1d4ed8' font-family='sans-serif' pointer-events='none'>%s</text>" % (
 				z["x"] + W / 400, z["y"] + corps, corps, ZONES_LIBELLES.get(z["zone"], z["zone"])))

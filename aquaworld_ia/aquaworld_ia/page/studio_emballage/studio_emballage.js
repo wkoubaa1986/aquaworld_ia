@@ -335,6 +335,7 @@ class StudioEmballage {
 				// l'éditeur de zones, jamais le clic seul.
 				const code = $(e.currentTarget).attr("data-face");
 				this.epinglee = this.epinglee === code ? null : code;
+				this.zone_sel = null;
 				this.rendre_scene();
 				if (!this.epinglee) this.face_info(null);
 			});
@@ -353,13 +354,18 @@ class StudioEmballage {
 		const NS = "http://www.w3.org/2000/svg";
 		const W = svg.viewBox.baseVal.width, POIGNEE = Math.max(2.5, W / 90);
 		const g = document.createElementNS(NS, "g"); g.setAttribute("class", "se-edit"); svg.appendChild(g);
-		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle }));
+		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null }));
 		const u = face.utile || face;   // une zone ne va jamais dans une bande réservée (repli agrafé)
 		const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); g.appendChild(n); return n; };
 		const point = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
-		const sauver = () => { this.mep[face.code] = zones.map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h })); this.modifier({ mise_en_page: this.mep }, false); };
+		const sauver = () => {
+			this.mep[face.code] = zones.map((z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {}));
+			this.modifier({ mise_en_page: this.mep }, false);
+		};
 		zones.forEach((z, i) => {
-			const r = el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, fill: "#f59e0b", "fill-opacity": "0.18", stroke: "#d97706", "stroke-width": W / 700, style: "cursor:move" });
+			const fond = z.style && z.style.fond;
+			const r = el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, rx: fond ? (z.style.rayon || 0) : 0, fill: fond || "#f59e0b", "fill-opacity": fond ? "0.55" : "0.18",
+				stroke: this.zone_sel === i ? "#dc2626" : "#d97706", "stroke-width": this.zone_sel === i ? W / 350 : W / 700, style: "cursor:move" });
 			const t = el("text", { x: z.x + W / 400, y: z.y + Math.max(2, Math.min(z.w, z.h) / 4), "font-size": Math.max(2, Math.min(Math.min(z.w, z.h) / 4, W / 70)), fill: "#92400e", "font-family": "sans-serif", style: "pointer-events:none" });
 			t.textContent = z.libelle || z.zone;
 			const p = el("rect", { x: z.x + z.w - POIGNEE, y: z.y + z.h - POIGNEE, width: POIGNEE, height: POIGNEE, fill: "#d97706", style: "cursor:nwse-resize" });
@@ -377,7 +383,11 @@ class StudioEmballage {
 					t.setAttribute("x", z.x + W / 400); t.setAttribute("y", z.y + Math.max(2, Math.min(z.w, z.h) / 4));
 					x.setAttribute("x", z.x + z.w - POIGNEE * 0.9); x.setAttribute("y", z.y + POIGNEE * 1.1);
 				};
-				const lacher = () => { document.removeEventListener("mousemove", bouger); document.removeEventListener("mouseup", lacher); if (z.x !== z0.x || z.y !== z0.y || z.w !== z0.w || z.h !== z0.h) sauver(); };
+				const lacher = () => {
+					document.removeEventListener("mousemove", bouger); document.removeEventListener("mouseup", lacher);
+					if (z.x !== z0.x || z.y !== z0.y || z.w !== z0.w || z.h !== z0.h) sauver();
+					else if (mode === "move") { this.zone_sel = i; this.rendre_scene(); }   // un clic sans glisser = sélectionner
+				};
 				document.addEventListener("mousemove", bouger); document.addEventListener("mouseup", lacher);
 			};
 			r.addEventListener("mousedown", glisser("move")); p.addEventListener("mousedown", glisser("resize"));
@@ -396,6 +406,7 @@ class StudioEmballage {
 	}
 
 	reinitialiser_face(code) {
+		this.zone_sel = null;
 		delete this.mep[code];
 		this.modifier({ mise_en_page: this.mep }, false);
 	}
@@ -448,20 +459,59 @@ class StudioEmballage {
 	face_info(f) {
 		const $b = this.$root.find('[data-role="face"]');
 		if (!f) return $b.html(`<span class="text-muted">${__("Survolez une face du plan.")}</span>`);
-		const zones = (f.zones || []).map((z) => `<li>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span></li>`).join("");
+		const epinglee = this.epinglee === f.code;
+		const zones = (f.zones || []).map((z, i) => `<li ${epinglee ? `data-zi="${i}" style="cursor:pointer${this.zone_sel === i ? ";font-weight:600;color:#b91c1c" : ""}"` : ""}>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span>${z.style && z.style.fond ? ` <span class="se-chip" style="background:${this._esc(z.style.fond)};color:${this._esc((z.style.texte) || "#fff")}">${__("cartouche")}</span>` : ""}${z.logo ? ` <span class="se-chip">${__("logo propre")}</span>` : ""}</li>`).join("");
+		const sel = epinglee && this.zone_sel != null ? (f.zones || [])[this.zone_sel] : null;
+		const TEXTES = ["nom", "accroche", "caracteristiques", "avertissements", "contact"];
+		let props = "";
+		if (sel && TEXTES.includes(sel.zone)) {
+			const st = sel.style || {};
+			props = `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Zone « {0} »", [this._esc(sel.libelle)])}</h6>
+				<div style="display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;font-size:12px">
+					<span>${__("Cartouche")}</span><input type="color" data-prop="fond" value="${this._esc(st.fond || "#1d4ed8")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_fond" ${st.fond ? "checked" : ""}> ${__("fond")}</label>
+					<span>${__("Texte")}</span><input type="color" data-prop="texte" value="${this._esc(st.texte || "#ffffff")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_texte" ${st.texte ? "checked" : ""}> ${__("couleur")}</label>
+					<span>${__("Coins (mm)")}</span><input type="number" data-prop="rayon" min="0" step="0.5" value="${st.rayon || 0}" style="width:70px"><span></span>
+				</div>
+				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-style">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="style-aucun">${__("Sans cartouche")}</button></div>
+				<div class="text-muted small" style="margin-top:6px">${__("Exemple : fond bleu, coins 4 mm, texte blanc. Le cartouche épouse la zone : ajustez sa taille sur le plan.")}</div></div>`;
+		} else if (sel && sel.zone === "logo") {
+			props = `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Logo de cette face")}</h6>
+				<div class="se-fichier"><img src="${this._esc(sel.logo || this.d.logo || "")}" alt="">
+					<button class="btn btn-xs btn-default" data-role="logo-variante">📚 ${__("Variante de la bibliothèque")}</button>
+					${sel.logo ? `<button class="btn btn-xs btn-default" data-role="logo-commun">${__("Logo du design")}</button>` : ""}</div>
+				<div class="text-muted small" style="margin-top:6px">${sel.logo ? __("Cette face a son propre logo.") : __("Cette face utilise le logo du design (étape 2).")}</div></div>`;
+		} else if (sel) {
+			props = `<div class="text-muted small" style="margin-top:6px">${__("Cette zone n'a pas de réglage : déplacez-la ou redimensionnez-la sur le plan.")}</div>`;
+		}
 		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
 		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
 		const source = f.copie_de && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_de);
 		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}${source ? ` <span class="se-chip" title="${__("Modifiez la face source : cette face la suit. Dessinez ici pour la rendre indépendante.")}">${__("copie de {0}", [this._esc(source.libelle)])}</span>` : ""}</h6>
 			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
+			${props}
 			${this.epinglee === f.code ? `
-				<div class="small" style="margin-top:8px">${__("Sur le plan : glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer.")}</div>
+				<div class="small" style="margin-top:8px">${__("Sur le plan : glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer, cliquez-la pour ses réglages (cartouche, logo).")}</div>
 				<div style="display:flex;gap:4px;margin-top:6px;align-items:center"><select class="form-control input-xs" data-role="type-zone" style="height:26px;font-size:12px;flex:1;min-width:0">${types.map((t) => `<option value="${t}">${libs[t]}</option>`).join("")}</select>
 					<button class="btn btn-xs btn-default" data-role="ajouter-zone" style="white-space:nowrap">＋ ${__("Ajouter")}</button></div>
 				${f.personnalisee ? `<button class="btn btn-xs btn-default" style="margin-top:6px" data-role="reinit-face">${__("Revenir à la maquette automatique")}</button>` : ""}
 				<div class="text-muted small" style="margin-top:6px">${__("Cliquez à nouveau la face pour la libérer.")}</div>`
 			: `<div class="text-muted small" style="margin-top:6px">${__("Cliquez la face pour modifier ses zones.")}</div>`}`);
 		$b.find('[data-role="ajouter-zone"]').on("click", () => this.ajouter_zone($b.find('[data-role="type-zone"]').val()));
+		$b.find("[data-zi]").on("click", (e) => { this.zone_sel = +$(e.currentTarget).attr("data-zi"); this.rendre_scene(); });
+		const zone_courante = () => (this._zones_en_cours || {}).zones && this._zones_en_cours.zones[this.zone_sel];
+		$b.find('[data-role="appliquer-style"]').on("click", () => {
+			const z = zone_courante(); if (!z) return;
+			const st = {};
+			if ($b.find('[data-prop="avec_fond"]').is(":checked")) st.fond = $b.find('[data-prop="fond"]').val();
+			if ($b.find('[data-prop="avec_texte"]').is(":checked")) st.texte = $b.find('[data-prop="texte"]').val();
+			const rayon = parseFloat($b.find('[data-prop="rayon"]').val()) || 0;
+			if (rayon) st.rayon = rayon;
+			z.style = (st.fond || st.texte) ? st : null;
+			this._zones_en_cours.sauver();
+		});
+		$b.find('[data-role="style-aucun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.style = null; this._zones_en_cours.sauver(); });
+		$b.find('[data-role="logo-variante"]').on("click", () => this.bibliotheque("logo", (l) => { const z = zone_courante(); if (!z) return; z.logo = l.image; this._zones_en_cours.sauver(); }));
+		$b.find('[data-role="logo-commun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.logo = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="reinit-face"]').on("click", () => this.reinitialiser_face(f.code));
 	}
 
@@ -612,7 +662,7 @@ class StudioEmballage {
 		dlg.show();
 	}
 
-	bibliotheque(champ) {
+	bibliotheque(champ, on_choisir) {
 		const est_logo = champ === "logo";
 		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Variantes de logo") : __("Fonds et motifs"), size: "large",
 			fields: [
@@ -630,6 +680,7 @@ class StudioEmballage {
 					<div class="leg"><b>${this._esc(l.nom)}</b> <span class="se-chip">${this._esc(l.categorie)}</span>${l.marque ? `<br><span class="text-muted">${this._esc(l.marque)}</span>` : ""}${l.notes ? `<br><span class="text-muted small">${this._esc(l.notes)}</span>` : ""}</div>
 				</div>`).join("")}</div>`);
 			$grille.find("[data-res]").on("click", async (e) => {
+				if (on_choisir) { const l = lignes.find((x) => x.name === $(e.currentTarget).attr("data-res")); dlg.hide(); if (l) on_choisir(l); return; }
 				try {
 					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_choisir", args: { design: this.nom, ressource: $(e.currentTarget).attr("data-res"), champ }, freeze: true });
 					dlg.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();

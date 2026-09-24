@@ -199,3 +199,31 @@ class TestFondDesFacesCopiees(unittest.TestCase):
 		self.assertEqual(C.face_source(PLAN, "arriere", copies)["code"], "avant")
 		self.assertEqual(C.face_source(PLAN, "avant", copies)["code"], "avant")
 		self.assertEqual(C.face_source(PLAN, "dessus", {})["code"], "dessus")
+
+
+class TestStyleDeZone(unittest.TestCase):
+	"""Cartouche par zone (demande utilisateur 24/09/2026) et variante de logo par face."""
+
+	def test_style_normalise(self):
+		self.assertIsNone(C.style_zone({"zone": "nom"}))
+		self.assertIsNone(C.style_zone({"zone": "nom", "style": {"fond": "bleu", "texte": "rgb(1,2,3)"}}))
+		self.assertEqual(C.style_zone({"zone": "nom", "style": {"fond": "#1d4ed8", "texte": "#ffffff", "rayon": "4"}}),
+		                 {"fond": "#1d4ed8", "texte": "#ffffff", "rayon": 4.0})
+		self.assertEqual(C.style_zone({"zone": "nom", "style": {"texte": "#ffffff", "rayon": -3}}), {"fond": None, "texte": "#ffffff", "rayon": 0.0})
+
+	def test_borner_et_translater_gardent_style_et_logo(self):
+		av, ar = G.face(PLAN, "avant"), G.face(PLAN, "arriere")
+		z = {"zone": "logo", "x": av["x"] + 5, "y": av["y"] + 5, "w": 30, "h": 12, "logo": "/private/files/blanc.png",
+		     "style": {"fond": "#1d4ed8"}}
+		b = C.borner_zone(z, av)
+		self.assertEqual(b["logo"], "/private/files/blanc.png")
+		self.assertEqual(b["style"], {"fond": "#1d4ed8"})
+		t = C.translater_zones([b], av, ar)[0]
+		self.assertEqual(t["logo"], "/private/files/blanc.png")
+		self.assertAlmostEqual(t["x"], ar["x"] + 5, places=3)
+		self.assertNotIn("style", C.borner_zone({"zone": "nom", "x": 0, "y": 0, "w": 10, "h": 5}, av))
+
+	def test_apercu_svg_teinte_la_zone_stylee(self):
+		svg = G.apercu_svg(PLAN, zones={"avant": [{"zone": "nom", "x": 80, "y": 250, "w": 100, "h": 20, "style": {"fond": "#1d4ed8", "rayon": 4}}]})
+		self.assertIn("fill='#1d4ed8' fill-opacity='0.6'", svg)
+		self.assertIn("rx='4.00'", svg)
