@@ -229,3 +229,26 @@ class TestStyleDeZone(unittest.TestCase):
 		svg = G.apercu_svg(PLAN, zones={"avant": [{"zone": "nom", "x": 80, "y": 250, "w": 100, "h": 20, "style": {"fond": "#1d4ed8", "rayon": 4}}]})
 		self.assertIn("fill='#1d4ed8' fill-opacity='0.6'", svg)
 		self.assertIn("rx='4.00'", svg)
+
+
+class TestTextesBruts(unittest.TestCase):
+	"""Sans textes préparés par l'IA, le texte brut de l'étape 2 s'imprime (24/09/2026)."""
+
+	def test_lignes_brutes_titres_et_vides(self):
+		self.assertEqual(C.lignes_brutes("SPECIFICATIONS\n\nHousing: Blue\nInlet / outlet port size:\n  1/2\u2033  \n"),
+		                 ["## SPECIFICATIONS", "Housing: Blue", "## Inlet / outlet port size", "1/2\u2033"])
+		self.assertEqual(C.lignes_brutes(None), [])
+		self.assertEqual(C.lignes_brutes("CE"), ["CE"])     # 2 lettres : pas un titre
+
+	def test_textes_bruts_langue_et_vide(self):
+		t = C.textes_bruts("Débit 5 l/min\nGarantie 2 ans", None, "AquaWorld", "en")
+		self.assertEqual(list(t), ["en"])
+		self.assertEqual(t["en"]["caracteristiques"], ["Débit 5 l/min", "Garantie 2 ans"])
+		self.assertEqual(t["en"]["contact"], "AquaWorld")
+		self.assertEqual(C.textes_bruts("", "\n", " ", "fr"), {})
+
+	def test_html_bloc_intertitre_sans_puce(self):
+		html_ = C.html_bloc(["## SPECS", "Housing: Blue"], taille_pt=8, rtl=False, famille="Noto Sans", puces=True)
+		self.assertIn("font-weight:700", html_)
+		self.assertIn(">SPECS</p>", html_)
+		self.assertIn("• Housing: Blue", html_)

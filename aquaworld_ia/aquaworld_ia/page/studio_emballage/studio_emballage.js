@@ -334,6 +334,7 @@ class StudioEmballage {
 				${fe.personnalisee ? `<button class="btn btn-xs btn-default" data-role="reinit-face-plan">${__("Revenir à la maquette automatique")}</button>` : ""}
 				<button class="btn btn-xs btn-default" data-role="liberer-face-plan">${__("Libérer")}</button>
 				<span class="text-muted" style="flex-basis:100%">${__("Glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer, cliquez-la pour ses réglages (cartouche, logo, pictogrammes).")}</span>
+				${fe.copie_bloquee ? `<span class="text-danger" style="flex-basis:100%">⚠ ${__("Cette face devrait copier « {0} » (option cochée) mais elle a sa propre mise en page dessinée : elle ne suit plus. « Revenir à la maquette automatique » pour qu'elle recopie.", [this._esc((infos[fe.copie_bloquee] || {}).libelle || fe.copie_bloquee)])}</span>` : ""}
 			</div>` : "";
 		$s.html(`<p class="text-muted small">${__("Feuille <b>{0} × {1} mm</b>, fond perdu inclus. Survolez une face, cliquez pour l'épingler.", [a.feuille.w, a.feuille.h])}</p>${pb}${outils}${a.svg}`);
 		$s.find('[data-role="ajouter-zone-plan"]').on("click", () => this.ajouter_zone($s.find('[data-role="type-zone-plan"]').val()));
@@ -513,7 +514,8 @@ class StudioEmballage {
 		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
 		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
 		const source = f.copie_de && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_de);
-		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}${source ? ` <span class="se-chip" title="${__("Modifiez la face source : cette face la suit. Dessinez ici pour la rendre indépendante.")}">${__("copie de {0}", [this._esc(source.libelle)])}</span>` : ""}</h6>
+		const bloquee = f.copie_bloquee && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_bloquee);
+		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}${source ? ` <span class="se-chip" title="${__("Modifiez la face source : cette face la suit. Dessinez ici pour la rendre indépendante.")}">${__("copie de {0}", [this._esc(source.libelle)])}</span>` : ""}${bloquee ? ` <span class="se-chip echec" title="${__("Option cochée, mais cette face a sa propre mise en page : « Revenir à la maquette automatique » pour qu'elle recopie.")}">${__("ne copie plus {0}", [this._esc(bloquee.libelle)])}</span>` : ""}</h6>
 			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
 			${props}
 			${this.epinglee === f.code ? `

@@ -479,10 +479,41 @@ def html_bloc(lignes: list[str], *, taille_pt: float, rtl: bool, famille: str, c
 	# à gauche du texte, bloc collé à gauche). Une puce typographique dans le paragraphe suit,
 	# elle, le sens d'écriture.
 	prefixe = PUCE + " " if puces else ""
-	return "".join("<p style=\"%s;margin:0 0 0.3em 0\">%s%s</p>" % (style, prefixe, html.escape(l)) for l in lignes)
+	out = []
+	for l in lignes:
+		if l.startswith(TITRE):
+			# Un intertitre (texte brut de l'utilisateur : « SPECIFICATIONS », « Inlet :») : gras, sans puce.
+			out.append("<p style=\"%s;font-weight:700;margin:0.5em 0 0.2em 0\">%s</p>" % (style, html.escape(l[len(TITRE):].strip())))
+		else:
+			out.append("<p style=\"%s;margin:0 0 0.3em 0\">%s%s</p>" % (style, prefixe, html.escape(l)))
+	return "".join(out)
 
 
 PUCE = "•"
+TITRE = "## "
+
+
+def lignes_brutes(texte: str | None) -> list[str]:
+	"""Le texte saisi à l'étape 2, ligne par ligne, prêt pour `html_bloc` : lignes vides
+	ignorées, intertitres (tout en capitales, ou terminés par « : ») marqués `## `. Pur."""
+	out = []
+	for brut in (texte or "").splitlines():
+		l = brut.strip()
+		if not l:
+			continue
+		lettres = [c for c in l if c.isalpha()]
+		titre = (len(lettres) >= 3 and all(c.isupper() for c in lettres)) or l.endswith(":")
+		out.append((TITRE + l.rstrip(":").strip()) if titre else l)
+	return out
+
+
+def textes_bruts(caracteristiques: str | None, avertissements: str | None, contact: str | None, code_langue: str = "fr") -> dict:
+	"""Les textes à imprimer quand rien n'a été préparé par l'IA (demande utilisateur 24/09/2026 :
+	« j'ai recomposé mais il n'a pas appliqué les caractéristiques ») : le texte brut de la fiche,
+	dans la première langue du design. Pur."""
+	t = {"accroche": "", "caracteristiques": lignes_brutes(caracteristiques), "avertissements": lignes_brutes(avertissements),
+	     "contact": (contact or "").strip()}
+	return {code_langue: t} if (t["caracteristiques"] or t["avertissements"] or t["contact"]) else {}
 
 
 def alignement_css(align: str | None, rtl: bool) -> str:
@@ -885,7 +916,11 @@ def composer_et_attacher(design: str, variante: int) -> dict:
 	if problemes:
 		frappe.throw(_("Plan impossible : {0}").format(" ; ".join(problemes)))
 	textes = frappe.parse_json(doc.textes_ia) if doc.textes_ia else {}
-	pdf = composer(doc, v, plan, textes or {}, _langues(doc))
+	langues = _langues(doc)
+	if not textes:
+		# Rien de préparé par l'IA : le texte brut de l'étape 2 s'imprime tel quel.
+		textes = textes_bruts(doc.caracteristiques, doc.avertissements, doc.contact, next(iter(langues), "fr"))
+	pdf = composer(doc, v, plan, textes or {}, langues)
 	fichier = save_file("%s-plan-a-plat.pdf" % doc.name, pdf, "Design Emballage", doc.name, is_private=1)
 	import pymupdf
 

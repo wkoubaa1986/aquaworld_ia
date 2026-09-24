@@ -73,11 +73,14 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 
 	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")), mep or None, bool(brut.get("cotes_identiques")))
 	copies = faces_copiees(plan, bool(brut.get("faces_identiques")), bool(brut.get("cotes_identiques")), mep or None)
+	# Une face qui DEVRAIT copier (option cochée) mais a sa propre mise en page : le studio le dit.
+	voulues = faces_copiees(plan, bool(brut.get("faces_identiques")), bool(brut.get("cotes_identiques")), None)
+	bloquees = {c: s for c, s in voulues.items() if c not in copies}
 	return {"feuille": plan["feuille"], "famille": plan["famille"], "dimensions": geometrie.DIMENSIONS_TYPE.get(plan["type"]),
 	        "reserves": plan.get("reserves") or [],
 	        "svg": geometrie.apercu_svg(plan, zones=zones), "problemes": geometrie.verifier(plan),
 	        "faces": [{"code": f["code"], "libelle": f["libelle"], "x": f["x"], "y": f["y"], "w": f["w"], "h": f["h"],
-	                   "utile": f.get("utile"), "copie_de": copies.get(f["code"]),
+	                   "utile": f.get("utile"), "copie_de": copies.get(f["code"]), "copie_bloquee": bloquees.get(f["code"]),
 	                   "personnalisee": bool(mep and f["code"] in mep),
 	                   "zones": [dict(z, libelle=geometrie.ZONES_LIBELLES.get(z["zone"], z["zone"])) for z in zones[f["code"]]]}
 	                  for f in plan["faces"] if f["imprimable"]]}
