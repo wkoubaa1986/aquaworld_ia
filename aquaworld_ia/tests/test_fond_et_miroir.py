@@ -190,3 +190,12 @@ class TestPictosSansCartouche(unittest.TestCase):
 		self.assertTrue(C.est_svg(self.SANS_FILL))
 		self.assertFalse(C.est_svg(b"\x89PNG\r\n"))
 		self.assertIn("pictos_sans_cartouche", __import__("aquaworld_ia.emballage.studio", fromlist=["x"]).CHAMPS_EDITABLES)
+
+
+class TestFondDesFacesCopiees(unittest.TestCase):
+	def test_la_copie_prend_le_fond_de_sa_source(self):
+		copies = C.faces_copiees(PLAN, True, True)
+		self.assertEqual(C.face_source(PLAN, "cote_gauche", copies)["code"], "cote_droit")
+		self.assertEqual(C.face_source(PLAN, "arriere", copies)["code"], "avant")
+		self.assertEqual(C.face_source(PLAN, "avant", copies)["code"], "avant")
+		self.assertEqual(C.face_source(PLAN, "dessus", {})["code"], "dessus")

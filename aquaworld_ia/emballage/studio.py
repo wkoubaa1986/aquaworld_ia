@@ -13,7 +13,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 from aquaworld_ia.emballage import geometrie, job, textes
 
@@ -167,10 +167,11 @@ def zones_ajoutables() -> list:
 
 
 @frappe.whitelist()
-def retoucher_logo(design: str, instruction: str) -> dict:
+def retoucher_logo(design: str, instruction: str, nombre=1) -> dict:
 	"""L'atelier logo (demande utilisateur 23/09/2026) : redessiner le logo par IA d'après le
 	logo actuel — changer ses couleurs, l'épurer — SANS le poser encore. Le résultat est un
-	candidat attaché à la fiche ; l'utilisateur compare et adopte, ou réessaie.
+	candidat attaché à la fiche ; l'utilisateur compare et adopte, ou réessaie. `nombre` (1 à 4,
+	demande du 24/09/2026 : « en voir plusieurs avant de choisir ») candidats pour la même consigne.
 
 	⚠️ L'IA redessine les LETTRES à sa façon : le candidat se relit lettre par lettre."""
 	from aquaworld_ia.emballage.variantes import url_logo
@@ -190,10 +191,11 @@ def retoucher_logo(design: str, instruction: str) -> dict:
 		"Redraw the logo given as the reference image as a clean, flat, vector-style logo on a PURE WHITE background, "
 		"centered, filling the frame, keeping its shapes, proportions and lettering EXACTLY as in the reference. "
 		"Apply only this change: %s. No background scene, no shadows, no extra elements, no extra text." % instruction)
-	png = images.editer(prompt, [("logo", fichiers.lire(source))], taille="1024x1024", qualite=qualite_image(),
-	                    fonctionnalite="Logo IA", doc=doc, fidelite="high")[0]
-	fichier = save_file("%s-logo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1)
-	return {"candidat": fichier.file_url, "source": source}
+	n = max(1, min(4, cint(nombre) or 1))
+	pngs = images.editer(prompt, [("logo", fichiers.lire(source))], taille="1024x1024", qualite=qualite_image(),
+	                     n=n, fonctionnalite="Logo IA", doc=doc, fidelite="high")
+	candidats = [save_file("%s-logo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
+	return {"candidats": candidats, "candidat": candidats[0] if candidats else None, "source": source}
 
 
 @frappe.whitelist()

@@ -389,7 +389,9 @@ class StudioEmballage {
 		const c = this._zones_en_cours;
 		if (!c) return;
 		const f = c.face.utile || c.face;
-		c.zones.push({ zone: type, x: f.x + f.w * 0.3, y: f.y + f.h * 0.4, w: f.w * 0.4, h: f.h * 0.15, libelle: type });
+		// Une photo part grande et centrée (on la réduit ensuite) ; un texte ou un logo, en bandeau.
+		const g = type === "photo" ? { x: 0.2, y: 0.25, w: 0.6, h: 0.45 } : { x: 0.3, y: 0.4, w: 0.4, h: 0.15 };
+		c.zones.push({ zone: type, x: f.x + f.w * g.x, y: f.y + f.h * g.y, w: f.w * g.w, h: f.h * g.h, libelle: type });
 		c.sauver();
 	}
 
@@ -537,28 +539,31 @@ class StudioEmballage {
 				{ fieldtype: "HTML", options: `<img src="${this._esc(this.d.logo || "")}" style="max-height:90px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
 				{ fieldtype: "Small Text", fieldname: "instruction", label: __("Que changer ?"), reqd: 1,
 				  description: __("ex. « passer le bleu en bleu marine et le texte en blanc », « version épurée à plat », « fond blanc, sans dégradé ». Les formes et les lettres sont conservées, mais relisez-les : l'IA redessine.") },
-				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("1 image, qualité {0}, ≈ {1} $. Le résultat ne remplace pas le logo tant que vous ne l'adoptez pas.", [est.qualite || "", (est.cout || 0).toFixed(2)])}</p>` },
+				{ fieldtype: "Select", fieldname: "nombre", label: __("Propositions"), default: "3", options: ["1", "2", "3", "4"].join("\n"),
+				  description: __("Plusieurs propositions pour la même consigne : vous choisissez la meilleure. Une image facturée par proposition (qualité {0}, ≈ {1} $ chacune).", [est.qualite || "", (est.cout || 0).toFixed(2)]) },
+				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("Rien ne remplace le logo tant que vous n'en adoptez pas un.")}</p>` },
 			],
 			primary_action_label: __("Générer"),
 			primary_action: async (v) => {
 				let r;
 				try {
-					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_logo", args: { design: this.nom, instruction: v.instruction }, freeze: true, freeze_message: __("L'IA redessine le logo…") });
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_logo", args: { design: this.nom, instruction: v.instruction, nombre: v.nombre }, freeze: true, freeze_message: __("L'IA redessine le logo…") });
 				} catch (e) { frappe.msgprint(this._msg(e)); return; }
 				dlg.hide();
-				const c = r.message;
-				const cmp = new frappe.ui.Dialog({ title: __("Avant / après"), size: "large",
-					fields: [{ fieldtype: "HTML", options: `<div style="display:flex;gap:16px;align-items:flex-start">
-						<div style="flex:1;text-align:center"><div class="text-muted small">${__("Actuel")}</div><img src="${this._esc(c.source)}" style="max-width:100%;max-height:260px;background:#fff;border:1px solid #e5e7eb"></div>
-						<div style="flex:1;text-align:center"><div class="text-muted small">${__("Proposition IA")}</div><img src="${this._esc(c.candidat)}" style="max-width:100%;max-height:260px;background:#fff;border:1px solid #e5e7eb"></div></div>
+				const c = r.message, candidats = c.candidats || [c.candidat];
+				const carte = (src, titre, url) => `<div style="flex:1 1 200px;text-align:center;min-width:0"><div class="text-muted small">${titre}</div>
+					<img src="${this._esc(src)}" style="max-width:100%;max-height:220px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
+					${url ? `<div style="margin-top:6px"><button class="btn btn-xs btn-primary" data-adopter="${this._esc(url)}">${__("Utiliser celui-ci")}</button></div>` : ""}</div>`;
+				const cmp = new frappe.ui.Dialog({ title: __("Propositions de logo"), size: "large",
+					fields: [{ fieldtype: "HTML", fieldname: "galerie", options: `<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+						${carte(c.source, __("Actuel"), null)}${candidats.map((u, i) => carte(u, __("Proposition {0}", [i + 1]), u)).join("")}</div>
 						<p class="small text-muted" style="margin-top:8px">${__("Vérifiez chaque lettre. En adoptant, le fond blanc devient transparent.")}</p>` }],
-					primary_action_label: __("Utiliser ce logo"),
-					primary_action: async () => {
-						const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_logo", args: { design: this.nom, url: c.candidat }, freeze: true });
-						cmp.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
-					},
 					secondary_action_label: __("Réessayer"), secondary_action: () => { cmp.hide(); this.atelier_logo(); } });
 				cmp.show();
+				cmp.get_field("galerie").$wrapper.find("[data-adopter]").on("click", async (e) => {
+					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_logo", args: { design: this.nom, url: $(e.currentTarget).attr("data-adopter") }, freeze: true });
+					cmp.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
+				});
 			} });
 		dlg.show();
 	}

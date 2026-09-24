@@ -164,6 +164,12 @@ def faces_copiees(plan: dict, faces_identiques: bool = False, cotes_identiques: 
 	return out
 
 
+def face_source(plan: dict, code: str, copies: dict) -> dict:
+	"""La face dont `code` reprend le contenu ET le fond : sa source si elle est copiée, elle-même
+	sinon. Pur."""
+	return geometrie.face(plan, copies.get(code, code)) or geometrie.face(plan, code)
+
+
 def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False, mise_en_page: dict | None = None,
                    cotes_identiques: bool = False) -> dict:
 	"""{code: zones} pour toutes les faces imprimables. Pur.
@@ -603,6 +609,12 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			photo_hero = fichiers.lire(photo_url)
 	dpi = {}
 
+	# Faces copiées (dos = avant, côté gauche = côté droit) : même fond que la source, tranche de
+	# panorama comprise — « identique » veut dire identique, quitte à rompre le raccord au pli
+	# entre la copie et sa voisine (demande utilisateur 24/09/2026 : « la facette gauche ne
+	# ressemble pas à celle de droite »).
+	mep_copies = frappe.parse_json(doc.get("mise_en_page")) if doc.get("mise_en_page") else None
+	copies = faces_copiees(plan, identiques, cotes, mep_copies)
 	# 1. fonds : rabats et pattes (aplat), puis faces imprimables (visuel ou aplat + bandeau)
 	for face in plan["faces"]:
 		r = rect_avec_fond_perdu(face, plan)
@@ -613,7 +625,9 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		if not face["imprimable"]:
 			continue
 		r = rect_avec_fond_perdu(face, plan)
-		visuel = visuels.get(face["code"])
+		src = face_source(plan, face["code"], copies)
+		r_src = rect_avec_fond_perdu(src, plan)
+		visuel = visuels.get(src["code"]) or visuels.get(face["code"])
 		if visuel:
 			from PIL import Image
 
@@ -621,9 +635,9 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			x0, y0, x1, y1 = geometrie.cadrage(r[2], r[3], im.width, im.height)
 			dpi[face["code"]] = geometrie.dpi_effectif(x1 - x0, r[2])
 			poser_image(page, _rect_pt(*r), recadrer(visuel, r[2], r[3]), garder_proportions=False)
-		elif image_fond and bande and face["code"] in bande["faces"]:
-			# Fond continu : la tranche du panorama située à la place de cette face.
-			poser_image(page, _rect_pt(*r), tranche_panorama(image_fond, bande, r), garder_proportions=False)
+		elif image_fond and bande and src["code"] in bande["faces"]:
+			# Fond continu : la tranche du panorama située à la place de cette face (ou de sa source).
+			poser_image(page, _rect_pt(*r), tranche_panorama(image_fond, bande, r_src), garder_proportions=False)
 		elif image_fond:
 			# L'image de fond choisie couvre la face entière (recadrée, jamais déformée).
 			poser_image(page, _rect_pt(*r), recadrer(image_fond, r[2], r[3]), garder_proportions=False)

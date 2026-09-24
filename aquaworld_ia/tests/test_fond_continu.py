@@ -70,4 +70,6 @@ class TestCompositionContinue(unittest.TestCase):
 	def test_la_bande_est_prise_avec_son_fond_perdu(self):
 		src = inspect.getsource(C.composer)
 		self.assertIn("rect_avec_fond_perdu(f, plan) for f in plan[\"faces\"] if f[\"code\"] in bande[\"faces\"]", src)
-		self.assertIn("tranche_panorama(image_fond, bande, r)", src)
+		# la tranche est celle de la face SOURCE (identique à r sauf face copiée, cf. TestFondDesFacesCopiees)
+		self.assertIn("tranche_panorama(image_fond, bande, r_src)", src)
+		self.assertIn("face_source(plan, face[\"code\"], copies)", src)
