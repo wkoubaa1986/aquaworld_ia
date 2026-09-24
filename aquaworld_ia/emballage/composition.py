@@ -10,6 +10,7 @@ limite de fond perdu. Page 2 : fiche technique.
 from __future__ import annotations
 
 import html
+import base64
 import io
 import re
 import json
@@ -498,10 +499,76 @@ def est_svg(octets: bytes) -> bool:
 	return debut.startswith(b"<svg") or (debut.startswith(b"<?xml") and b"<svg" in octets[:2000].lower())
 
 
+_BLANC_SVG = r"(?:#fff\b|#ffffff\b|white\b|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))"
+
+
+def _viewbox(svg: str):
+	m = re.search(r"viewBox\s*=\s*[\"']\s*([-\d.]+)[\s,]+([-\d.]+)[\s,]+([-\d.]+)[\s,]+([-\d.]+)", svg)
+	if m:
+		return tuple(float(v) for v in m.groups())
+	w = re.search(r"<svg\b[^>]*\swidth\s*=\s*[\"']([\d.]+)", svg)
+	h = re.search(r"<svg\b[^>]*\sheight\s*=\s*[\"']([\d.]+)", svg)
+	return (0.0, 0.0, float(w.group(1)), float(h.group(1))) if w and h else None
+
+
+def _attr(tag: str, nom: str):
+	m = re.search(r"\b%s\s*=\s*[\"']([^\"']*)[\"']" % nom, tag)
+	if m:
+		return m.group(1).strip()
+	m = re.search(r"\b%s\s*:\s*([^;\"']+)" % nom, tag)      # style="fill:…"
+	return m.group(1).strip() if m else None
+
+
+def svg_sans_fond_blanc(svg: bytes) -> bytes:
+	"""Un SVG posé sur un visuel ne doit pas apporter son fond blanc (question utilisateur
+	24/09/2026 : « pourquoi avec un SVG ça ne devient pas transparent ? ») :
+	- une image bitmap embarquée (`<image href="data:image/…">`, SVG « hybride » exporté d'un outil
+	  en ligne) reçoit le même détourage qu'une photo — fond blanc connexe au bord effacé ;
+	- un `<rect>` blanc SANS contour qui couvre presque tout le dessin (fond d'export) est retiré ;
+	  un cadre blanc à contour (carte, badge) est un dessin voulu et reste.
+	Pur."""
+	texte = svg.decode("utf-8", "replace")
+
+	def image(m):
+		tag = m.group(0)
+		mm = re.search(r"(href\s*=\s*[\"'])data:image/(png|jpe?g|webp);base64,([A-Za-z0-9+/=\s]+)([\"'])", tag)
+		if not mm:
+			return tag
+		try:
+			octets = base64.b64decode(mm.group(3))
+			nouveau = fond_blanc_en_transparence(octets)
+		except Exception:
+			return tag
+		if nouveau == octets:
+			return tag
+		return tag.replace(mm.group(0), "%sdata:image/png;base64,%s%s" % (mm.group(1), base64.b64encode(nouveau).decode(), mm.group(4)))
+
+	texte = re.sub(r"<image\b[^>]*>", image, texte)
+	vb = _viewbox(texte)
+	if vb:
+		def rect(m):
+			tag = m.group(0)
+			fill = (_attr(tag, "fill") or "").lower()
+			if not re.fullmatch(_BLANC_SVG, fill):
+				return tag
+			stroke = (_attr(tag, "stroke") or "none").lower()
+			if stroke not in ("none", "", "transparent"):
+				return tag
+			try:
+				w = _attr(tag, "width") or ""
+				h = _attr(tag, "height") or ""
+				aire = (vb[2] if w.endswith("%") and float(w[:-1]) >= 99 else float(w)) * (vb[3] if h.endswith("%") and float(h[:-1]) >= 99 else float(h))
+			except ValueError:
+				return tag
+			return "" if aire >= 0.9 * vb[2] * vb[3] else tag
+		texte = re.sub(r"<rect\b[^>]*/>|<rect\b[^>]*>\s*</rect>", rect, texte)
+	return texte.encode("utf-8")
+
+
 def poser_logo(page, rect, logo: bytes) -> None:
 	debut = logo[:300].lstrip().lower()
 	if debut.startswith(b"<svg") or (debut.startswith(b"<?xml") and b"<svg" in logo[:2000].lower()):
-		poser_svg(page, rect, logo)
+		poser_svg(page, rect, svg_sans_fond_blanc(logo))
 	else:
 		try:
 			logo = fond_blanc_en_transparence(logo)

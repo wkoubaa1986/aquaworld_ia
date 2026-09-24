@@ -299,3 +299,36 @@ class TestSacAgrafe(unittest.TestCase):
 	def test_prompts_sac_papier(self):
 		self.assertIn("stapled", P.prompt_variante({"titre": "x"}, "Riz", famille="sac_papier"))
 		self.assertIn("staples", P.prompt_mockup("Riz", famille="sac_papier", references=["avant"]))
+
+
+class TestSvgSansFondBlanc(unittest.TestCase):
+	def _png_blanc_avec_carre(self):
+		from PIL import Image
+		im = Image.new("RGB", (40, 40), (255, 255, 255))
+		for x in range(10, 30):
+			for y in range(10, 30):
+				im.putpixel((x, y), (200, 0, 0))
+		b = io.BytesIO(); im.save(b, format="PNG"); return b.getvalue()
+
+	def test_image_embarquee_detouree(self):
+		import base64, re
+		from PIL import Image
+		svg = ('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 40 40">'
+		       '<image width="40" height="40" xlink:href="data:image/png;base64,%s"/></svg>' % base64.b64encode(self._png_blanc_avec_carre()).decode()).encode()
+		out = C.svg_sans_fond_blanc(svg).decode()
+		data = re.search(r'base64,([A-Za-z0-9+/=]+)', out).group(1)
+		im = Image.open(io.BytesIO(base64.b64decode(data))).convert("RGBA")
+		self.assertEqual(im.getpixel((0, 0))[3], 0)
+		self.assertEqual(im.getpixel((20, 20)), (200, 0, 0, 255))
+
+	def test_rect_blanc_plein_retire_cadre_et_couleur_gardes(self):
+		svg = (b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">'
+		       b'<rect width="100%" height="100%" fill="#fff"/>'
+		       b'<rect x="0" y="0" width="100" height="50" style="fill:white;stroke:none"/>'
+		       b'<rect x="5" y="5" width="90" height="40" rx="6" fill="white" stroke="#507F53" stroke-width="3"/>'
+		       b'<rect width="100" height="50" fill="#224F7C"/><rect x="40" y="20" width="10" height="10" fill="#fff"/></svg>')
+		out = C.svg_sans_fond_blanc(svg).decode()
+		self.assertEqual(out.count("<rect"), 3)
+		self.assertIn('stroke="#507F53"', out)
+		self.assertIn('fill="#224F7C"', out)
+		self.assertIn('x="40"', out)
