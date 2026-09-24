@@ -319,9 +319,26 @@ class StudioEmballage {
 		if (!a) return $s.html(`<div class="se-vide">${__("Saisissez les dimensions de la forme pour voir le plan.")}</div>`);
 		if (a.erreur) return $s.html(`<div class="se-vide text-danger">${this._esc(a.erreur)}</div>`);
 		const pb = (a.problemes || []).length ? `<p class="text-danger small">⛔ ${a.problemes.map(this._esc).join(" · ")}</p>` : "";
-		$s.html(`<p class="text-muted small">${__("Feuille <b>{0} × {1} mm</b>, fond perdu inclus. Survolez une face, cliquez pour l'épingler.", [a.feuille.w, a.feuille.h])}</p>${pb}${a.svg}`);
 		const infos = {};
 		(a.faces || []).forEach((f) => { infos[f.code] = f; });
+		// Barre d'outils de la face épinglée, AU-DESSUS du plan : ajouter une zone (logo, photo,
+		// pictogrammes…), revenir à la maquette, libérer — la colonne de droite n'est pas toujours visible.
+		const fe = this.epinglee && infos[this.epinglee];
+		const TYPES = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
+		const LIBS = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes / certifications"), code_barres: __("Code-barres"), photo: __("Photo produit") };
+		const outils = fe ? `<div class="se-outils" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 8px;margin-bottom:6px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;font-size:12.5px">
+				<b>${this._esc(fe.libelle)}</b> <span class="text-muted">${__("épinglée")}</span>
+				<span style="margin-left:8px">${__("Ajouter :")}</span>
+				<select class="form-control input-xs" data-role="type-zone-plan" style="height:26px;font-size:12px;width:auto;display:inline-block">${TYPES.map((t) => `<option value="${t}">${LIBS[t]}</option>`).join("")}</select>
+				<button class="btn btn-xs btn-primary" data-role="ajouter-zone-plan">＋ ${__("Ajouter la zone")}</button>
+				${fe.personnalisee ? `<button class="btn btn-xs btn-default" data-role="reinit-face-plan">${__("Revenir à la maquette automatique")}</button>` : ""}
+				<button class="btn btn-xs btn-default" data-role="liberer-face-plan">${__("Libérer")}</button>
+				<span class="text-muted" style="flex-basis:100%">${__("Glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer, cliquez-la pour ses réglages (cartouche, logo, pictogrammes).")}</span>
+			</div>` : "";
+		$s.html(`<p class="text-muted small">${__("Feuille <b>{0} × {1} mm</b>, fond perdu inclus. Survolez une face, cliquez pour l'épingler.", [a.feuille.w, a.feuille.h])}</p>${pb}${outils}${a.svg}`);
+		$s.find('[data-role="ajouter-zone-plan"]').on("click", () => this.ajouter_zone($s.find('[data-role="type-zone-plan"]').val()));
+		$s.find('[data-role="reinit-face-plan"]').on("click", () => this.reinitialiser_face(this.epinglee));
+		$s.find('[data-role="liberer-face-plan"]').on("click", () => { this.epinglee = null; this.zone_sel = null; this.rendre_scene(); this.face_info(null); });
 		const montrer = (code) => {
 			$s.find(".aqia-zones").hide();
 			$s.find(`.aqia-zones[data-face="${code}"]`).show();
