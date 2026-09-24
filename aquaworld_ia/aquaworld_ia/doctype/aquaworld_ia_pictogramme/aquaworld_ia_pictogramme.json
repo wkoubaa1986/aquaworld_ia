@@ -37,7 +37,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Catégorie",
-   "options": "Réglementaire\nCertification\nManutention\nRecyclage\nSécurité\nAutre"
+   "options": "Réglementaire\nCertification\nQualité de l'eau\nAlimentaire\nGarantie\nManutention\nRecyclage\nSécurité\nAutre"
   },
   {
    "fieldname": "cb_5",

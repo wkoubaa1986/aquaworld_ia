@@ -22,6 +22,15 @@ CATALOGUE = [
 	("haut", "Ce côté vers le haut", "Manutention", "haut.svg", 12.0, 0),
 	("humidite", "Craint l'humidité", "Manutention", "humidite.svg", 12.0, 0),
 	("lire_notice", "Lire la notice", "Sécurité", "lire_notice.svg", 10.0, 0),
+	# Ajoutés le 24/09/2026 (demande utilisateur : « d'autres types ») — symboles GÉNÉRIQUES, pas des
+	# marques : NSF, WQA, etc. se téléversent avec leur visuel officiel via « Ajouter ».
+	("contact_alimentaire", "Contact alimentaire (verre et fourchette)", "Alimentaire", "contact_alimentaire.svg", 10.0, 0),
+	("sans_bpa", "Sans BPA", "Qualité de l'eau", "sans_bpa.svg", 10.0, 0),
+	("eau_potable", "Eau potable", "Qualité de l'eau", "eau_potable.svg", 10.0, 0),
+	("garantie", "Garantie (bouclier)", "Garantie", "garantie.svg", 10.0, 0),
+	("temperature", "Plage de température", "Sécurité", "temperature.svg", 10.0, 0),
+	("pression", "Pression maximale", "Sécurité", "pression.svg", 10.0, 0),
+	("iso", "Certifié ISO (générique)", "Certification", "iso.svg", 10.0, 0),
 ]
 
 

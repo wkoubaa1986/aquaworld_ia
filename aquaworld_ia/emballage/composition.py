@@ -139,7 +139,7 @@ def style_zone(zone: dict) -> dict | None:
 
 #: Ce qu'une zone dessinée à la main transporte en plus de sa géométrie : son style et, pour un
 #: logo, le fichier d'une variante propre à cette face.
-CLES_ZONE_CONSERVEES = ("style", "logo")
+CLES_ZONE_CONSERVEES = ("style", "logo", "pictos")
 
 
 def borner_zone(zone: dict, face: dict) -> dict:
@@ -777,9 +777,12 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 					page.draw_rect(pymupdf.Rect(rect[0] - cote - MM(2), rect[3] - cote, rect[0] - MM(2), rect[3]), color=None, fill=(1, 1, 1))
 					poser_svg(page, (rect[0] - cote - MM(2), rect[3] - cote, rect[0] - MM(2), rect[3]), qr)
 			elif z["zone"] == "pictos" and pictos_svg:
+				# Une zone peut ne montrer que certains pictogrammes (demande utilisateur 24/09/2026 :
+				# « NSF seul sur l'avant ») ; sans sélection, elle les montre tous.
+				choisis = z.get("pictos") if isinstance(z.get("pictos"), list) and z.get("pictos") else None
 				taille = MM(z["h"])
 				x = rect[0]
-				for _code, svg in pictos_svg:
+				for _code, svg in [(c, s) for c, s in pictos_svg if not choisis or c in choisis]:
 					if x + taille > rect[2] + 0.5:
 						break
 					if sans_cartouche:

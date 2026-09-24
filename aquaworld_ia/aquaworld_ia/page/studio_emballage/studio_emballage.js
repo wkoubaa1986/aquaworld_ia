@@ -354,12 +354,12 @@ class StudioEmballage {
 		const NS = "http://www.w3.org/2000/svg";
 		const W = svg.viewBox.baseVal.width, POIGNEE = Math.max(2.5, W / 90);
 		const g = document.createElementNS(NS, "g"); g.setAttribute("class", "se-edit"); svg.appendChild(g);
-		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null }));
+		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null, pictos: z.pictos || null }));
 		const u = face.utile || face;   // une zone ne va jamais dans une bande réservée (repli agrafé)
 		const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); g.appendChild(n); return n; };
 		const point = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
 		const sauver = () => {
-			this.mep[face.code] = zones.map((z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {}));
+			this.mep[face.code] = zones.map((z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {}, z.pictos && z.pictos.length ? { pictos: z.pictos } : {}));
 			this.modifier({ mise_en_page: this.mep }, false);
 		};
 		zones.forEach((z, i) => {
@@ -460,7 +460,7 @@ class StudioEmballage {
 		const $b = this.$root.find('[data-role="face"]');
 		if (!f) return $b.html(`<span class="text-muted">${__("Survolez une face du plan.")}</span>`);
 		const epinglee = this.epinglee === f.code;
-		const zones = (f.zones || []).map((z, i) => `<li ${epinglee ? `data-zi="${i}" style="cursor:pointer${this.zone_sel === i ? ";font-weight:600;color:#b91c1c" : ""}"` : ""}>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span>${z.style && z.style.fond ? ` <span class="se-chip" style="background:${this._esc(z.style.fond)};color:${this._esc((z.style.texte) || "#fff")}">${__("cartouche")}</span>` : ""}${z.logo ? ` <span class="se-chip">${__("logo propre")}</span>` : ""}</li>`).join("");
+		const zones = (f.zones || []).map((z, i) => `<li ${epinglee ? `data-zi="${i}" style="cursor:pointer${this.zone_sel === i ? ";font-weight:600;color:#b91c1c" : ""}"` : ""}>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span>${z.style && z.style.fond ? ` <span class="se-chip" style="background:${this._esc(z.style.fond)};color:${this._esc((z.style.texte) || "#fff")}">${__("cartouche")}</span>` : ""}${z.logo ? ` <span class="se-chip">${__("logo propre")}</span>` : ""}${z.pictos && z.pictos.length ? ` <span class="se-chip">${__("{0} picto(s)", [z.pictos.length])}</span>` : ""}</li>`).join("");
 		const sel = epinglee && this.zone_sel != null ? (f.zones || [])[this.zone_sel] : null;
 		const TEXTES = ["nom", "accroche", "caracteristiques", "avertissements", "contact"];
 		let props = "";
@@ -480,6 +480,16 @@ class StudioEmballage {
 					<button class="btn btn-xs btn-default" data-role="logo-variante">📚 ${__("Variante de la bibliothèque")}</button>
 					${sel.logo ? `<button class="btn btn-xs btn-default" data-role="logo-commun">${__("Logo du design")}</button>` : ""}</div>
 				<div class="text-muted small" style="margin-top:6px">${sel.logo ? __("Cette face a son propre logo.") : __("Cette face utilise le logo du design (étape 2).")}</div></div>`;
+		} else if (sel && sel.zone === "pictos") {
+			const choisis = sel.pictos || [];
+			const cases = (this.d.pictogrammes || []).map((p) => {
+				const info = (this.data.pictos || []).find((x) => x.code === p.pictogramme) || {};
+				return `<label class="se-check" style="margin:2px 0"><input type="checkbox" data-picto-zone="${this._esc(p.pictogramme)}" ${choisis.includes(p.pictogramme) ? "checked" : ""}> ${info.url ? `<img src="${this._esc(info.url)}" style="width:18px;height:18px;object-fit:contain;background:#fff;border-radius:3px">` : ""}${this._esc(info.libelle || p.pictogramme)}</label>`;
+			}).join("");
+			props = `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Pictogrammes de cette zone")}</h6>
+				${cases || `<span class="text-muted small">${__("Cochez d'abord des pictogrammes à l'étape 2.")}</span>`}
+				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-pictos">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="pictos-tous">${__("Tous")}</button></div>
+				<div class="text-muted small" style="margin-top:6px">${__("Rien de coché = tous les pictogrammes. Ils se posent côte à côte à la hauteur de la zone : agrandissez-la pour un logo de certification.")}</div></div>`;
 		} else if (sel) {
 			props = `<div class="text-muted small" style="margin-top:6px">${__("Cette zone n'a pas de réglage : déplacez-la ou redimensionnez-la sur le plan.")}</div>`;
 		}
@@ -510,6 +520,8 @@ class StudioEmballage {
 			this._zones_en_cours.sauver();
 		});
 		$b.find('[data-role="style-aucun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.style = null; this._zones_en_cours.sauver(); });
+		$b.find('[data-role="appliquer-pictos"]').on("click", () => { const z = zone_courante(); if (!z) return; z.pictos = $b.find("[data-picto-zone]:checked").map((_i, el) => $(el).attr("data-picto-zone")).get(); this._zones_en_cours.sauver(); });
+		$b.find('[data-role="pictos-tous"]').on("click", () => { const z = zone_courante(); if (!z) return; z.pictos = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="logo-variante"]').on("click", () => this.bibliotheque("logo", (l) => { const z = zone_courante(); if (!z) return; z.logo = l.image; this._zones_en_cours.sauver(); }));
 		$b.find('[data-role="logo-commun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.logo = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="reinit-face"]').on("click", () => this.reinitialiser_face(f.code));
@@ -623,7 +635,7 @@ class StudioEmballage {
 			fields: [
 				{ fieldtype: "Data", fieldname: "libelle", label: __("Nom"), reqd: 1 },
 				{ fieldtype: "Select", fieldname: "categorie", label: __("Catégorie"), default: "Certification",
-				  options: ["Certification", "Réglementaire", "Manutention", "Recyclage", "Sécurité", "Autre"].join("\n") },
+				  options: ["Certification", "Qualité de l'eau", "Alimentaire", "Garantie", "Réglementaire", "Manutention", "Recyclage", "Sécurité", "Autre"].join("\n") },
 				{ fieldtype: "Float", fieldname: "taille_mm", label: __("Taille sur l'emballage (mm)"), default: 12 },
 				{ fieldtype: "Attach", fieldname: "image", label: __("Image (PNG, JPEG ou SVG)"), reqd: 1,
 				  description: __("Un fond blanc uniforme devient transparent à l'impression.") },

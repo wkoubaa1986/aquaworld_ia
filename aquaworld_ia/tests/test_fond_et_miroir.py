@@ -222,6 +222,8 @@ class TestStyleDeZone(unittest.TestCase):
 		self.assertEqual(t["logo"], "/private/files/blanc.png")
 		self.assertAlmostEqual(t["x"], ar["x"] + 5, places=3)
 		self.assertNotIn("style", C.borner_zone({"zone": "nom", "x": 0, "y": 0, "w": 10, "h": 5}, av))
+		p = C.borner_zone({"zone": "pictos", "x": av["x"], "y": av["y"], "w": 40, "h": 12, "pictos": ["nsf"]}, av)
+		self.assertEqual(p["pictos"], ["nsf"])
 
 	def test_apercu_svg_teinte_la_zone_stylee(self):
 		svg = G.apercu_svg(PLAN, zones={"avant": [{"zone": "nom", "x": 80, "y": 250, "w": 100, "h": 20, "style": {"fond": "#1d4ed8", "rayon": 4}}]})
