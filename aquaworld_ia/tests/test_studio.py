@@ -51,3 +51,19 @@ class TestAtelierImage(unittest.TestCase):
 		self.assertEqual(S.taille_retouche("photo_produit", png(1000, 500)), "1536x1024")
 		self.assertEqual(S.taille_retouche("photo_produit", png(800, 800)), "1024x1024")
 		self.assertEqual(S.taille_retouche("logo", png(500, 1000)), "1024x1024")
+
+
+class TestImagesDuDesign(unittest.TestCase):
+	def test_genre_par_nom(self):
+		g = S.genre_image
+		self.assertEqual(g("EMB-2026-0002-logo-iabb9f89.png", "EMB-2026-0002"), "Logo IA")
+		self.assertEqual(g("EMB-2026-0002-logobb9f89.png", "EMB-2026-0002"), "Logo")
+		self.assertEqual(g("EMB-2026-0002-photo-ia369d07.png", "EMB-2026-0002"), "Photo IA")
+		self.assertEqual(g("EMB-2026-0002-photodf9f28.png", "EMB-2026-0002"), "Photo")
+		self.assertEqual(g("EMB-2026-0002-fond07aafa.png", "EMB-2026-0002"), "Fond IA")
+		self.assertEqual(g("EMB-2026-0002-v2a011e0.png", "EMB-2026-0002"), "Variante")
+		self.assertEqual(g("EMB-2026-0002-v1-cote_gauche2c8064.png", "EMB-2026-0002"), "Face IA")
+		self.assertEqual(g("EMB-2026-0002-apercu-3d70159d.png", "EMB-2026-0002"), "Aperçu 3D")
+		self.assertIsNone(g("EMB-2026-0002-apercu56dace.png", "EMB-2026-0002"))
+		self.assertEqual(g("P-F-S-10'-O-SC_13b865a.jpg", "EMB-2026-0002"), "Téléversé")
+		self.assertEqual(g("ecopurium.png", "EMB-2026-0002"), "Téléversé")

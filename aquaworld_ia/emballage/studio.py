@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 
 import frappe
 from frappe import _
@@ -75,7 +76,52 @@ def charger(design: str) -> dict:
 		                          order_by="code"),
 		"pictos": pictos_avec_vignette(),
 		"estimation": job.estimation_variantes(1),
+		"images": images_du_design(doc),
 	}
+
+
+GENRES_IMAGE = (
+	("-logo-ia", "Logo IA"), ("-logo", "Logo"), ("-photo-ia", "Photo IA"), ("-photo", "Photo"), ("-fond", "Fond IA"),
+	("-apercu-3d", "Aperçu 3D"),
+)
+
+
+def genre_image(nom_fichier: str, design: str) -> str | None:
+	"""Le genre d'un fichier image du design d'après son nom (les fichiers de l'app portent un
+	suffixe stable) ; None = fichier technique à ne pas montrer (aperçu du plan). Pur."""
+	base = (nom_fichier or "").rsplit(".", 1)[0]
+	if base.startswith(design):
+		reste = base[len(design):]
+		if reste.startswith("-apercu") and not reste.startswith("-apercu-3d"):
+			return None
+		for suffixe, genre in GENRES_IMAGE:
+			if reste.startswith(suffixe):
+				return genre
+		if re.match(r"^-v\d+-", reste):
+			return "Face IA"
+		if re.match(r"^-v\d+", reste):
+			return "Variante"
+	return "Téléversé"
+
+
+def images_du_design(doc) -> list:
+	"""Toutes les images attachées à la fiche (demande utilisateur 24/09/2026 : « les logos et les
+	logos traités, je les trouve où ? ») : une entrée par fichier, la plus récente d'abord."""
+	lignes = frappe.get_all("File", filters={"attached_to_doctype": "Design Emballage", "attached_to_name": doc.name,
+	                                          "is_folder": 0}, fields=["file_name", "file_url", "creation"], order_by="creation desc")
+	vus, out = set(), []
+	en_usage = {doc.get("logo"): "logo", doc.get("photo_produit"): "photo_produit", doc.get("image_fond"): "image_fond"}
+	for f in lignes:
+		ext = (f.file_url or "").rsplit(".", 1)[-1].lower()
+		if ext not in ("png", "jpg", "jpeg", "svg", "webp", "gif") or f.file_url in vus:
+			continue
+		genre = genre_image(f.file_name, doc.name)
+		if not genre:
+			continue
+		vus.add(f.file_url)
+		out.append({"file_url": f.file_url, "file_name": f.file_name, "creation": f.creation, "genre": genre,
+		            "usage": en_usage.get(f.file_url)})
+	return out
 
 
 def url_pictogramme(p) -> str | None:
@@ -331,14 +377,16 @@ def _copier_fichier(url: str, nom_fichier: str, doctype: str, name: str) -> str:
 
 
 @frappe.whitelist()
-def bibliotheque_enregistrer(design: str, champ: str, nom: str, categorie: str | None = None, notes: str | None = None) -> dict:
-	"""Garde le fichier actuel d'un champ du design (image de fond, logo) dans la bibliothèque,
-	sous un nom, avec la marque du design."""
+def bibliotheque_enregistrer(design: str, champ: str, nom: str, categorie: str | None = None, notes: str | None = None,
+                             url: str | None = None) -> dict:
+	"""Garde un fichier du design dans la bibliothèque, sous un nom, avec la marque du design :
+	celui du champ (image de fond, logo), ou l'`url` donnée (onglet Images : une proposition de
+	logo IA, un ancien fond…)."""
 	if champ not in CHAMPS_BIBLIOTHEQUE:
 		frappe.throw(_("Ce champ ne va pas dans la bibliothèque."))
 	doc = frappe.get_doc("Design Emballage", design)
 	doc.check_permission("read")
-	url = doc.get(champ)
+	url = url or doc.get(champ)
 	if not url:
 		frappe.throw(_("Aucun fichier à enregistrer : générez ou choisissez d'abord un fichier."))
 	if not (nom or "").strip():

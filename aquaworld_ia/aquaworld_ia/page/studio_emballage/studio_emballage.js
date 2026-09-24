@@ -76,6 +76,7 @@ class StudioEmballage {
 		this.data = r.message; this.d = this.data.doc; this._lire_mep();
 		this.rendre_scene(); this.rendre_droite(); this.rendre_barre(); this.rendre_etats_etapes();
 	}
+	// (la scène Images lit this.data.images, rechargé par enregistrer())
 
 	// Les dimensions qu'exige la forme (L, H, P, R → champs) : un sac plat n'a pas de P, un sac
 	// agrafé a un repli R plus petit que H.
@@ -306,12 +307,13 @@ class StudioEmballage {
 	rendre_scene() {
 		const d = this.d;
 		const onglets = [["plan", __("Plan")], ["variantes", __("Variantes ({0})", [(d.variantes || []).length])],
-			["artwork", __("Artwork")], ["3d", __("3D")]];
+			["artwork", __("Artwork")], ["3d", __("3D")], ["images", __("Images ({0})", [(this.data.images || []).length])]];
 		this.$root.find(".se-onglets").html(onglets.map(([k, l]) => `<div class="o ${k === this.onglet ? "on" : ""}" data-onglet="${k}">${l}</div>`).join(""))
 			.find(".o").on("click", (e) => { this.onglet = $(e.currentTarget).attr("data-onglet"); this.rendre_scene(); });
 		const $s = this.$root.find(".se-scene");
 		if (this.onglet === "plan") return this.scene_plan($s);
 		if (this.onglet === "variantes") return this.scene_variantes($s);
+		if (this.onglet === "images") return this.scene_images($s);
 		if (this.onglet === "artwork") return $s.html(d.apercu_plan ? `<img class="se-img" src="${this._esc(d.apercu_plan)}" alt=""><p class="text-muted small text-center" style="margin-top:8px">${__("Aperçu à l'écran. Le PDF imprimeur est à l'échelle, avec le calque de découpe.")}</p>` : `<div class="se-vide">${__("Pas encore de plan composé : choisissez une variante puis « Composer le plan à plat ».")}</div>`);
 		if (this.onglet === "3d") return $s.html(d.apercu_3d ? `<img class="se-img" src="${this._esc(d.apercu_3d)}" alt=""><p class="text-muted small text-center" style="margin-top:8px">${__("Illustration non contractuelle.")}</p>` : `<div class="se-vide">${__("Pas encore de rendu 3D : composez le plan, puis « Aperçu 3D ».")}</div>`);
 	}
@@ -456,6 +458,27 @@ class StudioEmballage {
 				this.suivre();
 			});
 		});
+	}
+
+	// ─── images du design : tout ce qui a été téléversé ou produit ───────────────
+	scene_images($s) {
+		const esc = this._esc, images = this.data.images || [];
+		if (!images.length) return $s.html(`<div class="se-vide">${__("Aucune image encore : téléversez un logo ou une photo, générez un fond ou des variantes.")}</div>`);
+		const USAGES = { logo: __("logo actuel"), photo_produit: __("photo actuelle"), image_fond: __("fond actuel") };
+		$s.html(`<p class="text-muted small">${__("Toutes les images de ce design, la plus récente d'abord : logos et logos retouchés par IA, photos, fonds, variantes, faces IA. Un clic les remet en service ou les garde en bibliothèque.")}</p>
+			<div class="se-galerie">${images.map((im) => `
+			<div class="se-carte ${im.usage ? "choisie" : ""}">
+				<img src="${esc(im.file_url)}" alt="" style="aspect-ratio:4 / 3;object-fit:contain;background:#fff">
+				<div class="leg"><span class="se-chip">${esc(im.genre)}</span> ${im.usage ? `<span class="se-chip ok">${USAGES[im.usage]}</span>` : ""}<br><span class="text-muted">${esc(frappe.datetime.str_to_user(im.creation).slice(0, 16))}</span></div>
+				<div class="act" style="flex-wrap:wrap">
+					<button class="btn btn-xs btn-default" data-usage="logo" data-url="${esc(im.file_url)}" title="${__("Utiliser comme logo du design")}">${__("Logo")}</button>
+					<button class="btn btn-xs btn-default" data-usage="photo_produit" data-url="${esc(im.file_url)}" title="${__("Utiliser comme photo du produit")}">${__("Photo")}</button>
+					<button class="btn btn-xs btn-default" data-usage="image_fond" data-url="${esc(im.file_url)}" title="${__("Utiliser comme image de fond")}">${__("Fond")}</button>
+					<button class="btn btn-xs btn-default" data-garder-url="${esc(im.file_url)}" data-garder-champ="${im.genre.startsWith("Logo") ? "logo" : "image_fond"}" title="${__("Garder en bibliothèque, sous un nom")}">💾</button>
+					<a class="btn btn-xs btn-default" href="${esc(im.file_url)}" target="_blank" title="${__("Ouvrir le fichier")}">↗</a>
+				</div></div>`).join("")}</div>`);
+		$s.find("[data-usage]").on("click", (e) => this.modifier({ [$(e.currentTarget).attr("data-usage")]: $(e.currentTarget).attr("data-url") }, true));
+		$s.find("[data-garder-url]").on("click", (e) => this.garder($(e.currentTarget).attr("data-garder-champ"), $(e.currentTarget).attr("data-garder-url")));
 	}
 
 	// ─── colonne de droite ──────────────────────────────────────────────────────
@@ -710,11 +733,12 @@ class StudioEmballage {
 	}
 
 	// ─── bibliothèque : fonds, motifs, variantes de logo ────────────────────────
-	garder(champ) {
+	garder(champ, url) {
 		const est_logo = champ === "logo";
+		url = url || this.d[champ];
 		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Garder ce logo en bibliothèque") : __("Garder ce fond en bibliothèque"),
 			fields: [
-				{ fieldtype: "HTML", options: `<img src="${this._esc(this.d[champ])}" style="max-height:120px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
+				{ fieldtype: "HTML", options: `<img src="${this._esc(url)}" style="max-height:120px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
 				{ fieldtype: "Data", fieldname: "nom", label: __("Nom"), reqd: 1, default: est_logo ? (this.d.marque || "") + " " : (this.d.brief_style || "").slice(0, 40) },
 				{ fieldtype: "Select", fieldname: "categorie", label: __("Catégorie"), default: est_logo ? "Logo" : "Fond", options: (est_logo ? ["Logo"] : ["Fond", "Motif"]).join("\n") },
 				{ fieldtype: "Small Text", fieldname: "notes", label: __("Notes"), default: est_logo ? "" : [this.d.brief_style, this.d.palette].filter(Boolean).join(" · ") },
@@ -723,7 +747,7 @@ class StudioEmballage {
 			primary_action_label: __("Garder"),
 			primary_action: async (v) => {
 				try {
-					const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_enregistrer", args: { design: this.nom, champ, nom: v.nom, categorie: v.categorie, notes: v.notes } });
+					const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_enregistrer", args: { design: this.nom, champ, nom: v.nom, categorie: v.categorie, notes: v.notes, url } });
 					dlg.hide(); frappe.show_alert({ message: __("Gardé en bibliothèque : {0}", [r.message.nom]), indicator: "green" });
 				} catch (e) { frappe.msgprint(this._msg(e)); }
 			} });
