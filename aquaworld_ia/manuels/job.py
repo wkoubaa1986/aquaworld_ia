@@ -38,6 +38,9 @@ def langue_infos(code: str) -> dict:
 def ajouter_langues_actives(manuel: str) -> list:
 	doc = _doc(manuel)
 	presentes = {l.langue for l in doc.traductions}
+	# La langue source du manuel (anglais, active depuis le 24/09/2026 pour les emballages) ne se
+	# traduit pas vers elle-même.
+	presentes.add((doc.langue_source or "en").strip().lower())
 	ajoutees = []
 	for code in frappe.get_all("Aquaworld IA Langue", filters={"actif": 1}, pluck="name", order_by="name"):
 		if code not in presentes:

@@ -29,6 +29,7 @@ frappe.ui.form.on("Design Emballage", {
 	},
 	type_boite: aqia_emb_apercu, longueur_mm: aqia_emb_apercu, hauteur_mm: aqia_emb_apercu, profondeur_mm: aqia_emb_apercu, repli_mm: aqia_emb_apercu,
 	fond_perdu_mm: aqia_emb_apercu, zone_securite_mm: aqia_emb_apercu, patte_collage_mm: aqia_emb_apercu,
+	faces_identiques: aqia_emb_apercu, cotes_identiques: aqia_emb_apercu,
 
 	refresh(frm) {
 		frm._aqia_arreter_suivi && frm._aqia_arreter_suivi();
@@ -121,6 +122,7 @@ function aqia_emb_contenu(frm) {
 		pictos: (d.pictogrammes || []).length,
 		code_barres: d.type_code_barres !== "Aucun" && !!(d.code_barres || d.url_qr),
 		faces_identiques: !!d.faces_identiques,
+		cotes_identiques: !!d.cotes_identiques,
 	};
 }
 

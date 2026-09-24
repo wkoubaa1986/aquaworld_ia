@@ -23,7 +23,7 @@ CHAMPS_EDITABLES = (
 	"nom_produit", "marque", "logo", "photo_produit", "type_boite", "longueur_mm", "hauteur_mm",
 	"profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm", "patte_collage_mm", "caracteristiques",
 	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "brief_style", "palette",
-	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques", "fond_continu", "mise_en_page",
+	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques", "cotes_identiques", "fond_continu", "mise_en_page",
 )
 CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm",
                      "patte_collage_mm")
@@ -42,6 +42,7 @@ def _contenu_du_doc(doc) -> dict:
 		"pictos": len(doc.pictogrammes or []),
 		"code_barres": doc.type_code_barres != "Aucun" and bool(doc.code_barres or doc.url_qr),
 		"faces_identiques": bool(doc.get("faces_identiques")),
+		"cotes_identiques": bool(doc.get("cotes_identiques")),
 		"mise_en_page": doc.get("mise_en_page") or None,
 	}
 

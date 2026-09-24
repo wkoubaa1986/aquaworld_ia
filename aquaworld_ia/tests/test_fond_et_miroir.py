@@ -100,3 +100,51 @@ class TestMiseEnPagePersonnalisee(unittest.TestCase):
 	def test_la_photo_est_une_zone_ajoutable(self):
 		self.assertIn("photo", C.ZONES_AJOUTABLES)
 		self.assertIn("photo", G.ZONES_LIBELLES)
+
+
+class TestCotesIdentiques(unittest.TestCase):
+	"""Demande utilisateur 24/09/2026 : côté gauche = côté droit, avant = arrière. Le côté gauche
+	copie le côté droit ; avec le dos miroir, l'EAN et les avertissements sont sur les DEUX côtés."""
+
+	def _relatives(self, zones, face):
+		return [(z["zone"], round(z["x"] - face["x"], 2), round(z["y"] - face["y"], 2), z["w"], z["h"]) for z in zones]
+
+	def test_le_cote_gauche_copie_le_cote_droit(self):
+		z = C.zones_par_face(PLAN, CONTENU, faces_identiques=True, cotes_identiques=True)
+		self.assertEqual(self._relatives(z["cote_gauche"], G.face(PLAN, "cote_gauche")),
+		                 self._relatives(z["cote_droit"], G.face(PLAN, "cote_droit")))
+		self.assertIn("code_barres", _noms(z["cote_gauche"]))
+		self.assertIn("avertissements", _noms(z["cote_gauche"]))
+		self.assertNotIn("code_barres", _noms(z["arriere"]))
+		cg = G.face(PLAN, "cote_gauche")
+		for zone in z["cote_gauche"]:
+			self.assertGreaterEqual(zone["x"], cg["x"] - 0.01)
+			self.assertLessEqual(zone["x"] + zone["w"], cg["x"] + cg["w"] + 0.01, zone)
+
+	def test_sans_miroir_les_cotes_sont_deja_pareils_et_sans_ean(self):
+		z = C.zones_par_face(PLAN, CONTENU, faces_identiques=False, cotes_identiques=True)
+		self.assertEqual(_noms(z["cote_gauche"]), _noms(z["cote_droit"]))
+		self.assertNotIn("code_barres", _noms(z["cote_gauche"]))
+		self.assertIn("code_barres", _noms(z["arriere"]))
+
+	def test_la_mise_en_page_dessinee_sur_la_source_est_recopiee(self):
+		cd, av = G.face(PLAN, "cote_droit"), G.face(PLAN, "avant")
+		mep = {"cote_droit": [{"zone": "logo", "x": cd["x"] + 5, "y": cd["y"] + 100, "w": 30, "h": 20}],
+		       "avant": [{"zone": "nom", "x": av["x"] + 10, "y": av["y"] + 150, "w": 80, "h": 25}]}
+		z = C.zones_par_face(PLAN, CONTENU, faces_identiques=True, cotes_identiques=True, mise_en_page=mep)
+		self.assertEqual(self._relatives(z["cote_gauche"], G.face(PLAN, "cote_gauche")), [("logo", 5.0, 100.0, 30.0, 20.0)])
+		self.assertEqual(self._relatives(z["arriere"], G.face(PLAN, "arriere")), [("nom", 10.0, 150.0, 80.0, 25.0)])
+
+	def test_une_face_copiee_dessinee_a_la_main_devient_independante(self):
+		cg = G.face(PLAN, "cote_gauche")
+		mep = {"cote_gauche": [{"zone": "pictos", "x": cg["x"] + 2, "y": cg["y"] + 2, "w": 20, "h": 10}]}
+		z = C.zones_par_face(PLAN, CONTENU, faces_identiques=True, cotes_identiques=True, mise_en_page=mep)
+		self.assertEqual(_noms(z["cote_gauche"]), ["pictos"])
+		self.assertEqual(C.faces_copiees(PLAN, True, True, mep), {"arriere": "avant"})
+		self.assertEqual(C.faces_copiees(PLAN, True, True), {"arriere": "avant", "cote_gauche": "cote_droit"})
+
+	def test_sans_cotes_rien_a_copier(self):
+		plan = G.plan_a_plat(G.DOYPACK, 130, 200, 80)
+		self.assertEqual(C.faces_copiees(plan, True, True), {})
+		z = C.zones_par_face(plan, CONTENU, faces_identiques=True, cotes_identiques=True)
+		self.assertIn("code_barres", _noms(z["arriere"]))

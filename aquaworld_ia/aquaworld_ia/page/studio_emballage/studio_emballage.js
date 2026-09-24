@@ -202,6 +202,7 @@ class StudioEmballage {
 					<div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${this._dims_ok() ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button></div>
 					<label class="se-check"><input type="checkbox" data-champ="fond_continu" ${d.fond_continu ? "checked" : ""}> ${__("Fond continu sur toutes les faces (panorama découpé aux plis)")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="faces_identiques" ${d.faces_identiques ? "checked" : ""}> ${__("Face arrière identique à la face avant")}</label>
+					<label class="se-check"><input type="checkbox" data-champ="cotes_identiques" ${d.cotes_identiques ? "checked" : ""} title="${__("Avec le dos identique à l'avant, le code-barres et les avertissements sont dupliqués sur les deux côtés.")}"> ${__("Côtés identiques (gauche = droit)")}</label>
 					<p class="text-muted small" style="margin:2px 0 6px">${__("Avec une couleur ou une image de fond et la photo du produit, le plan se compose aussi SANS variante IA.")}</p>
 					<label>${__("Brief de style")}</label><textarea data-champ="brief_style" placeholder="${__("ex. haut de gamme, bleu profond, minimaliste")}">${esc(d.brief_style || "")}</textarea>
 					<div class="se-3" style="grid-template-columns:1.6fr 1fr">
@@ -443,7 +444,8 @@ class StudioEmballage {
 		const zones = (f.zones || []).map((z) => `<li>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span></li>`).join("");
 		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
 		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
-		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}</h6>
+		const source = f.copie_de && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_de);
+		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}${source ? ` <span class="se-chip" title="${__("Modifiez la face source : cette face la suit. Dessinez ici pour la rendre indépendante.")}">${__("copie de {0}", [this._esc(source.libelle)])}</span>` : ""}</h6>
 			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
 			${this.epinglee === f.code ? `
 				<div class="small" style="margin-top:8px">${__("Sur le plan : glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer.")}</div>

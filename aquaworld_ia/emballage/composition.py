@@ -142,13 +142,40 @@ def appliquer_mise_en_page(zones: dict, plan: dict, mise_en_page: dict | None) -
 	return out
 
 
-def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False, mise_en_page: dict | None = None) -> dict:
+def translater_zones(zones: list[dict], de: dict, vers: dict) -> list[dict]:
+	"""Les zones d'une face recopiées sur une autre de même taille (dos ← avant, côté gauche ←
+	côté droit), puis bornées à la face d'arrivée. Pur."""
+	dx, dy = vers["x"] - de["x"], vers["y"] - de["y"]
+	return [borner_zone(dict(z, x=z["x"] + dx, y=z["y"] + dy), vers) for z in zones]
+
+
+def faces_copiees(plan: dict, faces_identiques: bool = False, cotes_identiques: bool = False,
+                  mise_en_page: dict | None = None) -> dict:
+	"""{face copiée: face source} : le dos copie l'avant, le côté gauche copie le côté droit, sauf
+	si la face copiée a sa propre mise en page (une main qui l'a dessinée a raison). Pur."""
+	codes = {f["code"] for f in plan["faces"] if f["imprimable"]}
+	mep = mise_en_page or {}
+	out = {}
+	if faces_identiques and "cote_droit" in codes and "arriere" in codes and "arriere" not in mep:
+		out["arriere"] = "avant"
+	if cotes_identiques and {"cote_droit", "cote_gauche"} <= codes and "cote_gauche" not in mep:
+		out["cote_gauche"] = "cote_droit"
+	return out
+
+
+def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False, mise_en_page: dict | None = None,
+                   cotes_identiques: bool = False) -> dict:
 	"""{code: zones} pour toutes les faces imprimables. Pur.
 
 	`faces_identiques` (demande utilisateur 23/09/2026 : « face avant et arrière la même ») : le
 	dos reçoit la MAQUETTE DE L'AVANT (logo, nom, accroche) ; l'EAN et les avertissements, qui
 	vivaient au dos, passent sur le côté droit s'il existe. Sans côté (sachet doypack), le dos
-	garde sa maquette : mieux vaut un dos différent qu'un EAN nulle part."""
+	garde sa maquette : mieux vaut un dos différent qu'un EAN nulle part.
+	`cotes_identiques` (demande utilisateur 24/09/2026 : « côté gauche et côté droit les mêmes ») :
+	le côté gauche est la copie du côté droit — EAN et avertissements compris quand le dos est le
+	miroir de l'avant : ils sont alors DUPLIQUÉS sur les deux côtés, l'emballage reste symétrique.
+	Une face copiée reprend aussi la mise en page dessinée à la main sur sa source ; une face
+	copiée qui a sa propre mise en page la garde."""
 	codes = {f["code"] for f in plan["faces"] if f["imprimable"]}
 	miroir = faces_identiques and "cote_droit" in codes
 	out = {}
@@ -163,7 +190,10 @@ def zones_par_face(plan: dict, contenu: dict, faces_identiques: bool = False, mi
 			c["code_barres_cote"] = contenu.get("code_barres")
 			c["avertissements_cote"] = contenu.get("avertissements")
 		out[f["code"]] = maquette_face(f, c)
-	return appliquer_mise_en_page(out, plan, mise_en_page)
+	out = appliquer_mise_en_page(out, plan, mise_en_page)
+	for cible, source in faces_copiees(plan, faces_identiques, cotes_identiques, mise_en_page).items():
+		out[cible] = translater_zones(out[source], geometrie.face(plan, source), geometrie.face(plan, cible))
+	return out
 
 
 def hero_photo_rect(face: dict) -> tuple:
@@ -462,6 +492,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	page = pdf.new_page(width=W, height=H)
 
 	identiques = bool(cint(doc.get("faces_identiques")))
+	cotes = bool(cint(doc.get("cotes_identiques")))
 	image_fond_url = doc.get("image_fond")
 	# ⚠️ LE FOND CONTINU REMPLACE LES VISUELS IA DES FACES : c'est tout son sens — un seul motif
 	# qui fait le tour. La variante IA (scène avec le produit) reste disponible en décochant
@@ -496,6 +527,8 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		visuels["avant"] = visuel_avant
 		if identiques:
 			visuels["arriere"] = visuel_avant
+	if cotes and visuels.get("cote_droit"):
+		visuels["cote_gauche"] = visuels["cote_droit"]     # côtés identiques : même visuel IA à gauche
 	photo_hero = None
 	photo_url = url_photo(doc)   # la photo de la fiche, sinon l'image de l'article
 	if not visuel_avant and photo_url:
@@ -556,7 +589,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		"code_barres": geometrie.EAN_NOMINAL_MM if (ean or qr) else None,
 	}
 	mise_en_page = frappe.parse_json(doc.get("mise_en_page")) if doc.get("mise_en_page") else None
-	zones = zones_par_face(plan, contenu, identiques, mise_en_page)
+	zones = zones_par_face(plan, contenu, identiques, mise_en_page, cotes)
 	photo_zone = None
 	if any(z["zone"] == "photo" for liste in zones.values() for z in liste):
 		try:
@@ -659,7 +692,8 @@ def fiche_technique_html(doc, variante, plan, textes, langues, dpi, pictos_svg, 
 			esc(doc.name), esc(doc.article),
 			("Variante %s « %s »" % (variante.numero, esc(variante.titre or ""))) if variante is not None
 			else "Sans visuel IA (fond choisi + photo produit)",
-			esc(plan["type"]), " · Dos identique à l'avant" if cint(doc.get("faces_identiques")) else "")
+			esc(plan["type"]), (" · Dos identique à l'avant" if cint(doc.get("faces_identiques")) else "")
+			+ (" · Côtés identiques (EAN et avertissements sur les deux côtés)" if cint(doc.get("cotes_identiques")) else ""))
 		+ "<p style=\"font-family:'Noto Sans';font-size:10pt\">Feuille : <b>%.1f × %.1f mm</b> (fond perdu %.1f mm inclus) · "
 		  "Dimensions : L %.1f × H %.1f × P %.1f mm%s · Langues : %s · EAN : %s · QR : %s · Pictogrammes : %s</p>" % (
 			plan["feuille"]["w"], plan["feuille"]["h"], plan.get("fond_perdu", 0), plan["dimensions"]["L"],

@@ -47,6 +47,7 @@
   "fond_continu",
   "mise_en_page",
   "faces_identiques",
+  "cotes_identiques",
   "palette",
   "nb_variantes",
   "sb_variantes_15",
@@ -297,6 +298,12 @@
    "fieldname": "faces_identiques",
    "fieldtype": "Check",
    "label": "Face arrière identique à la face avant"
+  },
+  {
+   "fieldname": "cotes_identiques",
+   "fieldtype": "Check",
+   "label": "Côtés identiques (gauche = droit)",
+   "description": "Le côté gauche est la copie du côté droit, mise en page dessinée comprise. Avec le dos identique à l'avant, l'EAN et les avertissements sont dupliqués sur les deux côtés."
   },
   {
    "description": "Ambiance, couleurs, cible, références.",

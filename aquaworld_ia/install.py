@@ -12,6 +12,10 @@ import frappe
 LANGUES = [
 	("fr", "Français", "Français", 0, 1, "Noto Sans",
 	 "Français standard, vouvoiement, terminologie technique usuelle."),
+	# Anglais (demande utilisateur 24/09/2026) : pour les textes d'emballage ; c'est aussi la langue
+	# source des manuels, qui ne se traduisent donc jamais vers elle.
+	("en", "Anglais", "English", 0, 1, "Noto Sans",
+	 "International English, imperative mood for instructions, keep units and part numbers as they are."),
 	("ar", "Arabe", "العربية", 1, 1, "Noto Naskh Arabic",
 	 "Arabe standard moderne. Conserver les chiffres en chiffres occidentaux (0-9) et les unités "
 	 "telles quelles (V, Hz, mm, kg)."),
