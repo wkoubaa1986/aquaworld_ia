@@ -212,6 +212,89 @@ def adopter_logo(design: str, url: str) -> dict:
 	return charger(design)
 
 
+#: Champs du design que la bibliothèque sait remplir, et les catégories qui leur correspondent.
+CHAMPS_BIBLIOTHEQUE = {"image_fond": ("Fond", "Motif"), "logo": ("Logo",)}
+
+
+def categorie_par_defaut(champ: str) -> str:
+	"""La catégorie proposée quand on enregistre le fichier d'un champ : un fond IA est un Fond,
+	un logo est un Logo. Pur."""
+	if champ not in CHAMPS_BIBLIOTHEQUE:
+		raise ValueError("Champ hors bibliothèque : %r" % champ)
+	return CHAMPS_BIBLIOTHEQUE[champ][0]
+
+
+def _copier_fichier(url: str, nom_fichier: str, doctype: str, name: str) -> str:
+	"""Un fichier `File` à part, attaché à (doctype, name) -> file_url. Frappe dédoublonne par
+	empreinte : le fichier physique est partagé tant qu'une fiche y renvoie, et n'est effacé du
+	disque que lorsque plus aucune fiche ne le référence (`File._delete_file_on_disk`). Supprimer
+	le design d'origine ne casse donc pas la ressource, ni l'inverse."""
+	from frappe.utils.file_manager import save_file
+
+	from aquaworld_ia.ia import fichiers
+
+	octets = fichiers.lire(url)
+	extension = (url.rsplit(".", 1)[-1].lower() if "." in url.rsplit("/", 1)[-1] else "png")[:5]
+	return save_file("%s.%s" % (nom_fichier, extension), octets, doctype, name, is_private=1).file_url
+
+
+@frappe.whitelist()
+def bibliotheque_enregistrer(design: str, champ: str, nom: str, categorie: str | None = None, notes: str | None = None) -> dict:
+	"""Garde le fichier actuel d'un champ du design (image de fond, logo) dans la bibliothèque,
+	sous un nom, avec la marque du design."""
+	if champ not in CHAMPS_BIBLIOTHEQUE:
+		frappe.throw(_("Ce champ ne va pas dans la bibliothèque."))
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("read")
+	url = doc.get(champ)
+	if not url:
+		frappe.throw(_("Aucun fichier à enregistrer : générez ou choisissez d'abord un fichier."))
+	if not (nom or "").strip():
+		frappe.throw(_("Donnez un nom à cette ressource."))
+	categorie = categorie or categorie_par_defaut(champ)
+	if categorie not in CHAMPS_BIBLIOTHEQUE[champ]:
+		frappe.throw(_("Catégorie {0} impossible pour ce champ.").format(categorie))
+	# L'image est obligatoire : on insère avec l'original, puis on le remplace par la copie
+	# attachée à la ressource (la copie a besoin du nom de la ressource pour s'y attacher).
+	res = frappe.get_doc({"doctype": "Ressource Emballage", "nom": nom.strip(), "categorie": categorie, "image": url,
+	                      "marque": doc.marque or None, "notes": notes, "design_origine": doc.name}).insert()
+	res.image = _copier_fichier(url, frappe.scrub(nom.strip())[:60] or "ressource", "Ressource Emballage", res.name)
+	res.save()
+	frappe.db.commit()
+	return {"name": res.name, "nom": res.nom, "categorie": res.categorie, "image": res.image}
+
+
+@frappe.whitelist()
+def bibliotheque_liste(champ: str | None = None, marque: str | None = None, recherche: str | None = None, limite: int = 60) -> list:
+	"""Les ressources d'un champ (fonds et motifs, ou logos), celles de la marque d'abord."""
+	filtres = {}
+	if champ:
+		if champ not in CHAMPS_BIBLIOTHEQUE:
+			frappe.throw(_("Ce champ ne va pas dans la bibliothèque."))
+		filtres["categorie"] = ("in", list(CHAMPS_BIBLIOTHEQUE[champ]))
+	if recherche:
+		filtres["nom"] = ("like", "%%%s%%" % recherche.strip())
+	lignes = frappe.get_all("Ressource Emballage", filters=filtres, fields=["name", "nom", "categorie", "marque", "image", "notes", "modified"],
+	                        order_by="modified desc", limit=int(limite or 60))
+	if marque:
+		lignes.sort(key=lambda l: 0 if l.get("marque") == marque else 1)
+	return lignes
+
+
+@frappe.whitelist()
+def bibliotheque_choisir(design: str, ressource: str, champ: str) -> dict:
+	"""Pose une ressource de la bibliothèque dans un champ du design (copie du fichier)."""
+	if champ not in CHAMPS_BIBLIOTHEQUE:
+		frappe.throw(_("Ce champ ne va pas dans la bibliothèque."))
+	res = frappe.get_doc("Ressource Emballage", ressource)
+	if res.categorie not in CHAMPS_BIBLIOTHEQUE[champ]:
+		frappe.throw(_("Une ressource « {0} » ne va pas dans ce champ.").format(res.categorie))
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	url = _copier_fichier(res.image, "%s-%s" % (doc.name, frappe.scrub(res.nom)[:40] or champ), "Design Emballage", doc.name)
+	return enregistrer(design, {champ: url})
+
+
 @frappe.whitelist()
 def liste(recherche: str | None = None, limite: int = 20) -> list:
 	"""Les fiches récentes, pour le sélecteur du studio."""

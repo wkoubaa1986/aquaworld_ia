@@ -22,3 +22,15 @@ class TestChampsDuStudio(unittest.TestCase):
 		self.assertTrue(set(S.CHAMPS_NUMERIQUES) <= set(S.CHAMPS_EDITABLES))
 		for champ in ("longueur_mm", "hauteur_mm", "profondeur_mm"):
 			self.assertIn(champ, S.CHAMPS_NUMERIQUES)
+
+
+class TestBibliotheque(unittest.TestCase):
+	"""Bibliothèque de fonds, motifs et variantes de logo (demande utilisateur 24/09/2026)."""
+
+	def test_categories_par_champ(self):
+		self.assertEqual(S.categorie_par_defaut("image_fond"), "Fond")
+		self.assertEqual(S.categorie_par_defaut("logo"), "Logo")
+		self.assertIn("Motif", S.CHAMPS_BIBLIOTHEQUE["image_fond"])
+		self.assertNotIn("Logo", S.CHAMPS_BIBLIOTHEQUE["image_fond"])
+		with self.assertRaises(ValueError):
+			S.categorie_par_defaut("photo_produit")

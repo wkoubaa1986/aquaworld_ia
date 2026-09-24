@@ -152,6 +152,8 @@ class StudioEmballage {
 				<button class="btn btn-xs btn-default" data-televerser="${champ}">${d[champ] ? __("Remplacer") : __("Choisir un fichier")}</button>
 				${d[champ] ? `<button class="btn btn-xs btn-default" data-effacer="${champ}">✕</button>` : ""}
 				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_ia" title="${__("Changer les couleurs, épurer, moderniser — par IA, avant de le poser")}">✨ ${__("Retoucher par IA")}</button>` : ""}
+				${champ === "logo" || champ === "image_fond" ? `<button class="btn btn-xs btn-default" data-bibliotheque="${champ}" title="${__("Reprendre un fond, un motif ou une variante de logo gardés en bibliothèque")}">📚 ${__("Bibliothèque")}</button>` : ""}
+				${(champ === "logo" || champ === "image_fond") && d[champ] ? `<button class="btn btn-xs btn-default" data-garder="${champ}" title="${__("Garder ce fichier en bibliothèque, sous un nom, pour un autre design")}">💾 ${__("Garder")}</button>` : ""}
 			</div>`;
 		const pretes = (d.variantes || []).filter((v) => v.statut === "Prête").length;
 		const a_generer = (d.variantes || []).filter((v) => ["À générer", "Échec"].includes(v.statut)).length;
@@ -275,6 +277,8 @@ class StudioEmballage {
 		});
 		$g.find("[data-televerser]").on("click", (e) => this.televerser($(e.currentTarget).attr("data-televerser")));
 		$g.find("[data-effacer]").on("click", (e) => { e.preventDefault(); this.modifier({ [$(e.currentTarget).attr("data-effacer")]: "" }, true); });
+		$g.find("[data-bibliotheque]").on("click", (e) => this.bibliotheque($(e.currentTarget).attr("data-bibliotheque")));
+		$g.find("[data-garder]").on("click", (e) => this.garder($(e.currentTarget).attr("data-garder")));
 		$g.find("[data-action]").on("click", (e) => this.action($(e.currentTarget).attr("data-action")));
 	}
 
@@ -580,6 +584,56 @@ class StudioEmballage {
 				} catch (e) { frappe.msgprint(this._msg(e)); }
 			} });
 		dlg.show();
+	}
+
+	// ─── bibliothèque : fonds, motifs, variantes de logo ────────────────────────
+	garder(champ) {
+		const est_logo = champ === "logo";
+		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Garder ce logo en bibliothèque") : __("Garder ce fond en bibliothèque"),
+			fields: [
+				{ fieldtype: "HTML", options: `<img src="${this._esc(this.d[champ])}" style="max-height:120px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
+				{ fieldtype: "Data", fieldname: "nom", label: __("Nom"), reqd: 1, default: est_logo ? (this.d.marque || "") + " " : (this.d.brief_style || "").slice(0, 40) },
+				{ fieldtype: "Select", fieldname: "categorie", label: __("Catégorie"), default: est_logo ? "Logo" : "Fond", options: (est_logo ? ["Logo"] : ["Fond", "Motif"]).join("\n") },
+				{ fieldtype: "Small Text", fieldname: "notes", label: __("Notes"), default: est_logo ? "" : [this.d.brief_style, this.d.palette].filter(Boolean).join(" · ") },
+				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("Marque : {0}. La ressource garde son propre fichier : le design d'origine peut disparaître, elle reste.", [this._esc(this.d.marque || "—")])}</p>` },
+			],
+			primary_action_label: __("Garder"),
+			primary_action: async (v) => {
+				try {
+					const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_enregistrer", args: { design: this.nom, champ, nom: v.nom, categorie: v.categorie, notes: v.notes } });
+					dlg.hide(); frappe.show_alert({ message: __("Gardé en bibliothèque : {0}", [r.message.nom]), indicator: "green" });
+				} catch (e) { frappe.msgprint(this._msg(e)); }
+			} });
+		dlg.show();
+	}
+
+	bibliotheque(champ) {
+		const est_logo = champ === "logo";
+		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Variantes de logo") : __("Fonds et motifs"), size: "large",
+			fields: [
+				{ fieldtype: "Data", fieldname: "recherche", label: __("Rechercher") },
+				{ fieldtype: "HTML", fieldname: "grille" },
+			] });
+		const $grille = dlg.get_field("grille").$wrapper;
+		const charger = async () => {
+			const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_liste", args: { champ, marque: this.d.marque, recherche: dlg.get_value("recherche") } });
+			const lignes = r.message || [];
+			if (!lignes.length) { $grille.html(`<div class="se-vide">${__("Rien en bibliothèque pour l'instant : gardez un fond ou un logo avec le bouton « Garder ».")}</div>`); return; }
+			$grille.html(`<div class="se-galerie">${lignes.map((l) => `
+				<div class="se-carte" data-res="${this._esc(l.name)}" style="cursor:pointer">
+					<img src="${this._esc(l.image)}" alt="" style="aspect-ratio:${est_logo ? "3 / 2" : "4 / 3"};object-fit:contain;background:#fff">
+					<div class="leg"><b>${this._esc(l.nom)}</b> <span class="se-chip">${this._esc(l.categorie)}</span>${l.marque ? `<br><span class="text-muted">${this._esc(l.marque)}</span>` : ""}${l.notes ? `<br><span class="text-muted small">${this._esc(l.notes)}</span>` : ""}</div>
+				</div>`).join("")}</div>`);
+			$grille.find("[data-res]").on("click", async (e) => {
+				try {
+					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_choisir", args: { design: this.nom, ressource: $(e.currentTarget).attr("data-res"), champ }, freeze: true });
+					dlg.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
+					frappe.show_alert({ message: est_logo ? __("Logo remplacé.") : __("Fond remplacé : recomposez le plan."), indicator: "green" });
+				} catch (e2) { frappe.msgprint(this._msg(e2)); }
+			});
+		};
+		dlg.get_field("recherche").$input.on("input", frappe.utils.debounce(charger, 350));
+		dlg.show(); charger();
 	}
 
 	async nouveau() {
