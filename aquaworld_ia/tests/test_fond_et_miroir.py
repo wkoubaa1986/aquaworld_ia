@@ -148,3 +148,45 @@ class TestCotesIdentiques(unittest.TestCase):
 		self.assertEqual(C.faces_copiees(plan, True, True), {})
 		z = C.zones_par_face(plan, CONTENU, faces_identiques=True, cotes_identiques=True)
 		self.assertIn("code_barres", _noms(z["arriere"]))
+
+
+class TestPictosSansCartouche(unittest.TestCase):
+	"""Demande utilisateur 24/09/2026 : pictogrammes posés en transparence, recolorés s'ils sont
+	monochromes ; une certification en couleurs n'est pas touchée."""
+	NOIR = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z" fill="#000"/><circle r="3" fill="none" stroke="black"/><rect fill="#fff" width="2" height="2"/></svg>'
+	SANS_FILL = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>'
+	COULEURS = b'<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#e11d48"/><rect fill="#2563eb"/><text style="fill:#000">CE</text></svg>'
+
+	def test_monochrome_recolore_en_gardant_blanc_et_none(self):
+		out = C.recolorer_svg_monochrome(self.NOIR, "#ffffff").decode()
+		self.assertNotIn("#000", out)
+		self.assertNotIn('stroke="black"', out)
+		self.assertIn('fill="#ffffff"', out)
+		self.assertIn('stroke="#ffffff"', out)
+		self.assertIn('fill="none"', out)
+		self.assertIn('fill="#fff"', out)
+
+	def test_sans_fill_explicite_la_couleur_est_posee_a_la_racine(self):
+		out = C.recolorer_svg_monochrome(self.SANS_FILL, "#123456").decode()
+		self.assertRegex(out, r'<svg[^>]*fill="#123456"')
+
+	def test_une_certification_en_couleurs_reste_intacte(self):
+		self.assertFalse(C.svg_est_monochrome(self.COULEURS))
+		self.assertEqual(C.recolorer_svg_monochrome(self.COULEURS, "#ffffff"), self.COULEURS)
+
+	def test_les_pictos_livres_sont_monochromes(self):
+		import glob, os
+		dossier = os.path.join(os.path.dirname(C.__file__), "..", "public", "pictos")
+		fichiers = glob.glob(os.path.join(dossier, "*.svg"))
+		self.assertTrue(fichiers)
+		for f in fichiers:
+			with open(f, "rb") as fh:
+				svg = fh.read()
+			self.assertTrue(C.svg_est_monochrome(svg), f)
+			self.assertNotIn(b"#000", C.recolorer_svg_monochrome(svg, "#ffffff"), f)
+
+	def test_est_svg(self):
+		self.assertTrue(C.est_svg(self.NOIR))
+		self.assertTrue(C.est_svg(self.SANS_FILL))
+		self.assertFalse(C.est_svg(b"\x89PNG\r\n"))
+		self.assertIn("pictos_sans_cartouche", __import__("aquaworld_ia.emballage.studio", fromlist=["x"]).CHAMPS_EDITABLES)

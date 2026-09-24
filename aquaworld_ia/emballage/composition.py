@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import html
 import io
+import re
 import json
 
 import frappe
@@ -350,6 +351,69 @@ def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
 	return sortie.getvalue()
 
 
+_COULEURS_NOMMEES = {"black": (0, 0, 0), "white": (255, 255, 255)}
+
+
+def _rgb(valeur: str):
+	"""'#000', '#1a2b3c', 'rgb(0,0,0)', 'black' -> (r, g, b) ; None si ce n'est pas une couleur
+	(none, transparent, url(#…), currentColor, inherit)."""
+	v = (valeur or "").strip().lower()
+	if v in _COULEURS_NOMMEES:
+		return _COULEURS_NOMMEES[v]
+	if v.startswith("#") and len(v) in (4, 7):
+		h = v[1:]
+		if len(h) == 3:
+			h = "".join(c * 2 for c in h)
+		try:
+			return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+		except ValueError:
+			return None
+	m = re.match(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", v)
+	if m:
+		return tuple(int(x) for x in m.groups())
+	return None
+
+
+def svg_est_monochrome(svg: bytes) -> bool:
+	"""Vrai si le SVG n'emploie qu'une seule couleur d'encre (le blanc, none et currentColor ne
+	comptent pas) : un pictogramme normalisé, pas un logo de certification en couleurs. Pur."""
+	texte = svg.decode("utf-8", "replace")
+	encres = set()
+	for val in re.findall(r"(?:fill|stroke|stop-color)\s*[=:]\s*[\"']?\s*([^\"';)>]+)", texte):
+		c = _rgb(val)
+		if c is not None and min(c) < 235:
+			encres.add(c)
+	return len(encres) <= 1
+
+
+def recolorer_svg_monochrome(svg: bytes, couleur: str) -> bytes:
+	"""Un pictogramme monochrome prend la couleur demandée (celle du texte de la face) : posé sans
+	cartouche sur un fond sombre, un picto noir serait invisible. Le blanc et « none » sont gardés
+	(les évidements restent des évidements) ; un SVG à plusieurs encres — certification en couleurs —
+	revient tel quel. Sans fill explicite, le SVG hérite du noir : la couleur est posée à la racine. Pur."""
+	if not svg_est_monochrome(svg):
+		return svg
+	texte = svg.decode("utf-8", "replace")
+
+	def remplacer(m):
+		prefixe, val = m.group(1), m.group(2)
+		c = _rgb(val)
+		if val.strip().lower() == "currentcolor" or (c is not None and min(c) < 235):
+			return prefixe + couleur
+		return m.group(0)
+
+	texte = re.sub(r"((?:fill|stroke|stop-color)\s*[=:]\s*[\"']?\s*)([^\"';)>]+)", remplacer, texte)
+	racine = re.search(r"<svg\b[^>]*>", texte, re.IGNORECASE)
+	if racine and not re.search(r"\bfill\s*=", racine.group(0)):
+		texte = texte[:racine.end() - 1] + ' fill="%s"' % couleur + texte[racine.end() - 1:]
+	return texte.encode("utf-8")
+
+
+def est_svg(octets: bytes) -> bool:
+	debut = octets[:300].lstrip().lower()
+	return debut.startswith(b"<svg") or (debut.startswith(b"<?xml") and b"<svg" in octets[:2000].lower())
+
+
 def poser_logo(page, rect, logo: bytes) -> None:
 	debut = logo[:300].lstrip().lower()
 	if debut.startswith(b"<svg") or (debut.startswith(b"<?xml") and b"<svg" in logo[:2000].lower()):
@@ -493,6 +557,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 
 	identiques = bool(cint(doc.get("faces_identiques")))
 	cotes = bool(cint(doc.get("cotes_identiques")))
+	sans_cartouche = bool(cint(doc.get("pictos_sans_cartouche")))
 	image_fond_url = doc.get("image_fond")
 	# ⚠️ LE FOND CONTINU REMPLACE LES VISUELS IA DES FACES : c'est tout son sens — un seul motif
 	# qui fait le tour. La variante IA (scène avec le produit) reste disponible en décochant
@@ -640,7 +705,13 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				for _code, svg in pictos_svg:
 					if x + taille > rect[2] + 0.5:
 						break
-					page.draw_rect(pymupdf.Rect(x, rect[1], x + taille, rect[1] + taille), color=None, fill=(1, 1, 1))
+					if sans_cartouche:
+						# Demande utilisateur 24/09/2026 : posé en transparence ; un picto monochrome prend
+						# la couleur du texte de la face pour rester lisible sur le fond.
+						if est_svg(svg):
+							svg = recolorer_svg_monochrome(svg, couleur_texte)
+					else:
+						page.draw_rect(pymupdf.Rect(x, rect[1], x + taille, rect[1] + taille), color=None, fill=(1, 1, 1))
 					# Un pictogramme peut être une image à soi (certificat scanné) : même détection que le logo.
 					poser_logo(page, (x + 1, rect[1] + 1, x + taille - 1, rect[1] + taille - 1), svg)
 					x += taille + MM(2)
@@ -693,7 +764,8 @@ def fiche_technique_html(doc, variante, plan, textes, langues, dpi, pictos_svg, 
 			("Variante %s « %s »" % (variante.numero, esc(variante.titre or ""))) if variante is not None
 			else "Sans visuel IA (fond choisi + photo produit)",
 			esc(plan["type"]), (" · Dos identique à l'avant" if cint(doc.get("faces_identiques")) else "")
-			+ (" · Côtés identiques (EAN et avertissements sur les deux côtés)" if cint(doc.get("cotes_identiques")) else ""))
+			+ (" · Côtés identiques (EAN et avertissements sur les deux côtés)" if cint(doc.get("cotes_identiques")) else "")
+			+ (" · Pictogrammes sans cartouche (monochromes recolorés à la couleur du texte)" if cint(doc.get("pictos_sans_cartouche")) else ""))
 		+ "<p style=\"font-family:'Noto Sans';font-size:10pt\">Feuille : <b>%.1f × %.1f mm</b> (fond perdu %.1f mm inclus) · "
 		  "Dimensions : L %.1f × H %.1f × P %.1f mm%s · Langues : %s · EAN : %s · QR : %s · Pictogrammes : %s</p>" % (
 			plan["feuille"]["w"], plan["feuille"]["h"], plan.get("fond_perdu", 0), plan["dimensions"]["L"],

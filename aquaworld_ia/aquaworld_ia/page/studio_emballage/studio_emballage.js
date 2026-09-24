@@ -183,6 +183,7 @@ class StudioEmballage {
 					<label>${__("Avertissements (un par ligne)")}</label><textarea data-champ="avertissements">${esc(d.avertissements || "")}</textarea>
 					<label>${__("Contact")}</label><textarea data-champ="contact">${esc(d.contact || "")}</textarea>
 					<label>${__("Pictogrammes et certifications")}</label><div class="se-chips" data-liste="pictogrammes">${pictos}</div>
+					<label class="se-check"><input type="checkbox" data-champ="pictos_sans_cartouche" ${d.pictos_sans_cartouche ? "checked" : ""} title="${__("Posés en transparence ; les pictogrammes monochromes prennent la couleur du texte de la face. Code-barres et QR gardent leur cartouche pour le scan.")}"> ${__("Sans cartouche blanc (en transparence)")}</label>
 					<div class="se-3" style="grid-template-columns:1fr 1.4fr">
 						<div><label>${__("Code")}</label><select data-champ="type_code_barres">${["EAN-13", "QR", "EAN-13 + QR", "Aucun"].map((o) => `<option ${o === d.type_code_barres ? "selected" : ""}>${o}</option>`).join("")}</select></div>
 						<div><label>${__("EAN-13")}</label><input type="text" data-champ="code_barres" value="${esc(d.code_barres || "")}"></div>

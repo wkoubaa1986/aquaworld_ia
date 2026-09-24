@@ -34,6 +34,7 @@
   "cb_12",
   "langues",
   "pictogrammes",
+  "pictos_sans_cartouche",
   "type_code_barres",
   "code_barres",
   "url_qr",
@@ -230,6 +231,12 @@
    "fieldtype": "Table MultiSelect",
    "label": "Pictogrammes",
    "options": "Design Emballage Pictogramme"
+  },
+  {
+   "fieldname": "pictos_sans_cartouche",
+   "fieldtype": "Check",
+   "label": "Pictogrammes sans cartouche blanc",
+   "description": "Posés en transparence sur le fond ; les pictogrammes monochromes prennent la couleur du texte de la face, les certifications en couleurs restent telles quelles. Le code-barres et le QR gardent leur cartouche (scan)."
   },
   {
    "default": "EAN-13",
