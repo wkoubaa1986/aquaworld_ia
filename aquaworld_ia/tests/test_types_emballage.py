@@ -161,6 +161,32 @@ class TestLogoPhoto(unittest.TestCase):
 		octets = self._png((30, 60, 120))
 		self.assertEqual(C.fond_blanc_en_transparence(octets), octets)
 
+	def test_detourage_propre(self):
+		"""Poussières JPEG isolées dans le fond effacées ; blanc INTÉRIEUR au produit conservé ;
+		bord du produit net (24/09/2026 : liseré de points sombres autour de la clé)."""
+		from PIL import Image
+
+		im = Image.new("RGB", (120, 120), (255, 255, 255))
+		for x in range(30, 90):
+			for y in range(30, 90):
+				im.putpixel((x, y), (200, 0, 0))
+		for x in range(55, 65):
+			for y in range(55, 65):
+				im.putpixel((x, y), (242, 242, 242))          # blanc de produit (éclairé) enfermé : il reste
+		for x in range(72, 82):
+			for y in range(72, 82):
+				im.putpixel((x, y), (255, 255, 255))          # trou de blanc PUR enfermé : le fond se voit
+		for x, y in ((10, 10), (100, 20), (20, 100), (95, 95)):
+			im.putpixel((x, y), (40, 40, 40))                  # poussières isolées : effacées
+		b = io.BytesIO(); im.save(b, format="PNG")
+		out = Image.open(io.BytesIO(C.fond_blanc_en_transparence(b.getvalue()))).convert("RGBA")
+		self.assertEqual(out.getpixel((5, 5))[3], 0)
+		self.assertEqual(out.getpixel((10, 10))[3], 0, "poussière")
+		self.assertEqual(out.getpixel((95, 95))[3], 0, "poussière")
+		self.assertEqual(out.getpixel((60, 60))[3], 255, "blanc de produit conservé")
+		self.assertEqual(out.getpixel((77, 77))[3], 0, "trou de blanc pur transparent")
+		self.assertEqual(out.getpixel((40, 40)), (200, 0, 0, 255))
+
 
 class TestPolicesPersonnalisees(unittest.TestCase):
 	def test_le_nom_de_fichier_est_sur(self):

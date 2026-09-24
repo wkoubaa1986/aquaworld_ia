@@ -367,10 +367,16 @@ def poser_image(page, rect, octets: bytes, garder_proportions: bool = True) -> N
 
 
 def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
-	"""Un logo donné en PHOTO (JPEG/PNG sur fond blanc) arrive avec son rectangle blanc : posé sur
-	un visuel, il ferait une étiquette collée. Si les quatre coins sont blancs, le blanc devient
-	transparent (demande utilisateur 23/09/2026 : « la marque, je la donne par photo »). Un logo
-	dont les coins sont colorés est laissé tel quel — on ne devine pas. Pur."""
+	"""Un logo ou une photo donnés sur fond blanc (JPEG/PNG) arrivent avec leur rectangle blanc :
+	posés sur un visuel, ils feraient une étiquette collée. Si les quatre coins sont blancs, le fond
+	devient transparent (demande utilisateur 23/09/2026). Un fichier dont les coins sont colorés est
+	laissé tel quel — on ne devine pas.
+
+	Détourage (24/09/2026, « pourquoi j'ai ça ? » : liseré de points sombres et bords crénelés sur
+	la clé du porte-filtre) : le fond est la zone presque blanche CONNEXE AU BORD — un blanc à
+	l'intérieur du produit reste ; les poussières de compression JPEG isolées dans le fond
+	disparaissent (composantes minuscules) ; sur la frange de 2 px, les pixels presque blancs
+	s'estompent (défrange) ; le bord est adouci d'un pixel. Sans OpenCV, repli pixel par pixel."""
 	from PIL import Image
 
 	im = Image.open(io.BytesIO(octets)).convert("RGBA")
@@ -380,11 +386,53 @@ def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
 	coins = [im.getpixel((0, 0)), im.getpixel((w - 1, 0)), im.getpixel((0, h - 1)), im.getpixel((w - 1, h - 1))]
 	if not all(min(c[:3]) >= seuil and c[3] > 0 for c in coins):
 		return octets
-	pixels = im.getdata()
-	im.putdata([(r, g, b, 0) if min(r, g, b) >= seuil else (r, g, b, a) for r, g, b, a in pixels])
+	try:
+		im = _detourer(im, seuil)
+	except Exception:
+		pixels = im.getdata()
+		im.putdata([(r, g, b, 0) if min(r, g, b) >= seuil else (r, g, b, a) for r, g, b, a in pixels])
 	sortie = io.BytesIO()
 	im.save(sortie, format="PNG")
 	return sortie.getvalue()
+
+
+def _detourer(im, seuil: int):
+	"""Le détourage propre (voir `fond_blanc_en_transparence`) : OpenCV + numpy. Pur."""
+	import cv2
+	import numpy as np
+	from PIL import Image
+
+	rgba = np.array(im)
+	h, w = rgba.shape[:2]
+	mn = rgba[..., :3].min(axis=2)
+	blanc = (mn >= seuil).astype(np.uint8)
+	# 1. le fond = les composantes presque blanches qui touchent le bord
+	_n, labels = cv2.connectedComponents(blanc, connectivity=4)
+	bord = set(int(x) for x in np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]])) if x != 0)
+	# … plus les zones blanches ENFERMÉES qui sont du blanc pur (trou d'une clé, contre-forme
+	# d'une lettre) : c'est le fond vu à travers ; un blanc de produit ou de logo (éclairé,
+	# jamais tout à fait 255) reste opaque.
+	aires = np.bincount(labels.ravel())
+	sommes = np.bincount(labels.ravel(), weights=mn.ravel().astype(np.float64))
+	purs = [i for i in range(1, len(aires)) if i not in bord and aires[i] >= 16 and sommes[i] / aires[i] >= 250]
+	fond = np.isin(labels, list(bord) + purs)
+	opaque = ~fond
+	# 2. poussières : composantes opaques minuscules (0,02 % de l'image, 16 px au moins)
+	aire_min = max(16, int(0.0002 * w * h))
+	n2, lab2, stats, _c = cv2.connectedComponentsWithStats(opaque.astype(np.uint8), connectivity=8)
+	petites = [i for i in range(1, n2) if stats[i, cv2.CC_STAT_AREA] < aire_min]
+	if petites:
+		opaque[np.isin(lab2, petites)] = False
+	alpha = opaque.astype(np.float32) * 255.0
+	# 3. défrange : sur 2 px le long du fond, les pixels presque blancs (halo JPEG) s'estompent
+	frange = cv2.dilate(fond.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & opaque
+	bas = max(0, seuil - 35)
+	clarte = np.clip((seuil - mn.astype(np.float32)) / float(max(1, seuil - bas)), 0.0, 1.0)
+	alpha[frange] = alpha[frange] * clarte[frange]
+	# 4. bord adouci d'un pixel
+	alpha = cv2.GaussianBlur(alpha, (3, 3), 0)
+	rgba[..., 3] = np.minimum(rgba[..., 3].astype(np.float32), alpha).astype(np.uint8)
+	return Image.fromarray(rgba, "RGBA")
 
 
 _COULEURS_NOMMEES = {"black": (0, 0, 0), "white": (255, 255, 255)}

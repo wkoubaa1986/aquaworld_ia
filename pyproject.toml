@@ -15,6 +15,7 @@ dependencies = [
     "pymupdf~=1.28",         # extraction, réécriture en place (insert_htmlbox, RTL), composition à l'échelle
     "python-barcode~=0.15",  # EAN-13 en SVG (pur Python)
     "segno~=1.6",            # QR en SVG (pur Python, sans dépendance)
+    "opencv-python-headless~=4.10",  # détourage propre des photos et logos (composantes connexes) ; repli pixel par pixel sans lui
 ]
 
 [build-system]
