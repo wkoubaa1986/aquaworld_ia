@@ -84,13 +84,13 @@ class TestEtiquette(unittest.TestCase):
 
 class TestCatalogueDesTypes(unittest.TestCase):
 	def test_cinq_formes_chacune_decrite(self):
-		self.assertEqual(len(G.TYPES), 5)
+		self.assertEqual(len(G.TYPES), 7)   # 5 formes du 23/09 + 2 sacs agrafés du 24/09
 		for t in G.TYPES:
 			self.assertIn(t, G.FAMILLES)
 			self.assertIn(t, G.DESCRIPTIONS)
-			self.assertEqual(len(G.DIMENSIONS_TYPE[t]), 3)
-			L, H, Pp = G.DIMENSIONS_EXEMPLE[t]
-			self.assertEqual(G.verifier(G.plan_a_plat(t, L, H, Pp)), [], t)
+			self.assertIn(len(G.DIMENSIONS_TYPE[t]), (3, 4))
+			ex = G.DIMENSIONS_EXEMPLE[t]
+			self.assertEqual(G.verifier(G.plan_a_plat(t, *ex[:3], repli=ex[3] if len(ex) > 3 else 0)), [], t)
 
 	def test_les_anciens_plans_gardent_leur_forme(self):
 		plan = G.plan_a_plat(G.ETUI, 120, 200, 60, patte=15, fond_perdu=3, securite=3)
@@ -183,3 +183,93 @@ class TestPolicesPersonnalisees(unittest.TestCase):
 	def test_le_titre_suit_le_reglage(self):
 		self.assertEqual(C.famille_titres(True), "Police titres")
 		self.assertEqual(C.famille_titres(False), "Noto Sans")
+
+
+class TestSacAgrafe(unittest.TestCase):
+	"""Sac à gueule ouverte fermé par repli agrafé (demande utilisateur 24/09/2026) : L, H, R,
+	et S pour la variante à soufflets. Le repli est compris dans H, réservé, sous une ligne de pli."""
+
+	def test_plat_sans_profondeur(self):
+		plan = G.plan_a_plat(G.SAC_AGRAFE_PLAT, 250, 400, 0, patte=15, fond_perdu=3, securite=3, repli=60)
+		f = _faces(plan)
+		self.assertEqual(plan["famille"], "sac_papier")
+		self.assertEqual([x["code"] for x in plan["faces"]], ["avant", "arriere", "patte"])
+		self.assertAlmostEqual(plan["feuille"]["w"], 6 + 500 + 15, places=3)
+		self.assertAlmostEqual(plan["feuille"]["h"], 6 + 400, places=3)
+		self.assertEqual((f["avant"]["w"], f["avant"]["h"]), (250, 400))      # H = hauteur totale, repli compris
+		self.assertEqual(G.verifier(plan), [])
+
+	def test_repli_reserve_et_ligne_de_pliage(self):
+		plan = G.plan_a_plat(G.SAC_AGRAFE_PLAT, 250, 400, 0, patte=15, fond_perdu=3, securite=3, repli=60)
+		a = _faces(plan)["avant"]
+		# la partie utile et la zone sûre commencent SOUS le repli
+		self.assertAlmostEqual(a["utile"]["y"], 3 + 60, places=3)
+		self.assertAlmostEqual(a["utile"]["h"], 340, places=3)
+		self.assertAlmostEqual(a["zone_sure"]["y"], 3 + 60 + 3, places=3)
+		self.assertAlmostEqual(a["zone_sure"]["h"], 340 - 6, places=3)
+		# une seule bande réservée sur toute la largeur, haute de R
+		self.assertEqual(len(plan["reserves"]), 1)
+		rz = plan["reserves"][0]
+		self.assertEqual((rz["x"], rz["y"], rz["w"], rz["h"]), (3, 3, 515, 60))
+		# la ligne de pliage supérieure traverse la bande à y = R
+		self.assertIn([3.0, 63.0, 518.0, 63.0], plan["traits"]["pli"])
+		# la maquette automatique ne pose rien dans le repli
+		zones = C.maquette_face(a, {"logo": True, "nom": True, "accroche": True, "caracteristiques": True,
+		                           "avertissements": True, "contact": True, "pictos": 2, "code_barres": G.EAN_NOMINAL_MM})
+		self.assertTrue(zones)
+		self.assertTrue(all(z["y"] >= 63 for z in zones), zones)
+		# une zone dessinée à la main est repoussée sous le repli
+		b = C.borner_zone({"zone": "logo", "x": 10, "y": 10, "w": 50, "h": 20}, a)
+		self.assertAlmostEqual(b["y"], 63, places=3)
+
+	def test_soufflets(self):
+		plan = G.plan_a_plat(G.SAC_AGRAFE_SOUFFLETS, 250, 400, 80, patte=15, repli=60)
+		f = _faces(plan)
+		self.assertEqual([x["code"] for x in plan["faces"]], ["avant", "cote_droit", "arriere", "cote_gauche", "patte"])
+		self.assertEqual((f["cote_droit"]["w"], f["cote_droit"]["h"]), (80, 400))
+		xm = round(f["cote_gauche"]["x"] + 40, 3)
+		self.assertIn([xm, 63.0, xm, 403.0], plan["traits"]["pli"])       # pli médian, sous le repli
+		self.assertEqual(G.bande(plan)["faces"], ["avant", "cote_droit", "arriere", "cote_gauche"])
+		self.assertEqual(G.verifier(plan), [])
+
+	def test_dimensions_manquantes(self):
+		self.assertEqual(G.dimensions_manquantes(G.SAC_AGRAFE_PLAT, 250, 400, 0, 60), [])
+		self.assertEqual(G.dimensions_manquantes(G.SAC_AGRAFE_PLAT, 250, 400, 0, 0),
+		                 ["Hauteur du repli supérieur (R), comprise dans H"])
+		self.assertEqual(G.dimensions_manquantes(G.SAC_AGRAFE_SOUFFLETS, 250, 400, 0, 60),
+		                 ["Profondeur du soufflet entièrement déployé (S)"])
+		self.assertEqual(len(G.dimensions_manquantes(G.SAC_AGRAFE_PLAT, 250, 400, 0, 400)), 1)   # R ≥ H
+		self.assertEqual(G.dimensions_manquantes(G.ETUI, 120, 200, 0), ["Profondeur (largeur des côtés)"])
+		self.assertEqual(G.dimensions_manquantes(G.ETUI, 120, 200, 60, 0), [])
+		with self.assertRaises(ValueError):
+			G.plan_a_plat(G.SAC_AGRAFE_PLAT, 250, 400, 0, repli=0)
+		with self.assertRaises(ValueError):
+			G.plan_a_plat(G.SAC_AGRAFE_PLAT, 250, 400, 0, repli=400)
+
+	def test_hachures_rognees_au_rectangle(self):
+		segs = G.hachures(10, 20, 100, 30, pas=10)
+		self.assertTrue(segs)
+		for x1, y1, x2, y2 in segs:
+			self.assertTrue(10 - 1e-6 <= x1 <= 110 + 1e-6 and 10 - 1e-6 <= x2 <= 110 + 1e-6, (x1, x2))
+			self.assertTrue(20 - 1e-6 <= y1 <= 50 + 1e-6 and 20 - 1e-6 <= y2 <= 50 + 1e-6, (y1, y2))
+			self.assertAlmostEqual(x2 - x1, y2 - y1, places=3)                     # 45°
+		self.assertEqual(G.hachures(0, 0, 0, 10), [])
+
+	def test_apercu_svg_montre_le_repli(self):
+		plan = G.plan_a_plat(G.SAC_AGRAFE_PLAT, 250, 400, 0, repli=60)
+		svg = G.apercu_svg(plan)
+		self.assertIn("Repli supérieur et agrafes — ni texte ni logo", svg)
+		self.assertIn("#b45309", svg)
+		self.assertNotIn("<pattern", svg)
+		self.assertNotIn("ni texte ni logo", G.apercu_svg(plan, 180, compact=True))       # vignette : hachures seules
+
+	def test_toutes_les_formes_ont_un_exemple_valide(self):
+		for t in G.TYPES:
+			ex = G.DIMENSIONS_EXEMPLE[t]
+			plan = G.plan_a_plat(t, *ex[:3], repli=ex[3] if len(ex) > 3 else 0)
+			self.assertEqual(G.verifier(plan), [], t)
+			self.assertEqual("R" in G.DIMENSIONS_REQUISES[t], len(G.DIMENSIONS_TYPE[t]) > 3, t)
+
+	def test_prompts_sac_papier(self):
+		self.assertIn("stapled", P.prompt_variante({"titre": "x"}, "Riz", famille="sac_papier"))
+		self.assertIn("staples", P.prompt_mockup("Riz", famille="sac_papier", references=["avant"]))

@@ -27,7 +27,7 @@ frappe.ui.form.on("Design Emballage", {
 			frappe.db.get_value("Brand", frm.doc.marque, "image").then((r) => { if (r.message && r.message.image) frm.set_value("logo", r.message.image); });
 		}
 	},
-	type_boite: aqia_emb_apercu, longueur_mm: aqia_emb_apercu, hauteur_mm: aqia_emb_apercu, profondeur_mm: aqia_emb_apercu,
+	type_boite: aqia_emb_apercu, longueur_mm: aqia_emb_apercu, hauteur_mm: aqia_emb_apercu, profondeur_mm: aqia_emb_apercu, repli_mm: aqia_emb_apercu,
 	fond_perdu_mm: aqia_emb_apercu, zone_securite_mm: aqia_emb_apercu, patte_collage_mm: aqia_emb_apercu,
 
 	refresh(frm) {
@@ -135,7 +135,10 @@ function aqia_emb_apercu(frm) {
 				<div class="aqia-type-nom">${frappe.utils.escape_html(t.type)}</div>
 			</div>`).join("");
 		const actuel = types.find((t) => t.type === d.type_boite);
-		const dims = actuel ? `<p class="text-muted small">${__("Ici : <b>L</b> = {0} · <b>H</b> = {1} · <b>P</b> = {2}.", actuel.dimensions.map(frappe.utils.escape_html))}</p>` : "";
+		const champs = { L: "longueur_mm", H: "hauteur_mm", P: "profondeur_mm", R: "repli_mm" };
+		const dims = actuel ? `<p class="text-muted small">${__("Ici :")} ${["L", "H", "P", "R"].map((k, i) => actuel.dimensions[i] ? `<b>${k}</b> = ${frappe.utils.escape_html(actuel.dimensions[i])}` : "").filter(Boolean).join(" · ")}.</p>` : "";
+		const requises = (actuel && actuel.requises) || ["L", "H", "P"];
+		const dims_ok = requises.every((k) => d[champs[k]] > 0) && (!requises.includes("R") || +d.repli_mm < +d.hauteur_mm);
 		const entete = `<style>
 			.aqia-types{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 			.aqia-type{flex:0 0 132px;border:1px solid var(--border-color,#ddd);border-radius:8px;padding:6px;cursor:pointer;text-align:center;background:var(--card-bg,#fff)}
@@ -152,14 +155,14 @@ function aqia_emb_apercu(frm) {
 			.aqia-face-info ul{padding-left:16px;margin:0}
 		</style>
 		<div class="aqia-types">${cartes}</div>${dims}`;
-		if (!(d.longueur_mm > 0 && d.hauteur_mm > 0 && d.profondeur_mm > 0)) {
-			w.html(entete + `<p class="text-muted">${__("Saisissez les trois dimensions pour voir le plan.")}</p>`);
+		if (!dims_ok) {
+			w.html(entete + `<p class="text-muted">${__("Saisissez les dimensions de la forme pour voir le plan.")}</p>`);
 			aqia_emb_lier_types(frm, w);
 			return;
 		}
 		frappe.call({ method: "aquaworld_ia.emballage.job.apercu", args: {
 			type_boite: d.type_boite, longueur_mm: d.longueur_mm, hauteur_mm: d.hauteur_mm, profondeur_mm: d.profondeur_mm,
-			patte_collage_mm: d.patte_collage_mm, fond_perdu_mm: d.fond_perdu_mm, zone_securite_mm: d.zone_securite_mm,
+			repli_mm: d.repli_mm, patte_collage_mm: d.patte_collage_mm, fond_perdu_mm: d.fond_perdu_mm, zone_securite_mm: d.zone_securite_mm,
 			contenu: aqia_emb_contenu(frm) } })
 			.then((r) => {
 				const m = r.message || {};

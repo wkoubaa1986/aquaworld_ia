@@ -116,12 +116,14 @@ ZONES_AJOUTABLES = ("logo", "nom", "accroche", "caracteristiques", "avertissemen
 
 
 def borner_zone(zone: dict, face: dict) -> dict:
-	"""Une zone dessinée à la main reste DANS la face (jamais dans le fond perdu ni chez le
-	voisin) et garde une taille minimale. Pur."""
-	w = max(3.0, min(float(zone.get("w", 0)), face["w"]))
-	h = max(3.0, min(float(zone.get("h", 0)), face["h"]))
-	x = min(max(float(zone.get("x", face["x"])), face["x"]), face["x"] + face["w"] - w)
-	y = min(max(float(zone.get("y", face["y"])), face["y"]), face["y"] + face["h"] - h)
+	"""Une zone dessinée à la main reste DANS la partie utile de la face (jamais dans le fond
+	perdu, chez le voisin, ni dans une bande réservée comme le repli agrafé d'un sac) et garde
+	une taille minimale. Pur."""
+	u = face.get("utile") or face
+	w = max(3.0, min(float(zone.get("w", 0)), u["w"]))
+	h = max(3.0, min(float(zone.get("h", 0)), u["h"]))
+	x = min(max(float(zone.get("x", u["x"])), u["x"]), u["x"] + u["w"] - w)
+	y = min(max(float(zone.get("y", u["y"])), u["y"]), u["y"] + u["h"] - h)
 	return {"zone": zone.get("zone"), "x": round(x, 3), "y": round(y, 3), "w": round(w, 3), "h": round(h, 3)}
 
 
@@ -618,6 +620,15 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		page.draw_line((MM(x1), MM(y1)), (MM(x2), MM(y2)), color=(0, 0.3, 1), width=0.25, dashes="[2 2] 0", oc=ocg)
 	fp = plan.get("fond_perdu", 0) or 0
 	page.draw_rect(pymupdf.Rect(MM(fp), MM(fp), W - MM(fp), H - MM(fp)), color=(1, 0, 1), width=0.25, dashes="[1 1] 0", oc=ocg)
+	for rz in plan.get("reserves") or []:
+		# Bande réservée (repli agrafé) : hachurée en ocre sur le calque, pour l'imprimeur et le contrôle.
+		ocre = (0.71, 0.33, 0.04)
+		page.draw_rect(pymupdf.Rect(MM(rz["x"]), MM(rz["y"]), MM(rz["x"] + rz["w"]), MM(rz["y"] + rz["h"])),
+		               color=ocre, width=0.25, dashes="[2 1] 0", oc=ocg)
+		for x1, y1, x2, y2 in geometrie.hachures(rz["x"], rz["y"], rz["w"], rz["h"], 6.0):
+			page.draw_line((MM(x1), MM(y1)), (MM(x2), MM(y2)), color=ocre, width=0.2, oc=ocg)
+		page.insert_text((MM(rz["x"]) + 6, MM(rz["y"] + rz["h"] / 2) + 2.5),
+		                 "%s : ni texte ni logo" % rz.get("libelle", "Réservé"), fontsize=7, color=ocre, oc=ocg)
 
 	# 4. page technique
 	fiche = pdf.new_page(width=595.28, height=841.89)
@@ -650,9 +661,12 @@ def fiche_technique_html(doc, variante, plan, textes, langues, dpi, pictos_svg, 
 			else "Sans visuel IA (fond choisi + photo produit)",
 			esc(plan["type"]), " · Dos identique à l'avant" if cint(doc.get("faces_identiques")) else "")
 		+ "<p style=\"font-family:'Noto Sans';font-size:10pt\">Feuille : <b>%.1f × %.1f mm</b> (fond perdu %.1f mm inclus) · "
-		  "Boîte : L %.1f × H %.1f × P %.1f mm · Langues : %s · EAN : %s · QR : %s · Pictogrammes : %s</p>" % (
+		  "Dimensions : L %.1f × H %.1f × P %.1f mm%s · Langues : %s · EAN : %s · QR : %s · Pictogrammes : %s</p>" % (
 			plan["feuille"]["w"], plan["feuille"]["h"], plan.get("fond_perdu", 0), plan["dimensions"]["L"],
-			plan["dimensions"]["H"], plan["dimensions"]["P"], esc(", ".join(langues.keys()) or "—"),
+			plan["dimensions"]["H"], plan["dimensions"]["P"],
+			(" · Repli supérieur agrafé R %.1f mm, compris dans H : fond imprimé, ni texte ni logo" % plan["dimensions"]["R"])
+			if plan["dimensions"].get("R") else "",
+			esc(", ".join(langues.keys()) or "—"),
 			esc(doc.code_barres or "—") if ean else "—", esc(doc.url_qr or "—") if qr else "—",
 			esc(", ".join(c for c, _s in pictos_svg) or "—"))
 		+ "<table style=\"font-family:'Noto Sans'\"><tr><th>Face</th><th>Dimensions (mm)</th><th>Imprimable</th><th>Visuel</th></tr>%s</table>" % lignes_faces

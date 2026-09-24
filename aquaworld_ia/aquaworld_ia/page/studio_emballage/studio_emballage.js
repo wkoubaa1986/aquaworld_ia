@@ -77,9 +77,18 @@ class StudioEmballage {
 		this.rendre_scene(); this.rendre_droite(); this.rendre_barre(); this.rendre_etats_etapes();
 	}
 
+	// Les dimensions qu'exige la forme (L, H, P, R → champs) : un sac plat n'a pas de P, un sac
+	// agrafé a un repli R plus petit que H.
+	_dims_ok() {
+		const d = this.d, t = (this.data.types || []).find((x) => x.type === d.type_boite);
+		const requises = (t && t.requises) || ["L", "H", "P"];
+		if (!requises.every((k) => d[StudioEmballage.CHAMPS_DIMS[k]] > 0)) return false;
+		return !requises.includes("R") || +d.repli_mm < +d.hauteur_mm;
+	}
+
 	_etape_par_defaut() {
 		const d = this.d;
-		if (!(d.longueur_mm > 0 && d.hauteur_mm > 0 && d.profondeur_mm > 0)) return 1;
+		if (!this._dims_ok()) return 1;
 		if (!d.textes_ia) return 2;
 		if (!(d.variantes || []).some((v) => v.statut === "Prête") || !d.variante_choisie) return 3;
 		return 4;
@@ -129,6 +138,10 @@ class StudioEmballage {
 			<div class="se-type${t.type === d.type_boite ? " active" : ""}" data-type="${esc(t.type)}" title="${esc(t.description)}">${t.svg}<div class="nom">${esc(t.type)}</div></div>`).join("");
 		const type = (this.data.types || []).find((t) => t.type === d.type_boite);
 		const dims = type ? type.dimensions : ["Largeur", "Hauteur", "Profondeur"];
+		// Un champ par dimension que la forme connaît (libellé null = sans objet, champ masqué).
+		const champs_dims = ["L", "H", "P", "R"].map((k, i) => dims[i]
+			? `<div><label>${esc(dims[i])}</label><input type="number" step="0.5" min="1" data-champ="${StudioEmballage.CHAMPS_DIMS[k]}" value="${d[StudioEmballage.CHAMPS_DIMS[k]] || ""}"></div>`
+			: "").join("");
 		const langues = (this.data.langues || []).map((l) => `<span class="c ${(d.langues || []).some((x) => x.langue === l.code) ? "on" : ""}" data-langue="${esc(l.code)}">${esc(l.libelle)}</span>`).join("");
 		const pictos = (this.data.pictos || []).map((p) => `<span class="c pic ${(d.pictogrammes || []).some((x) => x.pictogramme === p.code) ? "on" : ""}" data-picto="${esc(p.code)}" title="${esc(p.categorie || "")}">${p.url ? `<img src="${esc(p.url)}" alt="">` : ""}${esc(p.libelle)}</span>`).join("")
 			+ `<span class="c ajout" data-ajouter-picto="1" title="${__("Ajouter un pictogramme ou une certification depuis une image")}">＋ ${__("Ajouter")}</span>`;
@@ -150,11 +163,7 @@ class StudioEmballage {
 				<div class="se-corps">
 					<div class="se-types">${types}</div>
 					<p class="text-muted small" style="margin:6px 0 0">${type ? esc(type.description) : ""}</p>
-					<div class="se-3">
-						<div><label>${esc(dims[0])}</label><input type="number" step="0.5" min="1" data-champ="longueur_mm" value="${d.longueur_mm || ""}"></div>
-						<div><label>${esc(dims[1])}</label><input type="number" step="0.5" min="1" data-champ="hauteur_mm" value="${d.hauteur_mm || ""}"></div>
-						<div><label>${esc(dims[2])}</label><input type="number" step="0.5" min="1" data-champ="profondeur_mm" value="${d.profondeur_mm || ""}"></div>
-					</div>
+					<div class="se-3" style="grid-template-columns:repeat(${dims.filter(Boolean).length > 3 ? 2 : 3},1fr)">${champs_dims}</div>
 					<details style="margin-top:8px"><summary class="small text-muted">${__("Fond perdu, zone de sécurité, patte")}</summary>
 						<div class="se-3">
 							<div><label>${__("Fond perdu")}</label><input type="number" step="0.5" min="0" data-champ="fond_perdu_mm" value="${d.fond_perdu_mm}"></div>
@@ -190,7 +199,7 @@ class StudioEmballage {
 						<span class="small text-muted">${d.couleur_fond ? esc(d.couleur_fond) + ` <a href="#" data-effacer="couleur_fond">✕</a>` : __("Sans couleur choisie : la dominante du visuel IA.")}</span>
 					</div>
 					${fichier("image_fond", __("Image de fond (texture, motif)"))}
-					<div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${d.longueur_mm > 0 ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button></div>
+					<div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${this._dims_ok() ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button></div>
 					<label class="se-check"><input type="checkbox" data-champ="fond_continu" ${d.fond_continu ? "checked" : ""}> ${__("Fond continu sur toutes les faces (panorama découpé aux plis)")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="faces_identiques" ${d.faces_identiques ? "checked" : ""}> ${__("Face arrière identique à la face avant")}</label>
 					<p class="text-muted small" style="margin:2px 0 6px">${__("Avec une couleur ou une image de fond et la photo du produit, le plan se compose aussi SANS variante IA.")}</p>
@@ -226,7 +235,7 @@ class StudioEmballage {
 	rendre_etats_etapes() {
 		const d = this.d;
 		const faites = {
-			1: d.longueur_mm > 0 && d.hauteur_mm > 0 && d.profondeur_mm > 0,
+			1: this._dims_ok(),
 			2: !!d.textes_ia || !!(d.caracteristiques || "").trim(),
 			3: !!d.variante_choisie,
 			4: !!d.plan_a_plat,
@@ -301,7 +310,7 @@ class StudioEmballage {
 
 	scene_plan($s) {
 		const a = this.data.apercu;
-		if (!a) return $s.html(`<div class="se-vide">${__("Saisissez les trois dimensions pour voir le plan.")}</div>`);
+		if (!a) return $s.html(`<div class="se-vide">${__("Saisissez les dimensions de la forme pour voir le plan.")}</div>`);
 		if (a.erreur) return $s.html(`<div class="se-vide text-danger">${this._esc(a.erreur)}</div>`);
 		const pb = (a.problemes || []).length ? `<p class="text-danger small">⛔ ${a.problemes.map(this._esc).join(" · ")}</p>` : "";
 		$s.html(`<p class="text-muted small">${__("Feuille <b>{0} × {1} mm</b>, fond perdu inclus. Survolez une face, cliquez pour l'épingler.", [a.feuille.w, a.feuille.h])}</p>${pb}${a.svg}`);
@@ -339,6 +348,7 @@ class StudioEmballage {
 		const W = svg.viewBox.baseVal.width, POIGNEE = Math.max(2.5, W / 90);
 		const g = document.createElementNS(NS, "g"); g.setAttribute("class", "se-edit"); svg.appendChild(g);
 		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle }));
+		const u = face.utile || face;   // une zone ne va jamais dans une bande réservée (repli agrafé)
 		const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); g.appendChild(n); return n; };
 		const point = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
 		const sauver = () => { this.mep[face.code] = zones.map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h })); this.modifier({ mise_en_page: this.mep }, false); };
@@ -354,8 +364,8 @@ class StudioEmballage {
 				const p0 = point(e), z0 = { ...z };
 				const bouger = (ev) => {
 					const q = point(ev), dx = q.x - p0.x, dy = q.y - p0.y;
-					if (mode === "move") { z.x = Math.min(Math.max(z0.x + dx, face.x), face.x + face.w - z.w); z.y = Math.min(Math.max(z0.y + dy, face.y), face.y + face.h - z.h); }
-					else { z.w = Math.max(3, Math.min(z0.w + dx, face.x + face.w - z.x)); z.h = Math.max(3, Math.min(z0.h + dy, face.y + face.h - z.y)); }
+					if (mode === "move") { z.x = Math.min(Math.max(z0.x + dx, u.x), u.x + u.w - z.w); z.y = Math.min(Math.max(z0.y + dy, u.y), u.y + u.h - z.h); }
+					else { z.w = Math.max(3, Math.min(z0.w + dx, u.x + u.w - z.x)); z.h = Math.max(3, Math.min(z0.h + dy, u.y + u.h - z.y)); }
 					r.setAttribute("x", z.x); r.setAttribute("y", z.y); r.setAttribute("width", z.w); r.setAttribute("height", z.h);
 					p.setAttribute("x", z.x + z.w - POIGNEE); p.setAttribute("y", z.y + z.h - POIGNEE);
 					t.setAttribute("x", z.x + W / 400); t.setAttribute("y", z.y + Math.max(2, Math.min(z.w, z.h) / 4));
@@ -372,7 +382,7 @@ class StudioEmballage {
 	ajouter_zone(type) {
 		const c = this._zones_en_cours;
 		if (!c) return;
-		const f = c.face;
+		const f = c.face.utile || c.face;
 		c.zones.push({ zone: type, x: f.x + f.w * 0.3, y: f.y + f.h * 0.4, w: f.w * 0.4, h: f.h * 0.15, libelle: type });
 		c.sauver();
 	}
@@ -607,6 +617,7 @@ class StudioEmballage {
 	}
 
 	_esc(v) { return frappe.utils.escape_html(String(v == null ? "" : v)); }
+	static get CHAMPS_DIMS() { return { L: "longueur_mm", H: "hauteur_mm", P: "profondeur_mm", R: "repli_mm" }; }
 	_msg(e) {
 		const m = (e && (e.message || (e._server_messages && JSON.parse(e._server_messages)[0]))) || e;
 		try { return typeof m === "string" ? (JSON.parse(m).message || m) : JSON.stringify(m); } catch (_x) { return String(m); }

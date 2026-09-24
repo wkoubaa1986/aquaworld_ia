@@ -26,11 +26,13 @@ def plan_du_design(doc) -> dict:
 	"""Le plan à plat du design. Les dimensions ne sont pas obligatoires à la création (le studio
 	les saisit à l'étape 1) : toute action qui a besoin du plan passe ici et reçoit un message
 	clair plutôt qu'une ValueError de la géométrie."""
-	if not (flt(doc.longueur_mm) > 0 and flt(doc.hauteur_mm) > 0 and flt(doc.profondeur_mm) > 0):
-		frappe.throw(_("Renseignez d'abord les trois dimensions de l'emballage (largeur, hauteur, profondeur)."))
+	manque = geometrie.dimensions_manquantes(doc.type_boite or geometrie.ETUI, flt(doc.longueur_mm), flt(doc.hauteur_mm),
+	                                         flt(doc.profondeur_mm), flt(doc.get("repli_mm")))
+	if manque:
+		frappe.throw(_("Renseignez d'abord les dimensions de l'emballage : {0}.").format(", ".join(manque)))
 	r = reglages()
 	return geometrie.plan_a_plat(
-		doc.type_boite or geometrie.ETUI, doc.longueur_mm, doc.hauteur_mm, doc.profondeur_mm,
+		doc.type_boite or geometrie.ETUI, doc.longueur_mm, doc.hauteur_mm, doc.profondeur_mm, repli=flt(doc.get("repli_mm")),
 		patte=float(doc.patte_collage_mm or getattr(r, "patte_collage_mm", 15) or 15),
 		fond_perdu=float(doc.fond_perdu_mm if doc.fond_perdu_mm is not None else getattr(r, "fond_perdu_mm", 3) or 3),
 		securite=float(doc.zone_securite_mm if doc.zone_securite_mm is not None else getattr(r, "zone_securite_mm", 3) or 3))

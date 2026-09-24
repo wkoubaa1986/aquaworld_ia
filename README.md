@@ -40,8 +40,10 @@ le logo de marque et la photo produit :
    EAN-13 / QR vectoriels, pictogrammes, calque « Découpe et plis »), page 2 fiche technique.
    Options : faces secondaires par IA (5 images), aperçu 3D (1 image, illustration).
 
-Formes v1 : « Étui à rabats » (dessus imprimable) et « Caisse américaine ». Le plan de découpe est
-générique : à valider par le cartonnier. PDF **RVB** : conversion CMJN par l'imprimeur.
+Formes : « Étui à rabats », « Caisse américaine », « Sac à soufflets latéraux », « Sachet doypack »,
+« Étiquette enveloppante », et « Sac à gueule ouverte agrafé » (plat ou à soufflets : L, H, R = repli
+supérieur compris dans H, S = soufflet ; la bande du repli est hachurée dans l'aperçu et sur le calque du
+PDF, aucun texte ni logo n'y est posé). Le plan de découpe est générique : à valider par le cartonnier. PDF **RVB** : conversion CMJN par l'imprimeur.
 gpt-image-1 plafonne à 1536 px (≈ 300 dpi jusqu'à 13 cm) ; textes, logo, codes et pictos sont
 vectoriels et restent nets. Les pictogrammes livrés dans `public/pictos/` sont des dessins
 génériques **à faire valider** avant impression.

@@ -21,11 +21,11 @@ from aquaworld_ia.emballage import geometrie, job, textes
 #: résultat d'un traitement, jamais une saisie.
 CHAMPS_EDITABLES = (
 	"nom_produit", "marque", "logo", "photo_produit", "type_boite", "longueur_mm", "hauteur_mm",
-	"profondeur_mm", "fond_perdu_mm", "zone_securite_mm", "patte_collage_mm", "caracteristiques",
+	"profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm", "patte_collage_mm", "caracteristiques",
 	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "brief_style", "palette",
 	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques", "fond_continu", "mise_en_page",
 )
-CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "fond_perdu_mm", "zone_securite_mm",
+CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm",
                      "patte_collage_mm")
 
 
@@ -47,10 +47,11 @@ def _contenu_du_doc(doc) -> dict:
 
 
 def apercu_du_doc(doc) -> dict | None:
-	if not (flt(doc.longueur_mm) > 0 and flt(doc.hauteur_mm) > 0 and flt(doc.profondeur_mm) > 0):
+	if geometrie.dimensions_manquantes(doc.type_boite or geometrie.ETUI, flt(doc.longueur_mm), flt(doc.hauteur_mm),
+	                                   flt(doc.profondeur_mm), flt(doc.get("repli_mm"))):
 		return None
 	return job.apercu(doc.type_boite, doc.longueur_mm, doc.hauteur_mm, doc.profondeur_mm, doc.patte_collage_mm,
-	                  doc.fond_perdu_mm, doc.zone_securite_mm, contenu=_contenu_du_doc(doc))
+	                  doc.fond_perdu_mm, doc.zone_securite_mm, contenu=_contenu_du_doc(doc), repli_mm=doc.get("repli_mm"))
 
 
 @frappe.whitelist()

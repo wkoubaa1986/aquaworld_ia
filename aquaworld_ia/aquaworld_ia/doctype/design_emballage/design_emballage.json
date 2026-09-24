@@ -20,6 +20,7 @@
   "longueur_mm",
   "hauteur_mm",
   "profondeur_mm",
+  "repli_mm",
   "cb_11",
   "fond_perdu_mm",
   "zone_securite_mm",
@@ -133,7 +134,7 @@
    "fieldname": "type_boite",
    "fieldtype": "Select",
    "label": "Type d'emballage",
-   "options": "Étui à rabats\nCaisse américaine\nSac à soufflets latéraux\nSachet doypack (fond plat)\nÉtiquette enveloppante",
+   "options": "Étui à rabats\nCaisse américaine\nSac à soufflets latéraux\nSachet doypack (fond plat)\nÉtiquette enveloppante\nSac à gueule ouverte agrafé, plat\nSac à gueule ouverte agrafé, à soufflets",
    "reqd": 1
   },
   {
@@ -153,6 +154,12 @@
    "fieldtype": "Float",
    "label": "Profondeur / soufflet / côtés (mm)",
    "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
+  },
+  {
+   "fieldname": "repli_mm",
+   "fieldtype": "Float",
+   "label": "Hauteur du repli supérieur (mm)",
+   "description": "Sacs à gueule ouverte agrafés : le repli qui se rabat et reçoit les agrafes, compris dans la hauteur totale. Aucun texte ni logo n'y est posé."
   },
   {
    "fieldname": "cb_11",

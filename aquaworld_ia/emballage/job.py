@@ -40,16 +40,17 @@ def types_emballage() -> list:
 	"""Les formes disponibles, chacune avec sa vignette — le sélecteur visuel de la fiche."""
 	out = []
 	for t in geometrie.TYPES:
-		L, H, P = geometrie.DIMENSIONS_EXEMPLE[t]
-		plan = geometrie.plan_a_plat(t, L, H, P)
+		ex = geometrie.DIMENSIONS_EXEMPLE[t]
+		plan = geometrie.plan_a_plat(t, *ex[:3], repli=ex[3] if len(ex) > 3 else 0)
 		out.append({"type": t, "famille": plan["famille"], "description": geometrie.DESCRIPTIONS[t],
-		            "dimensions": geometrie.DIMENSIONS_TYPE[t], "svg": geometrie.apercu_svg(plan, 180, compact=True)})
+		            "dimensions": geometrie.DIMENSIONS_TYPE[t], "requises": geometrie.DIMENSIONS_REQUISES[t],
+		            "svg": geometrie.apercu_svg(plan, 180, compact=True)})
 	return out
 
 
 @frappe.whitelist()
 def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=None, fond_perdu_mm=None,
-           zone_securite_mm=None, contenu=None) -> dict:
+           zone_securite_mm=None, contenu=None, repli_mm=None) -> dict:
 	"""Le plan (feuille, faces, SVG) pour la fiche — recalculé à chaque changement de dimension.
 	Avec `contenu`, chaque face imprimable rend aussi ses zones (logo, nom, EAN…) pour le survol."""
 	r = reglages()
@@ -58,7 +59,8 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 			type_boite or geometrie.ETUI, flt(longueur_mm), flt(hauteur_mm), flt(profondeur_mm),
 			patte=flt(patte_collage_mm) or flt(getattr(r, "patte_collage_mm", 15)) or 15,
 			fond_perdu=flt(fond_perdu_mm) if fond_perdu_mm not in (None, "") else flt(getattr(r, "fond_perdu_mm", 3)),
-			securite=flt(zone_securite_mm) if zone_securite_mm not in (None, "") else flt(getattr(r, "zone_securite_mm", 3)))
+			securite=flt(zone_securite_mm) if zone_securite_mm not in (None, "") else flt(getattr(r, "zone_securite_mm", 3)),
+			repli=flt(repli_mm))
 	except ValueError as e:
 		return {"erreur": str(e)}
 	from aquaworld_ia.emballage.composition import zones_par_face
@@ -69,8 +71,10 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 	mep = frappe.parse_json(mep) if isinstance(mep, str) else mep
 	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")), mep or None)
 	return {"feuille": plan["feuille"], "famille": plan["famille"], "dimensions": geometrie.DIMENSIONS_TYPE.get(plan["type"]),
+	        "reserves": plan.get("reserves") or [],
 	        "svg": geometrie.apercu_svg(plan, zones=zones), "problemes": geometrie.verifier(plan),
 	        "faces": [{"code": f["code"], "libelle": f["libelle"], "x": f["x"], "y": f["y"], "w": f["w"], "h": f["h"],
+	                   "utile": f.get("utile"),
 	                   "personnalisee": bool(mep and f["code"] in mep),
 	                   "zones": [dict(z, libelle=geometrie.ZONES_LIBELLES.get(z["zone"], z["zone"])) for z in zones[f["code"]]]}
 	                  for f in plan["faces"] if f["imprimable"]]}
@@ -151,8 +155,10 @@ def lancer_faces(design: str) -> dict:
 def lancer_fond(design: str, continu=None) -> dict:
 	"""Un fond d'ambiance par IA (1 image). `continu` : le panorama qui fait le tour."""
 	doc = _doc(design)
-	if not (flt(doc.longueur_mm) > 0 and flt(doc.hauteur_mm) > 0 and flt(doc.profondeur_mm) > 0):
-		frappe.throw(_("Renseignez d'abord les dimensions."))
+	manque = geometrie.dimensions_manquantes(doc.type_boite or geometrie.ETUI, flt(doc.longueur_mm), flt(doc.hauteur_mm),
+	                                         flt(doc.profondeur_mm), flt(doc.get("repli_mm")))
+	if manque:
+		frappe.throw(_("Renseignez d'abord les dimensions : {0}.").format(", ".join(manque)))
 	_verifier_libre(design)
 	if continu is not None:
 		frappe.db.set_value("Design Emballage", design, "fond_continu", cint(continu), update_modified=False)

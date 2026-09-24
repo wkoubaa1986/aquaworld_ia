@@ -9,9 +9,11 @@ from __future__ import annotations
 INTERDITS = ("text", "letters", "numbers", "words", "logos", "barcodes", "icons", "watermarks")
 
 #: La forme dite à l'IA — un sachet souple ne se dessine pas comme une boîte rigide.
-FORMES = {"boite": "rigid retail box", "sac": "flexible pouch (soft bag)", "etiquette": "wrap-around label"}
+FORMES = {"boite": "rigid retail box", "sac": "flexible pouch (soft bag)", "etiquette": "wrap-around label",
+          "sac_papier": "paper open-mouth bag whose top is folded over and stapled shut"}
 MOCKUPS = {"boite": "the assembled retail box", "sac": "the filled, standing flexible pouch",
-           "etiquette": "a bottle wearing the wrap-around label"}
+           "etiquette": "a bottle wearing the wrap-around label",
+           "sac_papier": "the filled paper bag, its top folded over and closed with staples"}
 
 
 def forme(famille: str | None) -> str:

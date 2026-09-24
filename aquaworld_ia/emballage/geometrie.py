@@ -13,6 +13,11 @@ Cinq formes, trois familles :
   plié en W, L×P) sous l'avant. Le dos n'est PAS retourné : ce sont des lés séparés.
 - ÉTIQUETTE — « Étiquette enveloppante » : bande [AVANT][côté D][ARRIÈRE][côté G][recouvrement],
   sans dessus ni dessous, pour un flacon ou un bidon.
+- SACS PAPIER (demande utilisateur 24/09/2026) — « Sac à gueule ouverte agrafé », plat ou à soufflets
+  latéraux : bande [AVANT][soufflet D][ARRIÈRE][soufflet G][recouvrement] de hauteur totale H ; le
+  REPLI supérieur R (compris dans H) se rabat et reçoit les agrafes : la bande haute de R mm est
+  RÉSERVÉE (fond imprimé, mais ni texte ni logo — `zone_sure` et `utile` l'excluent), la ligne de
+  pliage supérieure est un pli à y = R. Dimensions : L, H, R (+ S = P pour les soufflets).
 
 Un plan = {feuille{w,h}, fond_perdu, faces[...], traits{coupe, pli}}. Les traits se déduisent des
 faces : une arête partagée par deux faces est un pli, une arête libre est une coupe.
@@ -25,19 +30,32 @@ CAISSE = "Caisse américaine"
 SAC = "Sac à soufflets latéraux"
 DOYPACK = "Sachet doypack (fond plat)"
 ETIQUETTE = "Étiquette enveloppante"
-TYPES = (ETUI, CAISSE, SAC, DOYPACK, ETIQUETTE)
+SAC_AGRAFE_PLAT = "Sac à gueule ouverte agrafé, plat"
+SAC_AGRAFE_SOUFFLETS = "Sac à gueule ouverte agrafé, à soufflets"
+TYPES = (ETUI, CAISSE, SAC, DOYPACK, ETIQUETTE, SAC_AGRAFE_PLAT, SAC_AGRAFE_SOUFFLETS)
 
-#: La famille pilote le prompt IA (boîte, sachet souple, étiquette) et le rendu 3D.
-FAMILLES = {ETUI: "boite", CAISSE: "boite", SAC: "sac", DOYPACK: "sac", ETIQUETTE: "etiquette"}
+#: La famille pilote le prompt IA (boîte, sachet souple, sac papier, étiquette) et le rendu 3D.
+FAMILLES = {ETUI: "boite", CAISSE: "boite", SAC: "sac", DOYPACK: "sac", ETIQUETTE: "etiquette",
+            SAC_AGRAFE_PLAT: "sac_papier", SAC_AGRAFE_SOUFFLETS: "sac_papier"}
 
-#: Ce que veulent dire L, H, P pour chaque forme — affiché sous les champs de dimensions.
+#: Ce que veulent dire L, H, P (et R) pour chaque forme — affiché sous les champs de dimensions.
+#: Un libellé None = dimension sans objet pour cette forme (le champ n'est pas proposé).
 DIMENSIONS_TYPE = {
 	ETUI: ("Largeur de la face avant", "Hauteur", "Profondeur (largeur des côtés)"),
 	CAISSE: ("Largeur de la face avant", "Hauteur", "Profondeur (largeur des côtés)"),
 	SAC: ("Largeur de la face avant", "Hauteur hors soudures", "Largeur d'un soufflet"),
 	DOYPACK: ("Largeur du sachet", "Hauteur hors soudure", "Profondeur du fond (soufflet)"),
 	ETIQUETTE: ("Largeur de la face avant", "Hauteur de l'étiquette", "Largeur des côtés"),
+	SAC_AGRAFE_PLAT: ("Largeur à plat (L)", "Hauteur totale avant fermeture (H)", None,
+	                  "Hauteur du repli supérieur (R), comprise dans H"),
+	SAC_AGRAFE_SOUFFLETS: ("Largeur à plat (L)", "Hauteur totale avant fermeture (H)",
+	                       "Profondeur du soufflet entièrement déployé (S)", "Hauteur du repli supérieur (R), comprise dans H"),
 }
+#: Les clés (L, H, P, R) qu'une forme exige pour tracer son plan.
+DIMENSIONS_REQUISES = {t: ("L", "H", "P") for t in (ETUI, CAISSE, SAC, DOYPACK, ETIQUETTE)}
+DIMENSIONS_REQUISES[SAC_AGRAFE_PLAT] = ("L", "H", "R")
+DIMENSIONS_REQUISES[SAC_AGRAFE_SOUFFLETS] = ("L", "H", "P", "R")
+CLES_DIMENSIONS = ("L", "H", "P", "R")
 
 DESCRIPTIONS = {
 	ETUI: "Boîte carton pliante fermée par des languettes : dessus, dessous et 4 faces imprimés.",
@@ -45,11 +63,16 @@ DESCRIPTIONS = {
 	SAC: "Sachet souple type café : avant, dos et deux soufflets imprimés, soudures haut et bas.",
 	DOYPACK: "Sachet debout à fond plat : avant et dos imprimés, fond en soufflet, zip en haut.",
 	ETIQUETTE: "Étiquette à enrouler autour d'un flacon ou d'un bidon : 4 faces, sans dessus.",
+	SAC_AGRAFE_PLAT: "Sac papier plat à gueule ouverte, fermé en rabattant le haut et en l'agrafant : "
+	                 "avant et dos imprimés ; la bande du repli (R) reste sans texte ni logo.",
+	SAC_AGRAFE_SOUFFLETS: "Sac papier à soufflets latéraux, gueule ouverte fermée par repli agrafé : "
+	                      "avant, dos et deux soufflets imprimés ; la bande du repli (R) reste sans texte ni logo.",
 }
 
-#: Dimensions d'exemple (L, H, P) pour les vignettes du sélecteur de type.
+#: Dimensions d'exemple (L, H, P[, R]) pour les vignettes du sélecteur de type.
 DIMENSIONS_EXEMPLE = {ETUI: (120, 200, 60), CAISSE: (120, 200, 60), SAC: (120, 200, 60),
-                      DOYPACK: (130, 200, 80), ETIQUETTE: (90, 120, 60)}
+                      DOYPACK: (130, 200, 80), ETIQUETTE: (90, 120, 60),
+                      SAC_AGRAFE_PLAT: (250, 400, 0, 60), SAC_AGRAFE_SOUFFLETS: (250, 400, 80, 60)}
 
 SOUDURE_MM = 12.0
 
@@ -61,7 +84,7 @@ LIBELLES = {
 	"avant": "Face avant", "arriere": "Face arrière", "cote_gauche": "Côté gauche", "cote_droit": "Côté droit",
 	"dessus": "Dessus", "dessous": "Dessous", "patte": "Patte de collage", "languette_haut": "Languette (dessus)",
 	"languette_bas": "Languette (dessous)", "rabat": "Rabat", "poussiere": "Patte anti-poussière",
-	"soudure": "Soudure", "fond": "Fond (soufflet plié)",
+	"soudure": "Soudure", "fond": "Fond (soufflet plié)", "repli": "Repli supérieur et agrafes",
 }
 
 ZONES_LIBELLES = {
@@ -71,36 +94,86 @@ ZONES_LIBELLES = {
 }
 
 
-def _face(code, x, y, w, h, imprimable, securite, libelle=None):
-	inset = min(securite, w / 4, h / 4)
+def _face(code, x, y, w, h, imprimable, securite, libelle=None, reserve_haut=0.0):
+	"""`reserve_haut` : bande du haut (mm) qui reçoit le fond imprimé mais AUCUN contenu (repli
+	agrafé d'un sac) — `utile` (où l'on peut poser une zone) et `zone_sure` (utile moins la
+	marge de sécurité) commencent en dessous."""
+	r = min(max(0.0, float(reserve_haut or 0)), h * 0.9)
+	inset = min(securite, w / 4, (h - r) / 4)
 	return {
 		"code": code, "libelle": libelle or LIBELLES.get(code.split("#")[0], code),
 		"x": round(x, 3), "y": round(y, 3), "w": round(w, 3), "h": round(h, 3),
 		"imprimable": bool(imprimable),
-		"zone_sure": {"x": round(x + inset, 3), "y": round(y + inset, 3),
-		              "w": round(w - 2 * inset, 3), "h": round(h - 2 * inset, 3)},
+		"utile": {"x": round(x, 3), "y": round(y + r, 3), "w": round(w, 3), "h": round(h - r, 3)},
+		"zone_sure": {"x": round(x + inset, 3), "y": round(y + r + inset, 3),
+		              "w": round(w - 2 * inset, 3), "h": round(h - r - 2 * inset, 3)},
 	}
 
 
+def dimensions_manquantes(type_boite: str, L, H, P=0, R=0) -> list[str]:
+	"""Ce qui empêche de tracer le plan : dimensions requises absentes ou nulles, repli qui ne
+	tient pas dans la hauteur. Libellés lisibles, liste vide = tout est là. Pur."""
+	valeurs = {"L": L, "H": H, "P": P, "R": R}
+	requis = DIMENSIONS_REQUISES.get(type_boite, ("L", "H", "P"))
+	libelles = DIMENSIONS_TYPE.get(type_boite) or ("Largeur", "Hauteur", "Profondeur", "Repli")
+	manque = []
+	for cle in requis:
+		try:
+			ok = float(valeurs.get(cle) or 0) > 0
+		except (TypeError, ValueError):
+			ok = False
+		if not ok:
+			i = CLES_DIMENSIONS.index(cle)
+			manque.append((libelles[i] if i < len(libelles) and libelles[i] else cle))
+	if not manque and "R" in requis and float(R) >= float(H):
+		manque.append("repli supérieur (R) plus petit que la hauteur totale (H)")
+	return manque
+
+
+def hachures(x: float, y: float, w: float, h: float, pas: float = 6.0) -> list[list[float]]:
+	"""Segments à 45° qui hachurent le rectangle, rognés à ses bords : [[x1, y1, x2, y2]…]. Pur
+	(le SVG comme le PDF les tracent tels quels, sans motif ni clip)."""
+	if w <= 0 or h <= 0 or pas <= 0:
+		return []
+	out = []
+	c = x - (y + h)
+	fin = x + w - y
+	while c <= fin + 1e-9:
+		y0 = max(y, x - c)
+		y1 = min(y + h, x + w - c)
+		if y1 - y0 > 1e-6:
+			out.append([round(y0 + c, 3), round(y0, 3), round(y1 + c, 3), round(y1, 3)])
+		c += pas
+	return out
+
+
 def plan_a_plat(type_boite: str, L: float, H: float, P: float, *, patte: float = 15.0,
-                fond_perdu: float = 3.0, securite: float = 3.0) -> dict:
-	"""L = largeur de la face avant, H = hauteur, P = profondeur (largeur des côtés)."""
-	L, H, P, patte = float(L), float(H), float(P), float(patte)
-	if min(L, H, P) <= 0:
-		raise ValueError("Dimensions nulles ou négatives")
-	constructeurs = {CAISSE: _caisse, ETUI: _etui, SAC: _sac, DOYPACK: _doypack, ETIQUETTE: _etiquette}
+                fond_perdu: float = 3.0, securite: float = 3.0, repli: float = 0.0) -> dict:
+	"""L = largeur de la face avant, H = hauteur, P = profondeur (largeur des côtés ou des
+	soufflets), `repli` = R, la hauteur du repli agrafé des sacs à gueule ouverte (compris dans H).
+	`reserves` : les bandes imprimées mais interdites au contenu (repli + agrafes)."""
+	L, H, P, patte, R = float(L), float(H), float(P or 0), float(patte), float(repli or 0)
+	constructeurs = {
+		CAISSE: _caisse, ETUI: _etui, SAC: _sac, DOYPACK: _doypack, ETIQUETTE: _etiquette,
+		SAC_AGRAFE_PLAT: lambda *a: _sac_agrafe(*a, R=R, soufflets=False),
+		SAC_AGRAFE_SOUFFLETS: lambda *a: _sac_agrafe(*a, R=R, soufflets=True),
+	}
 	if type_boite not in constructeurs:
 		raise ValueError("Type d'emballage inconnu : %r" % type_boite)
+	manque = dimensions_manquantes(type_boite, L, H, P, R)
+	if manque:
+		raise ValueError("Dimensions nulles ou négatives : " + ", ".join(manque))
 	resultat = constructeurs[type_boite](L, H, P, patte, fond_perdu, securite)
 	faces, w, h = resultat[:3]
 	plis_extra = resultat[3] if len(resultat) > 3 else []
+	reserves = resultat[4] if len(resultat) > 4 else []
 	t = traits(faces)
 	t["pli"].extend([[round(v, 3) for v in pli] for pli in plis_extra])
 	return {
 		"type": type_boite, "famille": FAMILLES[type_boite],
-		"dimensions": {"L": L, "H": H, "P": P, "patte": patte},
+		"dimensions": {"L": L, "H": H, "P": P, "R": R, "patte": patte},
 		"feuille": {"w": round(w, 3), "h": round(h, 3)}, "fond_perdu": float(fond_perdu),
-		"faces": faces, "traits": t,
+		"faces": faces, "traits": t, "reserves": reserves,
 	}
 
 
@@ -179,6 +252,32 @@ def _doypack(L, H, P, patte, fp, sec):
 	faces.append(_face("fond", fp, haut + H, L, P, False, sec))
 	ym = haut + H + P / 2.0
 	return faces, x + fp, haut + H + P + fp, [[fp, ym, fp + L, ym]]
+
+
+def _sac_agrafe(L, H, P, patte, fp, sec, R, soufflets):
+	"""Sac à gueule ouverte fermé par un repli agrafé : une bande de hauteur totale H, le
+	recouvrement de collage du dos au bout ; à soufflets, un côté de largeur S = P de chaque
+	côté du dos, avec son pli médian. La bande haute de R mm (repli + agrafes) est réservée sur
+	toute la largeur, séparée par la ligne de pliage supérieure."""
+	x, y = fp, fp
+	colonnes = [("avant", L, True)]
+	if soufflets:
+		colonnes.append(("cote_droit", P, True))
+	colonnes.append(("arriere", L, True))
+	if soufflets:
+		colonnes.append(("cote_gauche", P, True))
+	colonnes.append(("patte", patte, False))
+	faces, plis = [], []
+	for code, largeur, imprimable in colonnes:
+		libelle = "Recouvrement (collage du dos)" if code == "patte" else None
+		faces.append(_face(code, x, y, largeur, H, imprimable, sec, libelle, reserve_haut=R if imprimable else 0))
+		if soufflets and code in ("cote_droit", "cote_gauche"):
+			xm = x + largeur / 2.0
+			plis.append([xm, y + R, xm, y + H])
+		x += largeur
+	plis.append([fp, y + R, x, y + R])                      # ligne de pliage supérieure
+	reserves = [{"x": round(fp, 3), "y": round(y, 3), "w": round(x - fp, 3), "h": round(R, 3), "libelle": LIBELLES["repli"]}]
+	return faces, x + fp, y + H + fp, plis, reserves
 
 
 def _etiquette(L, H, P, patte, fp, sec):
@@ -329,6 +428,18 @@ def apercu_svg(plan: dict, largeur_px: int = 640, zones: dict | None = None, com
 			             "font-family='sans-serif' pointer-events='none'>%.0f × %.0f mm</text>" % (
 				f["x"] + f["w"] / 2, f["y"] + f["h"] / 2 + max(2.5, min(f["w"], f["h"]) / 6) * 1.2,
 				max(2.0, min(f["w"], f["h"]) / 8), f["w"], f["h"]))
+	for rz in plan.get("reserves") or []:
+		# Repli agrafé : hachuré et bordé d'ocre, pour qu'on n'y pose ni texte ni logo. Segments
+		# explicites (pas de <pattern>) : MuPDF et les vignettes les rendent tels quels.
+		d = " ".join("M%.2f %.2fL%.2f %.2f" % tuple(seg) for seg in hachures(rz["x"], rz["y"], rz["w"], rz["h"], max(3.0, W / 60)))
+		parts.append("<path d='%s' stroke='#b45309' stroke-width='%.2f' stroke-opacity='0.55' fill='none' pointer-events='none'/>" % (d, W / 700))
+		parts.append("<rect x='%.2f' y='%.2f' width='%.2f' height='%.2f' fill='none' stroke='#b45309' stroke-width='%.2f' "
+		             "stroke-dasharray='%.1f,%.1f' pointer-events='none'/>" % (rz["x"], rz["y"], rz["w"], rz["h"], W / 500, W / 200, W / 400))
+		if not compact and rz["h"] > 0:
+			corps = max(2.5, min(rz["h"] / 2.2, W / 55))
+			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#92400e' font-family='sans-serif' "
+			             "font-weight='bold' pointer-events='none'>%s — ni texte ni logo</text>" % (
+				rz["x"] + rz["w"] / 2, rz["y"] + rz["h"] / 2 + corps * 0.35, corps, rz.get("libelle", "Réservé")))
 	for x1, y1, x2, y2 in plan["traits"]["pli"]:
 		parts.append("<line x1='%.2f' y1='%.2f' x2='%.2f' y2='%.2f' stroke='#2563eb' stroke-width='%.2f' "
 		             "stroke-dasharray='%.1f,%.1f' pointer-events='none'/>" % (x1, y1, x2, y2, W / 640, W / 160, W / 320))
