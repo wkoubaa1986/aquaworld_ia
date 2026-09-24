@@ -773,7 +773,9 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		for z in zones[face["code"]]:
 			rect = _rect_pt(z["x"], z["y"], z["w"], z["h"])
 			if z["zone"] == "photo":
-				if photo_zone:
+				# Une face qui porte un visuel IA (variante de face avant, faces IA) montre déjà le produit :
+				# une zone « photo » dessus le doublerait (constaté sur EMB-2026-0002 le 24/09/2026).
+				if photo_zone and face["code"] not in visuels:
 					poser_image(page, rect, photo_zone, garder_proportions=True)
 			style = style_zone(z)
 			couleur_zone = (style or {}).get("texte") or couleur_texte

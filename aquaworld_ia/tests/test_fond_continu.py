@@ -75,3 +75,5 @@ class TestCompositionContinue(unittest.TestCase):
 		self.assertIn("tranche_panorama(image_fond, bande, r)", src)
 		self.assertNotIn("r_src", src)
 		self.assertIn("face_source(plan, face[\"code\"], copies)", src)
+		# zone photo ignorée sur une face qui a un visuel IA (le produit y est déjà)
+		self.assertIn('if photo_zone and face["code"] not in visuels:', src)
