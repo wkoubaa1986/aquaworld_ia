@@ -483,9 +483,28 @@ class StudioEmballage {
 		const sel = epinglee && this.zone_sel != null ? (f.zones || [])[this.zone_sel] : null;
 		const TEXTES = ["nom", "accroche", "caracteristiques", "avertissements", "contact"];
 		let props = "";
+		// Chevauchements sur la face : un logo posé sur la photo, des pictos sur le nom… (retour utilisateur 24/09/2026)
+		const zs = f.zones || [], chev = [];
+		for (let i = 0; i < zs.length; i++) for (let j = i + 1; j < zs.length; j++) {
+			const a = zs[i], b2 = zs[j];
+			if (a.x < b2.x + b2.w - 0.5 && b2.x < a.x + a.w - 0.5 && a.y < b2.y + b2.h - 0.5 && b2.y < a.y + a.h - 0.5) chev.push(`${a.libelle} / ${b2.libelle}`);
+		}
+		if (chev.length) props += `<div class="text-danger small" style="margin-top:6px">⚠ ${__("Zones qui se chevauchent : {0}. Déplacez-les ou réduisez-les.", [this._esc(chev.join(" · "))])}</div>`;
+		if (sel) {
+			const u = f.utile || f, mm = (v) => (Math.round(v * 10) / 10).toString();
+			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Position de « {0} » (mm, depuis le coin haut-gauche de la face)", [this._esc(sel.libelle)])}</h6>
+				<div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 8px;align-items:center;font-size:12px">
+					<span>X</span><input type="number" step="0.5" data-pos="x" value="${mm(sel.x - u.x)}"><span>Y</span><input type="number" step="0.5" data-pos="y" value="${mm(sel.y - u.y)}">
+					<span>${__("Larg.")}</span><input type="number" step="0.5" min="3" data-pos="w" value="${mm(sel.w)}"><span>${__("Haut.")}</span><input type="number" step="0.5" min="3" data-pos="h" value="${mm(sel.h)}">
+				</div>
+				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-pos">${__("Appliquer")}</button>
+					<button class="btn btn-xs btn-default" data-role="centrer-h" title="${__("Centrer horizontalement sur la face")}">↔ ${__("Centrer")}</button>
+					<button class="btn btn-xs btn-default" data-role="centrer-v" title="${__("Centrer verticalement sur la face")}">↕ ${__("Centrer")}</button>
+					<button class="btn btn-xs btn-default" data-role="pleine-largeur" title="${__("Toute la largeur utile de la face")}">${__("Pleine largeur")}</button></div></div>`;
+		}
 		if (sel && TEXTES.includes(sel.zone)) {
 			const st = sel.style || {};
-			props = `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Zone « {0} »", [this._esc(sel.libelle)])}</h6>
+			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Zone « {0} »", [this._esc(sel.libelle)])}</h6>
 				<div style="display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;font-size:12px">
 					<span>${__("Cartouche")}</span><input type="color" data-prop="fond" value="${this._esc(st.fond || "#1d4ed8")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_fond" ${st.fond ? "checked" : ""}> ${__("fond")}</label>
 					<span>${__("Texte")}</span><input type="color" data-prop="texte" value="${this._esc(st.texte || "#ffffff")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_texte" ${st.texte ? "checked" : ""}> ${__("couleur")}</label>
@@ -494,7 +513,7 @@ class StudioEmballage {
 				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-style">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="style-aucun">${__("Sans cartouche")}</button></div>
 				<div class="text-muted small" style="margin-top:6px">${__("Exemple : fond bleu, coins 4 mm, texte blanc. Le cartouche épouse la zone : ajustez sa taille sur le plan.")}</div></div>`;
 		} else if (sel && sel.zone === "logo") {
-			props = `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Logo de cette face")}</h6>
+			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Logo de cette face")}</h6>
 				<div class="se-fichier"><img src="${this._esc(sel.logo || this.d.logo || "")}" alt="">
 					<button class="btn btn-xs btn-default" data-role="logo-variante">📚 ${__("Variante de la bibliothèque")}</button>
 					${sel.logo ? `<button class="btn btn-xs btn-default" data-role="logo-commun">${__("Logo du design")}</button>` : ""}</div>
@@ -505,12 +524,12 @@ class StudioEmballage {
 				const info = (this.data.pictos || []).find((x) => x.code === p.pictogramme) || {};
 				return `<label class="se-check" style="margin:2px 0"><input type="checkbox" data-picto-zone="${this._esc(p.pictogramme)}" ${choisis.includes(p.pictogramme) ? "checked" : ""}> ${info.url ? `<img src="${this._esc(info.url)}" style="width:18px;height:18px;object-fit:contain;background:#fff;border-radius:3px">` : ""}${this._esc(info.libelle || p.pictogramme)}</label>`;
 			}).join("");
-			props = `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Pictogrammes de cette zone")}</h6>
+			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Pictogrammes de cette zone")}</h6>
 				${cases || `<span class="text-muted small">${__("Cochez d'abord des pictogrammes à l'étape 2.")}</span>`}
 				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-pictos">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="pictos-tous">${__("Tous")}</button></div>
 				<div class="text-muted small" style="margin-top:6px">${__("Rien de coché = tous les pictogrammes. Ils se posent côte à côte à la hauteur de la zone : agrandissez-la pour un logo de certification.")}</div></div>`;
 		} else if (sel) {
-			props = `<div class="text-muted small" style="margin-top:6px">${__("Cette zone n'a pas de réglage : déplacez-la ou redimensionnez-la sur le plan.")}</div>`;
+			props += `<div class="text-muted small" style="margin-top:6px">${__("Cette zone n'a pas de réglage : déplacez-la ou redimensionnez-la sur le plan.")}</div>`;
 		}
 		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
 		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
@@ -540,6 +559,17 @@ class StudioEmballage {
 			this._zones_en_cours.sauver();
 		});
 		$b.find('[data-role="style-aucun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.style = null; this._zones_en_cours.sauver(); });
+		const utile = () => { const c = this._zones_en_cours || {}; return c.face ? (c.face.utile || c.face) : null; };
+		$b.find('[data-role="appliquer-pos"]').on("click", () => {
+			const z = zone_courante(), u = utile(); if (!z || !u) return;
+			const v = (k) => parseFloat($b.find(`[data-pos="${k}"]`).val());
+			if (!isNaN(v("w"))) z.w = Math.max(3, v("w")); if (!isNaN(v("h"))) z.h = Math.max(3, v("h"));
+			if (!isNaN(v("x"))) z.x = u.x + v("x"); if (!isNaN(v("y"))) z.y = u.y + v("y");
+			this._zones_en_cours.sauver();   // le serveur borne à la face
+		});
+		$b.find('[data-role="centrer-h"]').on("click", () => { const z = zone_courante(), u = utile(); if (!z || !u) return; z.x = u.x + (u.w - z.w) / 2; this._zones_en_cours.sauver(); });
+		$b.find('[data-role="centrer-v"]').on("click", () => { const z = zone_courante(), u = utile(); if (!z || !u) return; z.y = u.y + (u.h - z.h) / 2; this._zones_en_cours.sauver(); });
+		$b.find('[data-role="pleine-largeur"]').on("click", () => { const z = zone_courante(), u = utile(); if (!z || !u) return; z.x = u.x + 3; z.w = Math.max(3, u.w - 6); this._zones_en_cours.sauver(); });
 		$b.find('[data-role="appliquer-pictos"]').on("click", () => { const z = zone_courante(); if (!z) return; z.pictos = $b.find("[data-picto-zone]:checked").map((_i, el) => $(el).attr("data-picto-zone")).get(); this._zones_en_cours.sauver(); });
 		$b.find('[data-role="pictos-tous"]').on("click", () => { const z = zone_courante(); if (!z) return; z.pictos = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="logo-variante"]').on("click", () => this.bibliotheque("logo", (l) => { const z = zone_courante(); if (!z) return; z.logo = l.image; this._zones_en_cours.sauver(); }));
