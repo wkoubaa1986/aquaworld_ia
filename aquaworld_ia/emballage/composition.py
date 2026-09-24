@@ -459,16 +459,33 @@ def _rgb(valeur: str):
 	return None
 
 
-def svg_est_monochrome(svg: bytes) -> bool:
-	"""Vrai si le SVG n'emploie qu'une seule couleur d'encre (le blanc, none et currentColor ne
-	comptent pas) : un pictogramme normalisé, pas un logo de certification en couleurs. Pur."""
+def encres_svg(svg: bytes) -> set:
+	"""Les couleurs d'encre d'un SVG (le blanc, none et currentColor ne comptent pas). Pur."""
 	texte = svg.decode("utf-8", "replace")
 	encres = set()
 	for val in re.findall(r"(?:fill|stroke|stop-color)\s*[=:]\s*[\"']?\s*([^\"';)>]+)", texte):
 		c = _rgb(val)
 		if c is not None and min(c) < 235:
 			encres.add(c)
-	return len(encres) <= 1
+	return encres
+
+
+def svg_est_monochrome(svg: bytes) -> bool:
+	"""Vrai si le SVG n'emploie qu'une seule couleur d'encre : un pictogramme normalisé, pas un
+	logo de certification en couleurs. Pur."""
+	return len(encres_svg(svg)) <= 1
+
+
+def svg_est_recolorable(svg: bytes) -> bool:
+	"""Ne se recolore qu'un pictogramme NOIR (ou presque) sans image embarquée. Un logo monochrome
+	de couleur (le bleu Water Quality Association, constaté le 24/09/2026 : il sortait noir) garde
+	sa couleur de marque ; un SVG « hybride » avec bitmap n'est pas touché. Pur."""
+	if re.search(r"<image\b", svg.decode("utf-8", "replace"), re.IGNORECASE):
+		return False
+	encres = encres_svg(svg)
+	if len(encres) > 1:
+		return False
+	return all(max(c) <= 70 for c in encres)
 
 
 def recolorer_svg_monochrome(svg: bytes, couleur: str) -> bytes:
@@ -476,7 +493,7 @@ def recolorer_svg_monochrome(svg: bytes, couleur: str) -> bytes:
 	cartouche sur un fond sombre, un picto noir serait invisible. Le blanc et « none » sont gardés
 	(les évidements restent des évidements) ; un SVG à plusieurs encres — certification en couleurs —
 	revient tel quel. Sans fill explicite, le SVG hérite du noir : la couleur est posée à la racine. Pur."""
-	if not svg_est_monochrome(svg):
+	if not svg_est_recolorable(svg):
 		return svg
 	texte = svg.decode("utf-8", "replace")
 

@@ -170,6 +170,16 @@ class TestPictosSansCartouche(unittest.TestCase):
 		out = C.recolorer_svg_monochrome(self.SANS_FILL, "#123456").decode()
 		self.assertRegex(out, r'<svg[^>]*fill="#123456"')
 
+	def test_un_logo_monochrome_de_couleur_garde_sa_couleur(self):
+		bleu = b'<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z" fill="#06498D"/><path d="M0 0h5" stroke="#06498D"/></svg>'
+		self.assertTrue(C.svg_est_monochrome(bleu))
+		self.assertFalse(C.svg_est_recolorable(bleu))
+		self.assertEqual(C.recolorer_svg_monochrome(bleu, "#ffffff"), bleu)
+		hybride = b'<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,AAAA"/><path fill="#000"/></svg>'
+		self.assertFalse(C.svg_est_recolorable(hybride))
+		self.assertTrue(C.svg_est_recolorable(self.NOIR))
+		self.assertTrue(C.svg_est_recolorable(self.SANS_FILL))
+
 	def test_une_certification_en_couleurs_reste_intacte(self):
 		self.assertFalse(C.svg_est_monochrome(self.COULEURS))
 		self.assertEqual(C.recolorer_svg_monochrome(self.COULEURS, "#ffffff"), self.COULEURS)
