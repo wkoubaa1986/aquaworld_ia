@@ -34,3 +34,20 @@ class TestBibliotheque(unittest.TestCase):
 		self.assertNotIn("Logo", S.CHAMPS_BIBLIOTHEQUE["image_fond"])
 		with self.assertRaises(ValueError):
 			S.categorie_par_defaut("photo_produit")
+
+
+class TestAtelierImage(unittest.TestCase):
+	def test_prompt_et_taille(self):
+		self.assertIn("EXACTLY", S.prompt_retouche("photo_produit", "détourer."))
+		self.assertTrue(S.prompt_retouche("photo_produit", "détourer.").endswith("Apply only this change: détourer."))
+		self.assertIn("lettering EXACTLY", S.prompt_retouche("logo", "bleu marine"))
+		with self.assertRaises(ValueError):
+			S.prompt_retouche("image_fond", "x")
+		import io as _io
+		from PIL import Image
+		def png(w, h):
+			b = _io.BytesIO(); Image.new("RGB", (w, h), "white").save(b, format="PNG"); return b.getvalue()
+		self.assertEqual(S.taille_retouche("photo_produit", png(500, 1000)), "1024x1536")
+		self.assertEqual(S.taille_retouche("photo_produit", png(1000, 500)), "1536x1024")
+		self.assertEqual(S.taille_retouche("photo_produit", png(800, 800)), "1024x1024")
+		self.assertEqual(S.taille_retouche("logo", png(500, 1000)), "1024x1024")

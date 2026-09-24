@@ -9,6 +9,7 @@ moteur, aucune règle n'est dupliquée.
 
 from __future__ import annotations
 
+import io
 import json
 
 import frappe
@@ -196,6 +197,95 @@ def retoucher_logo(design: str, instruction: str, nombre=1) -> dict:
 	                     n=n, fonctionnalite="Logo IA", doc=doc, fidelite="high")
 	candidats = [save_file("%s-logo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
 	return {"candidats": candidats, "candidat": candidats[0] if candidats else None, "source": source}
+
+
+PROMPTS_RETOUCHE = {
+	"logo": (
+		"Redraw the logo given as the reference image as a clean, flat, vector-style logo on a PURE WHITE background, "
+		"centered, filling the frame, keeping its shapes, proportions and lettering EXACTLY as in the reference. "
+		"Apply only this change: %s. No background scene, no shadows, no extra elements, no extra text."),
+	"photo_produit": (
+		"Professional packshot of the product shown in the reference image, for a retail packaging: the product itself "
+		"must stay EXACTLY as in the reference (shape, proportions, colors, materials, fittings, labels, text on it), "
+		"no redesign, no added parts. Clean cut-out on a PURE WHITE background, soft even studio lighting, sharp focus, "
+		"straight front view, product centered and filling the frame, no props, no hands, no text, no logo, no shadow scene. "
+		"Apply only this change: %s."),
+}
+
+
+def prompt_retouche(champ: str, instruction: str) -> str:
+	"""Le prompt de l'atelier IA d'une image du design (logo, photo produit). Pur."""
+	if champ not in PROMPTS_RETOUCHE:
+		raise ValueError("Pas d'atelier IA pour %r" % champ)
+	return PROMPTS_RETOUCHE[champ] % (instruction or "").strip().rstrip(".")
+
+
+def taille_retouche(champ: str, octets: bytes | None) -> str:
+	"""Le format d'image de l'atelier : carré pour un logo ; pour une photo, portrait ou paysage
+	si le produit l'est nettement (un porte-filtre est haut et étroit). Pur."""
+	if champ != "photo_produit" or not octets:
+		return "1024x1024"
+	try:
+		from PIL import Image
+
+		im = Image.open(io.BytesIO(octets))
+		ratio = im.width / max(1, im.height)
+	except Exception:
+		return "1024x1024"
+	if ratio < 0.8:
+		return "1024x1536"
+	if ratio > 1.25:
+		return "1536x1024"
+	return "1024x1024"
+
+
+@frappe.whitelist()
+def retoucher_image(design: str, champ: str, instruction: str, nombre=1) -> dict:
+	"""L'atelier IA d'une image du design — logo, ou photo produit (demande utilisateur 24/09/2026 :
+	« améliorer avec l'IA la photo du produit ») : détourage sur blanc pur, éclairage studio, retrait
+	des accessoires… `nombre` propositions (1 à 4) attachées à la fiche, rien n'est posé tant que
+	l'utilisateur n'adopte pas. ⚠️ L'IA REDESSINE : la photo se contrôle détail par détail."""
+	from aquaworld_ia.emballage.variantes import url_logo, url_photo
+	from aquaworld_ia.ia import fichiers, images
+	from aquaworld_ia.ia.client import qualite_image
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	source = url_logo(doc) if champ == "logo" else url_photo(doc) if champ == "photo_produit" else None
+	if champ not in PROMPTS_RETOUCHE:
+		frappe.throw(_("Pas d'atelier IA pour ce champ."))
+	if not source:
+		frappe.throw(_("Attachez d'abord un logo.") if champ == "logo" else _("Attachez d'abord une photo du produit."))
+	instruction = (instruction or "").strip()
+	if not instruction:
+		frappe.throw(_("Dites ce que vous voulez changer."))
+	octets = fichiers.lire(source)
+	n = max(1, min(4, cint(nombre) or 1))
+	pngs = images.editer(prompt_retouche(champ, instruction), [(champ, octets)], taille=taille_retouche(champ, octets),
+	                     qualite=qualite_image(), n=n, fonctionnalite="Logo IA" if champ == "logo" else "Emballage image",
+	                     doc=doc, fidelite="high")
+	suffixe = "logo-ia" if champ == "logo" else "photo-ia"
+	candidats = [save_file("%s-%s.png" % (doc.name, suffixe), png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
+	return {"candidats": candidats, "candidat": candidats[0] if candidats else None, "source": source}
+
+
+@frappe.whitelist()
+def adopter_image(design: str, champ: str, url: str) -> dict:
+	"""Le candidat devient le logo ou la photo produit : fond blanc rendu transparent, fichier propre."""
+	from aquaworld_ia.emballage.composition import fond_blanc_en_transparence
+	from aquaworld_ia.ia import fichiers
+	from frappe.utils.file_manager import save_file
+
+	if champ not in PROMPTS_RETOUCHE:
+		frappe.throw(_("Pas d'atelier IA pour ce champ."))
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	png = fond_blanc_en_transparence(fichiers.lire(url))
+	fichier = save_file("%s-%s.png" % (doc.name, "logo" if champ == "logo" else "photo"), png, "Design Emballage", doc.name, is_private=1)
+	doc.set(champ, fichier.file_url)
+	doc.save()
+	return charger(design)
 
 
 @frappe.whitelist()

@@ -152,6 +152,7 @@ class StudioEmballage {
 				<button class="btn btn-xs btn-default" data-televerser="${champ}">${d[champ] ? __("Remplacer") : __("Choisir un fichier")}</button>
 				${d[champ] ? `<button class="btn btn-xs btn-default" data-effacer="${champ}">✕</button>` : ""}
 				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_ia" title="${__("Changer les couleurs, épurer, moderniser — par IA, avant de le poser")}">✨ ${__("Retoucher par IA")}</button>` : ""}
+				${champ === "photo_produit" && d.photo_produit ? `<button class="btn btn-xs btn-default" data-action="photo_ia" title="${__("Détourer sur blanc pur, éclairage studio, retirer les accessoires — par IA, plusieurs propositions")}">✨ ${__("Améliorer par IA")}</button>` : ""}
 				${champ === "logo" || champ === "image_fond" ? `<button class="btn btn-xs btn-default" data-bibliotheque="${champ}" title="${__("Reprendre un fond, un motif ou une variante de logo gardés en bibliothèque")}">📚 ${__("Bibliothèque")}</button>` : ""}
 				${(champ === "logo" || champ === "image_fond") && d[champ] ? `<button class="btn btn-xs btn-default" data-garder="${champ}" title="${__("Garder ce fichier en bibliothèque, sous un nom, pour un autre design")}">💾 ${__("Garder")}</button>` : ""}
 			</div>`;
@@ -564,7 +565,9 @@ class StudioEmballage {
 					this.onglet = "variantes"; this.rendre_scene(); this.suivre();
 				});
 			} else if (nom === "logo_ia") {
-				this.atelier_logo();
+				this.atelier_image("logo");
+			} else if (nom === "photo_ia") {
+				this.atelier_image("photo_produit");
 			} else if (nom === "fond") {
 				const continu = this.$root.find('[data-champ="fond_continu"]').is(":checked") ? 1 : 0;
 				frappe.confirm(__("Générer un fond d'ambiance par IA (sans produit) à partir du brief et des couleurs du logo, {0} ? (1 image facturée, puis recomposition du plan)", [continu ? __("en panorama continu autour de l'emballage") : __("pour chaque face séparément")]), async () => {
@@ -613,13 +616,16 @@ class StudioEmballage {
 		dlg.show();
 	}
 
-	atelier_logo() {
-		const est = this.data.estimation || {};
-		const dlg = new frappe.ui.Dialog({ title: __("Retoucher le logo par IA"),
+	atelier_image(champ) {
+		const est = this.data.estimation || {}, est_logo = champ === "logo";
+		const exemples = est_logo
+			? __("ex. « passer le bleu en bleu marine et le texte en blanc », « version épurée à plat », « fond blanc, sans dégradé ». Les formes et les lettres sont conservées, mais relisez-les : l'IA redessine.")
+			: __("ex. « détourer sur fond blanc pur, éclairage studio doux », « retirer la clé et le support, garder seulement le porte-filtre », « vue de face, bien net ». Le produit est conservé, mais contrôlez chaque détail : l'IA redessine.");
+		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Retoucher le logo par IA") : __("Améliorer la photo du produit par IA"),
 			fields: [
-				{ fieldtype: "HTML", options: `<img src="${this._esc(this.d.logo || "")}" style="max-height:90px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
-				{ fieldtype: "Small Text", fieldname: "instruction", label: __("Que changer ?"), reqd: 1,
-				  description: __("ex. « passer le bleu en bleu marine et le texte en blanc », « version épurée à plat », « fond blanc, sans dégradé ». Les formes et les lettres sont conservées, mais relisez-les : l'IA redessine.") },
+				{ fieldtype: "HTML", options: `<img src="${this._esc(this.d[champ] || "")}" style="max-height:120px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
+				{ fieldtype: "Small Text", fieldname: "instruction", label: __("Que changer ?"), reqd: 1, description: exemples,
+				  default: est_logo ? "" : __("Détourer sur fond blanc pur, éclairage studio doux, vue de face, net") },
 				{ fieldtype: "Select", fieldname: "nombre", label: __("Propositions"), default: "3", options: ["1", "2", "3", "4"].join("\n"),
 				  description: __("Plusieurs propositions pour la même consigne : vous choisissez la meilleure. Une image facturée par proposition (qualité {0}, ≈ {1} $ chacune).", [est.qualite || "", (est.cout || 0).toFixed(2)]) },
 				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("Rien ne remplace le logo tant que vous n'en adoptez pas un.")}</p>` },
@@ -628,21 +634,21 @@ class StudioEmballage {
 			primary_action: async (v) => {
 				let r;
 				try {
-					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_logo", args: { design: this.nom, instruction: v.instruction, nombre: v.nombre }, freeze: true, freeze_message: __("L'IA redessine le logo…") });
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_image", args: { design: this.nom, champ, instruction: v.instruction, nombre: v.nombre }, freeze: true, freeze_message: est_logo ? __("L'IA redessine le logo…") : __("L'IA retravaille la photo…") });
 				} catch (e) { frappe.msgprint(this._msg(e)); return; }
 				dlg.hide();
 				const c = r.message, candidats = c.candidats || [c.candidat];
 				const carte = (src, titre, url) => `<div style="flex:1 1 200px;text-align:center;min-width:0"><div class="text-muted small">${titre}</div>
 					<img src="${this._esc(src)}" style="max-width:100%;max-height:220px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
 					${url ? `<div style="margin-top:6px"><button class="btn btn-xs btn-primary" data-adopter="${this._esc(url)}">${__("Utiliser celui-ci")}</button></div>` : ""}</div>`;
-				const cmp = new frappe.ui.Dialog({ title: __("Propositions de logo"), size: "large",
+				const cmp = new frappe.ui.Dialog({ title: est_logo ? __("Propositions de logo") : __("Propositions de photo"), size: "large",
 					fields: [{ fieldtype: "HTML", fieldname: "galerie", options: `<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
 						${carte(c.source, __("Actuel"), null)}${candidats.map((u, i) => carte(u, __("Proposition {0}", [i + 1]), u)).join("")}</div>
-						<p class="small text-muted" style="margin-top:8px">${__("Vérifiez chaque lettre. En adoptant, le fond blanc devient transparent.")}</p>` }],
-					secondary_action_label: __("Réessayer"), secondary_action: () => { cmp.hide(); this.atelier_logo(); } });
+						<p class="small text-muted" style="margin-top:8px">${est_logo ? __("Vérifiez chaque lettre. En adoptant, le fond blanc devient transparent.") : __("Comparez chaque détail du produit avec l'original. En adoptant, le fond blanc devient transparent.")}</p>` }],
+					secondary_action_label: __("Réessayer"), secondary_action: () => { cmp.hide(); this.atelier_image(champ); } });
 				cmp.show();
 				cmp.get_field("galerie").$wrapper.find("[data-adopter]").on("click", async (e) => {
-					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_logo", args: { design: this.nom, url: $(e.currentTarget).attr("data-adopter") }, freeze: true });
+					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_image", args: { design: this.nom, champ, url: $(e.currentTarget).attr("data-adopter") }, freeze: true });
 					cmp.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
 				});
 			} });

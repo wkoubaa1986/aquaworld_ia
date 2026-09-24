@@ -252,3 +252,11 @@ class TestTextesBruts(unittest.TestCase):
 		self.assertIn("font-weight:700", html_)
 		self.assertIn(">SPECS</p>", html_)
 		self.assertIn("• Housing: Blue", html_)
+
+
+class TestTaillePictos(unittest.TestCase):
+	def test_tous_les_pictos_tiennent(self):
+		self.assertEqual(C.taille_pictos(134, 32.9, 3), 32.9)              # ça tient : hauteur de la zone
+		self.assertEqual(C.taille_pictos(134, 32.9, 4), 32.0)              # 4 × 32 + 3 × 2 = 134 : réduits, tous posés
+		self.assertEqual(C.taille_pictos(20, 10, 5), 2.4)             # (20 − 4 × 2) ÷ 5
+		self.assertEqual(C.taille_pictos(20, 10, 0), 0.0)

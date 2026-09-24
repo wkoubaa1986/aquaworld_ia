@@ -556,6 +556,18 @@ def panneau_pour(zone: str, couleur_texte: str, sur_visuel: bool):
 CARTOUCHE_STYLE_MARGE_MM = 2.0
 
 
+PICTOS_ECART_MM = 2.0
+
+
+def taille_pictos(w_mm: float, h_mm: float, n: int) -> float:
+	"""Le côté (mm) de chaque pictogramme d'une zone : la hauteur de la zone, réduite s'il le faut
+	pour que les `n` pictos tiennent TOUS en largeur avec leur écart (retour utilisateur 24/09/2026 :
+	« pas tous les trucs sélectionnés ne figurent » — le dernier était abandonné). Pur."""
+	if n <= 0:
+		return 0.0
+	return round(max(0.0, min(float(h_mm), (float(w_mm) - PICTOS_ECART_MM * (n - 1)) / n)), 3)
+
+
 def dessiner_cartouche(page, rect, style: dict) -> tuple:
 	"""Le fond de couleur, coins arrondis, d'une zone stylée ; -> le rectangle intérieur (pt) où
 	poser le texte, en retrait de 2 mm. Sans fond, la zone est rendue telle quelle."""
@@ -811,10 +823,11 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				# Une zone peut ne montrer que certains pictogrammes (demande utilisateur 24/09/2026 :
 				# « NSF seul sur l'avant ») ; sans sélection, elle les montre tous.
 				choisis = z.get("pictos") if isinstance(z.get("pictos"), list) and z.get("pictos") else None
-				taille = MM(z["h"])
+				liste = [(c, s) for c, s in pictos_svg if not choisis or c in choisis]
+				taille = MM(taille_pictos(z["w"], z["h"], len(liste)))
 				x = rect[0]
-				for _code, svg in [(c, s) for c, s in pictos_svg if not choisis or c in choisis]:
-					if x + taille > rect[2] + 0.5:
+				for _code, svg in liste:
+					if taille <= 0:
 						break
 					if sans_cartouche:
 						# Demande utilisateur 24/09/2026 : posé en transparence ; un picto monochrome prend
@@ -825,7 +838,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 						page.draw_rect(pymupdf.Rect(x, rect[1], x + taille, rect[1] + taille), color=None, fill=(1, 1, 1))
 					# Un pictogramme peut être une image à soi (certificat scanné) : même détection que le logo.
 					poser_logo(page, (x + 1, rect[1] + 1, x + taille - 1, rect[1] + taille - 1), svg)
-					x += taille + MM(2)
+					x += taille + MM(PICTOS_ECART_MM)
 
 	# 3. calque « Découpe et plis » (activable dans le lecteur, imprimé par l'imprimeur sur demande)
 	ocg = pdf.add_ocg("Découpe et plis", on=True)
