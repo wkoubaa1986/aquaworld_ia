@@ -229,6 +229,7 @@ class StudioEmballage {
 						<button class="btn btn-sm btn-default" data-action="faces" ${d.variante_choisie ? "" : "disabled"}>${__("Faces secondaires par IA · 5 images")}</button>
 						<button class="btn btn-sm btn-default" data-action="mockup" ${d.plan_a_plat ? "" : "disabled"}>${__("Aperçu 3D · 1 image")}</button>
 					</div>
+					${d.variante_choisie && d.fond_continu && d.image_fond ? `<p class="text-danger small" style="margin:8px 0 0">⚠ ${__("« Fond continu » est coché avec une image de fond : le panorama remplace la variante IA choisie ({0}). Pour composer avec la variante, décochez « Fond continu » à l'étape 3 (ou retirez l'image de fond), puis recomposez.", [esc(((d.variantes || []).find((v) => v.numero === d.variante_choisie) || {}).titre || d.variante_choisie)])}</p>` : ""}
 					${d.plan_a_plat ? `<p class="small" style="margin:8px 0 0"><a href="${esc(d.plan_a_plat)}" target="_blank">${__("Télécharger le PDF imprimeur")}</a></p>` : ""}
 					${d.faces_ia ? `<p class="small text-muted" style="margin:4px 0 0">${__("Faces secondaires IA générées.")}</p>` : ""}
 				</div>
