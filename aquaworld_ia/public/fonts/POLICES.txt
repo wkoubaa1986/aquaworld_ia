@@ -1,0 +1,14 @@
+Polices livrées avec aquaworld_ia — toutes sous SIL Open Font License 1.1 (texte complet : OFL.txt).
+Sources : https://github.com/google/fonts (dossier ofl/). Sous-ensemble européen et instances 400/700
+construits par outils/construire_polices.py ; Lato (Reserved Font Name) est livrée intacte.
+
+EB Garamond — Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12)
+Lato — Copyright (c) 2011-2015 by tyPoland Lukasz Dziedzic (http://www.typoland.com/) with Reserved Font Name "Lato". Licensed under the SIL Open Font License, Version 1.1 (http://scripts.sil.org/OFL).
+Montserrat — Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+Noto Naskh Arabic — Copyright 2022 The Noto Project Authors (https://github.com/notofonts/arabic)
+Noto Sans — Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+Noto Serif — Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+Open Sans — Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans)
+Oswald — Copyright 2016 The Oswald Project Authors (https://github.com/googlefonts/OswaldFont)
+Poppins — Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+Roboto — Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic)

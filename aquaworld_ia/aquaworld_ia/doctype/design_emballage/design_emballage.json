@@ -29,6 +29,8 @@
   "format_html",
   "sb_contenus_12",
   "caracteristiques",
+  "police_caracteristiques",
+  "taille_caracteristiques",
   "avertissements",
   "contact",
   "cb_12",
@@ -201,10 +203,22 @@
    "label": "Contenus"
   },
   {
-   "description": "L'IA les reformule sans en inventer.",
+   "description": "L'IA les reformule sans en inventer. Mise en forme d'une ligne : préfixe entre accolades, ex. {14pt, gras, italique, sans puce, police: Montserrat} Débit 500 L/h — le studio l'écrit pour vous.",
    "fieldname": "caracteristiques",
    "fieldtype": "Small Text",
    "label": "Caractéristiques (une par ligne)"
+  },
+  {
+   "fieldname": "police_caracteristiques",
+   "fieldtype": "Data",
+   "label": "Police des caractéristiques",
+   "description": "Vide : Noto Sans. Une ligne peut choisir la sienne. L'arabe garde sa police."
+  },
+  {
+   "fieldname": "taille_caracteristiques",
+   "fieldtype": "Float",
+   "label": "Taille des caractéristiques (pt)",
+   "description": "Vide : 8,5 pt. Taille maximale : le bloc est réduit s'il ne tient pas dans sa zone."
   },
   {
    "fieldname": "avertissements",
@@ -389,7 +403,7 @@
  "issingle": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-09-22 14:00:00.000000",
+ "modified": "2026-09-25 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Design Emballage",
@@ -443,11 +457,24 @@
    "role": "Sales Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "role": "Aquaworld IA",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
  "title_field": "nom_produit",
- "track_changes": 1
+ "track_changes": 1,
+ "allow_copy": 1
 }

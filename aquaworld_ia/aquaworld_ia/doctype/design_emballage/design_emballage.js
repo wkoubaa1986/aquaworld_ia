@@ -43,6 +43,9 @@ frappe.ui.form.on("Design Emballage", {
 		const grp = __("Aquaworld IA");
 		// Le studio : la même fiche, en plein écran, avec le plan au centre (23/09/2026).
 		frm.add_custom_button(__("🎨 Ouvrir le studio"), () => frappe.set_route("studio-emballage", frm.doc.name));
+		// Remplace le « Dupliquer » de Frappe (masqué) : celui-ci recopiait le plan et les aperçus de
+		// l'original, et des images restées rattachées à l'original seul.
+		if (!frm.is_new()) frm.add_custom_button(__("⧉ Dupliquer"), () => aqia_emb_dupliquer(frm));
 
 		frm.add_custom_button(__("1. Préparer textes et styles"), () => {
 			frappe.call({ method: "aquaworld_ia.emballage.textes.preparer", args: { design: frm.doc.name }, freeze: true,
@@ -302,4 +305,13 @@ function aqia_emb_suivre(frm) {
 	}, 4000);
 	const arreter = () => { frappe.realtime.off("aqia_emballage", afficher); clearInterval(minuteur); frm.dashboard.hide_progress(); };
 	frm._aqia_arreter_suivi = arreter;
+}
+
+function aqia_emb_dupliquer(frm) {
+	frappe.prompt([{ fieldtype: "Link", options: "Item", fieldname: "article", label: __("Article"), default: frm.doc.article, reqd: 1,
+		description: __("Un autre article : son nom, sa photo et son code-barres remplacent ceux de l'original. Le plan à plat est à recomposer.") }],
+	async (v) => {
+		const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.dupliquer", args: { design: frm.doc.name, article: v.article }, freeze: true });
+		frappe.set_route("studio-emballage", r.message.name);
+	}, __("Dupliquer {0}", [frm.doc.name]), __("Dupliquer"));
 }

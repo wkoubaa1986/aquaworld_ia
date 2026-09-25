@@ -6,6 +6,7 @@ produits. Un échec de langue n'arrête pas les suivantes ; le statut final le d
 
 from __future__ import annotations
 
+import json
 import time
 
 import frappe
@@ -15,7 +16,6 @@ from frappe.utils.file_manager import save_file
 
 from aquaworld_ia.ia import etat, fichiers, journal
 from aquaworld_ia.ia.client import reglages
-from aquaworld_ia.manuels.extraction import extraire_paragraphes
 from aquaworld_ia.manuels.rendu import reecrire_document
 from aquaworld_ia.manuels.traduction import traduire_tout
 
@@ -30,7 +30,8 @@ def _doc(manuel: str, droit: str = "write"):
 
 
 def langue_infos(code: str) -> dict:
-	d = frappe.db.get_value("Aquaworld IA Langue", code, ["code", "libelle", "libelle_natif", "rtl", "police", "instructions"], as_dict=True)
+	d = frappe.db.get_value("Aquaworld IA Langue", code,
+	                        ["code", "libelle", "libelle_natif", "rtl", "police", "police_fichier", "instructions"], as_dict=True)
 	return d or {"code": code, "libelle": code, "rtl": 0}
 
 
@@ -107,8 +108,15 @@ def traduire_manuel(manuel: str, langues: list[str], utilisateur: str | None = N
 	try:
 		pdf = fichiers.lire(doc.pdf_source)
 		etat.progresser(GENRE, manuel, "extraction du texte", 2, EVENEMENT, utilisateur)
-		paragraphes, meta = extraire_paragraphes(pdf)
-		frappe.db.set_value("Manuel Article", manuel, {"pages": meta["pages"], "blocs": meta["blocs"]}, update_modified=False)
+		# L'analyse est celle du studio (mise en cache sur la fiche) : mêmes paragraphes, mêmes
+		# illustrations, donc même PDF depuis la fiche ou depuis le studio.
+		from aquaworld_ia.manuels.studio import analyse_du_manuel
+
+		analyse = analyse_du_manuel(doc, pdf)
+		if not analyse["texte_extractible"]:
+			frappe.throw(_("Ce PDF ne contient pas de texte extractible (scan ou texte en contours) : "
+			               "traduction impossible. Le studio permet d'y poser des cases de texte à la main."))
+		paragraphes, illustrations = analyse["paragraphes"], analyse["images"]
 		frappe.db.commit()
 	except Exception as e:
 		frappe.log_error(title="Aquaworld IA : extraction %s" % manuel, message=frappe.get_traceback())
@@ -146,7 +154,12 @@ def traduire_manuel(manuel: str, langues: list[str], utilisateur: str | None = N
 			                                     progression=progression)
 			etat.progresser(GENRE, manuel, "%s : mise en page" % langue["libelle"], base + int(part * 0.85), EVENEMENT,
 			                utilisateur, langue=code)
-			sortie, stats = reecrire_document(pdf, paragraphes, traductions, langue)
+			# Les traductions sont gardées (le studio les montre et les corrige) ; l'édition faite
+			# dans le studio (corrections, déplacements, cases, illustrations) s'applique au PDF.
+			frappe.db.set_value("Manuel Article Traduction", nom, "traductions",
+			                    json.dumps({str(k): v for k, v in traductions.items()}, ensure_ascii=False), update_modified=False)
+			edition = frappe.db.get_value("Manuel Article Traduction", nom, "edition")
+			sortie, stats = reecrire_document(pdf, paragraphes, traductions, langue, edition=edition, images=illustrations)
 			nom_fichier = "%s-%s.pdf" % (frappe.scrub(doc.titre or doc.article)[:60], code)
 			fichier = save_file(nom_fichier, sortie, "Manuel Article", manuel, is_private=1)
 			frappe.db.set_value("Manuel Article Traduction", nom, {

@@ -20,7 +20,7 @@ from frappe import _
 from frappe.utils import cint, flt
 from frappe.utils.file_manager import save_file
 
-from aquaworld_ia.emballage import codes, geometrie, pictos
+from aquaworld_ia.emballage import codes, geometrie, mise_en_forme, pictos
 from aquaworld_ia.emballage.variantes import CHAMPS_FACES, plan_du_design, url_logo, url_photo
 from aquaworld_ia.ia import fichiers
 from aquaworld_ia.manuels import rendu
@@ -602,22 +602,38 @@ def _rect_pt(x, y, w, h):
 
 
 def html_bloc(lignes: list[str], *, taille_pt: float, rtl: bool, famille: str, couleur: str = "#111827",
-              gras: bool = False, puces: bool = False, align: str | None = None) -> str:
-	style = ("font-family:'%s';font-size:%.1fpt;color:%s;direction:%s;%sfont-weight:%d;line-height:1.25"
-	         % (famille, taille_pt, couleur, "rtl" if rtl else "ltr", alignement_css(align, rtl),
-	            700 if gras else 400))
+              gras: bool = False, puces: bool = False, align: str | None = None, facteur: float = 1.0,
+              police_libre: bool = True, familles: set | None = None) -> str:
+	"""Les paragraphes d'un bloc. Chaque ligne peut porter sa mise en forme (`mise_en_forme`) :
+	taille en pt (multipliée par `facteur`, le rapport de la langue — 2e langue plus petite, arabe
+	relevé), gras, italique, puce, police. La police d'une ligne ne s'applique que si
+	`police_libre` (pas en arabe : une police latine n'a pas ses glyphes) et si elle existe
+	(`familles`) ; sinon `famille`. Pur."""
 	# ⚠️ PAS DE <ul> : le moteur d'insert_htmlbox pose le marqueur de liste à GAUCHE quoi qu'en
 	# dise `direction:rtl` (constaté sur la fiche EMB-2026-0001 le 23/09/2026 : puces arabes
 	# à gauche du texte, bloc collé à gauche). Une puce typographique dans le paragraphe suit,
 	# elle, le sens d'écriture.
-	prefixe = PUCE + " " if puces else ""
 	out = []
 	for l in lignes:
-		if l.startswith(TITRE):
+		st, texte = mise_en_forme.analyser(l)
+		titre = st is None and texte.startswith(TITRE)
+		if titre:
 			# Un intertitre (texte brut de l'utilisateur : « SPECIFICATIONS », « Inlet :») : gras, sans puce.
-			out.append("<p style=\"%s;font-weight:700;margin:0.5em 0 0.2em 0\">%s</p>" % (style, html.escape(l[len(TITRE):].strip())))
-		else:
-			out.append("<p style=\"%s;margin:0 0 0.3em 0\">%s%s</p>" % (style, prefixe, html.escape(l)))
+			st, texte = dict(mise_en_forme.STYLE_INTERTITRE), texte[len(TITRE):]
+		st, texte = st or {}, texte.strip()
+		if not texte:
+			continue
+		police = st.get("police")
+		fam = police if (police_libre and police and (familles is None or police in familles)) else famille
+		taille = round(st["taille"] * facteur, 2) if st.get("taille") else taille_pt
+		en_gras = gras or bool(st.get("gras"))
+		puce = st["puce"] if "puce" in st else puces
+		style = ("font-family:'%s';font-size:%.1fpt;color:%s;direction:%s;%sfont-weight:%d;font-style:%s;line-height:1.25"
+		         % (fam, taille, couleur, "rtl" if rtl else "ltr", alignement_css(align, rtl),
+		            700 if en_gras else 400, "italic" if st.get("italique") else "normal"))
+		# Un intertitre (ou, dans une liste à puces, une ligne grasse sans puce) : un peu d'air au-dessus.
+		marge = "0.5em 0 0.2em 0" if (titre or (en_gras and not puce and puces)) else "0 0 0.3em 0"
+		out.append("<p style=\"%s;margin:%s\">%s%s</p>" % (style, marge, (PUCE + " ") if puce else "", html.escape(texte)))
 	return "".join(out)
 
 
@@ -627,15 +643,17 @@ TITRE = "## "
 
 def lignes_brutes(texte: str | None) -> list[str]:
 	"""Le texte saisi à l'étape 2, ligne par ligne, prêt pour `html_bloc` : lignes vides
-	ignorées, intertitres (tout en capitales, ou terminés par « : ») marqués `## `. Pur."""
+	ignorées, intertitres (tout en capitales, ou terminés par « : ») marqués `## ` — sauf les
+	lignes mises en forme, dont le préfixe dit déjà tout. Pur."""
 	out = []
 	for brut in (texte or "").splitlines():
 		l = brut.strip()
 		if not l:
 			continue
-		lettres = [c for c in l if c.isalpha()]
-		titre = (len(lettres) >= 3 and all(c.isupper() for c in lettres)) or l.endswith(":")
-		out.append((TITRE + l.rstrip(":").strip()) if titre else l)
+		if mise_en_forme.analyser(l)[0] is not None:
+			out.append(l)
+			continue
+		out.append((TITRE + l.rstrip(":").strip()) if mise_en_forme.est_intertitre(l) else l)
 	return out
 
 
@@ -749,37 +767,58 @@ def famille_titres(titres_perso: bool) -> str:
 	return rendu.FAMILLE_TITRES if titres_perso else "Noto Sans"
 
 
-def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: float, couleur: str) -> str:
-	"""Le HTML d'une zone, toutes langues empilées (première langue plus grande)."""
+def police_libre(langue: dict) -> bool:
+	"""Une langue accepte-t-elle la police choisie pour un bloc ou une ligne ? Pas l'arabe (sens
+	de droite à gauche), ni une langue qui a SON fichier de police (écriture que les polices
+	latines ne couvrent pas). Pur."""
+	return not langue.get("rtl") and not langue.get("police_fichier")
+
+
+def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: float, couleur: str,
+                     police_bloc: str | None = None, familles: set | None = None) -> str:
+	"""Le HTML d'une zone, toutes langues empilées (première langue plus grande). `police_bloc` :
+	la police choisie pour les caractéristiques du design."""
 	morceaux = []
 	perso = {f for f, _u in rendu.polices_personnalisees()}
+	familles = rendu.familles_disponibles() if familles is None else familles
 	for k, (code, t) in enumerate(textes.items()):
 		lg = langues.get(code) or {}
-		rtl, fam = bool(lg.get("rtl")), _famille(lg, rendu.FAMILLE_TEXTES in perso)
+		rtl, fam, libre = bool(lg.get("rtl")), _famille(lg, rendu.FAMILLE_TEXTES in perso), police_libre(lg)
 		taille = taille_langue(taille_pt, k, rtl)
+		facteur = taille_langue(1.0, k, rtl)
 		if nom_zone == "nom":
 			continue
 		if nom_zone == "accroche" and t.get("accroche"):
 			morceaux.append(html_bloc([t["accroche"]], taille_pt=taille, rtl=rtl, famille=fam, couleur=couleur, gras=True,
-			                          align="center"))
+			                          align="center", facteur=facteur, police_libre=libre, familles=familles))
 		elif nom_zone == "caracteristiques" and t.get("caracteristiques"):
-			morceaux.append(html_bloc(t["caracteristiques"], taille_pt=taille, rtl=rtl, famille=fam, couleur=couleur, puces=True))
+			if libre and police_bloc and police_bloc in familles:
+				fam = police_bloc
+			morceaux.append(html_bloc(t["caracteristiques"], taille_pt=taille, rtl=rtl, famille=fam, couleur=couleur, puces=True,
+			                          facteur=facteur, police_libre=libre, familles=familles))
 		elif nom_zone == "avertissements" and t.get("avertissements"):
-			morceaux.append(html_bloc(t["avertissements"], taille_pt=taille * 0.85, rtl=rtl, famille=fam, couleur=couleur))
+			morceaux.append(html_bloc(t["avertissements"], taille_pt=taille * 0.85, rtl=rtl, famille=fam, couleur=couleur,
+			                          facteur=facteur, police_libre=libre, familles=familles))
 		elif nom_zone == "contact" and t.get("contact"):
-			morceaux.append(html_bloc(t["contact"].splitlines(), taille_pt=taille * 0.85, rtl=rtl, famille=fam, couleur=couleur))
+			morceaux.append(html_bloc(t["contact"].splitlines(), taille_pt=taille * 0.85, rtl=rtl, famille=fam, couleur=couleur,
+			                          facteur=facteur, police_libre=libre, familles=familles))
 	return "".join(morceaux)
 
 
 # ------------------------------------------------------------------ composition
 
 
-def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: dict | None = None) -> bytes:
-	"""-> le PDF (page artwork + page technique)."""
+def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: dict | None = None,
+             rapport: dict | None = None) -> bytes:
+	"""-> le PDF (page artwork + page technique). `rapport` (facultatif) reçoit les zones de texte
+	que MuPDF a dû réduire pour les faire tenir : {"reductions": [{face, zone, echelle}]}."""
 	import pymupdf
 
 	options = options or {}
+	rapport = rapport if rapport is not None else {}
+	rapport.setdefault("reductions", [])
 	archive, css = polices_archive(), css_base()
+	familles = rendu.familles_disponibles()
 	W, H = geometrie.format_page_pt(plan)
 	pdf = pymupdf.open()
 	page = pdf.new_page(width=W, height=H)
@@ -927,19 +966,26 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				poser_texte(page, interieur, html_bloc([nom_produit], taille_pt=taille, rtl=False, famille=fam_titres,
 				                                       couleur=couleur_zone, gras=True, align="center"), archive, css)
 			elif z["zone"] in ("accroche", "caracteristiques", "avertissements", "contact"):
-				base = {"accroche": 11.0, "caracteristiques": 8.5, "avertissements": 7.0, "contact": 7.0}[z["zone"]]
-				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_zone)
+				base = {"accroche": 11.0, "caracteristiques": flt(doc.get("taille_caracteristiques")) or 8.5,
+				        "avertissements": 7.0, "contact": 7.0}[z["zone"]]
+				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_zone,
+				                                police_bloc=doc.get("police_caracteristiques"), familles=familles)
 				if contenu_html:
 					if style and style.get("fond"):
-						poser_texte(page, dessiner_cartouche(page, rect, style), contenu_html, archive, css)
-						continue
-					panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels or bool(image_fond))
-					if panneau:
-						m = MM(CARTOUCHE_MARGE_MM)
-						h_texte = hauteur_texte(rect, contenu_html, archive, css)
-						page.draw_rect(pymupdf.Rect(rect[0] - m, rect[1] - m, rect[2] + m, rect[1] + h_texte + m),
-						               color=None, fill=panneau[0], fill_opacity=panneau[1])
-					poser_texte(page, rect, contenu_html, archive, css)
+						echelle = poser_texte(page, dessiner_cartouche(page, rect, style), contenu_html, archive, css)
+					else:
+						panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels or bool(image_fond))
+						if panneau:
+							m = MM(CARTOUCHE_MARGE_MM)
+							h_texte = hauteur_texte(rect, contenu_html, archive, css)
+							page.draw_rect(pymupdf.Rect(rect[0] - m, rect[1] - m, rect[2] + m, rect[1] + h_texte + m),
+							               color=None, fill=panneau[0], fill_opacity=panneau[1])
+						echelle = poser_texte(page, rect, contenu_html, archive, css)
+					# Les tailles choisies ligne par ligne sont des MAXIMUMS : MuPDF réduit tout le bloc s'il ne
+					# tient pas dans sa zone. Le dire, sinon « 14 pt » imprimé en 9 pt paraît ignoré.
+					if echelle < 0.9:
+						rapport["reductions"].append({"face": face["code"], "libelle": face.get("libelle") or face["code"],
+						                              "zone": z["zone"], "echelle": round(echelle, 2)})
 			elif z["zone"] == "code_barres":
 				if ean:
 					fond_blanc = pymupdf.Rect(*rect)
@@ -1067,7 +1113,8 @@ def composer_et_attacher(design: str, variante: int) -> dict:
 	if not textes:
 		# Rien de préparé par l'IA : le texte brut de l'étape 2 s'imprime tel quel.
 		textes = textes_bruts(doc.caracteristiques, doc.avertissements, doc.contact, next(iter(langues), "fr"))
-	pdf = composer(doc, v, plan, textes or {}, langues)
+	rapport = {}
+	pdf = composer(doc, v, plan, textes or {}, langues, rapport=rapport)
 	fichier = save_file("%s-plan-a-plat.pdf" % doc.name, pdf, "Design Emballage", doc.name, is_private=1)
 	import pymupdf
 
@@ -1078,4 +1125,5 @@ def composer_et_attacher(design: str, variante: int) -> dict:
 		valeurs["variante_choisie"] = cint(variante)
 	frappe.db.set_value("Design Emballage", design, valeurs, update_modified=False)
 	frappe.db.commit()
-	return {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "feuille": plan["feuille"]}
+	return {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "feuille": plan["feuille"],
+	        "reductions": rapport.get("reductions") or []}

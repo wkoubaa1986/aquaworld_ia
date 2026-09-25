@@ -12,7 +12,12 @@
   "blocs_non_places",
   "cout_estime",
   "duree_s",
-  "erreur"
+  "erreur",
+  "traductions",
+  "edition",
+  "traductions_structure",
+  "pdf_reconstruit",
+  "mises_en_page"
  ],
  "fields": [
   {
@@ -78,11 +83,41 @@
    "fieldtype": "Small Text",
    "label": "Erreur",
    "read_only": 1
+  },
+  {
+   "fieldname": "traductions",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Traductions IA (JSON)"
+  },
+  {
+   "fieldname": "edition",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Édition studio (JSON)"
+  },
+  {
+   "fieldname": "traductions_structure",
+   "fieldtype": "Long Text",
+   "label": "Traductions du contenu reconstruit (JSON)",
+   "hidden": 1
+  },
+  {
+   "fieldname": "pdf_reconstruit",
+   "fieldtype": "Attach",
+   "label": "PDF reconstruit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mises_en_page",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Mises en page IA (JSON)"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-22 14:00:00.000000",
+ "modified": "2026-09-25 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Manuel Article Traduction",

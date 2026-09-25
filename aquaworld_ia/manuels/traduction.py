@@ -12,8 +12,12 @@ import json
 import re
 from collections.abc import Callable
 
-from aquaworld_ia.ia.chat import chat_json
+from aquaworld_ia.ia.chat import chat_json, chat_json_differe
 from aquaworld_ia.manuels.extraction import dedoublonner, est_traduisible, repartir_lots
+
+#: Lots traduits en même temps (appels OpenAI = attente réseau) : une langue de 12 pages passait de
+#: ~100 s à ~30 s (25/09/2026, « pourquoi c'est si long ? »). 1 = comme avant.
+PARALLELE = 4
 
 
 def prompt_systeme(langue: dict, glossaire: str = "", instructions: str = "", contexte: str = "") -> str:
@@ -58,11 +62,15 @@ def prompt_utilisateur(textes: list[str]) -> str:
 	return json.dumps({"items": [{"i": i, "t": t} for i, t in enumerate(textes)]}, ensure_ascii=False)
 
 
-_NOMBRE = re.compile(r"\d+(?:[.,]\d+)?")
+_SEPARATEUR_CHIFFRES = re.compile(r"(?<=\d)[.,\s\u00a0\u202f](?=\d)")
 
 
 def nombres(texte: str) -> set:
-	return {n.replace(",", ".") for n in _NOMBRE.findall(texte or "")}
+	"""Les nombres d'un texte, sans leurs séparateurs : « 1,100 gallons » et « 1 100 gallons »
+	(ou « 1.100 », « 1100 ») sont le même nombre. Vu le 24/09/2026 sur le manuel David 4000 :
+	le français écrit les milliers avec une espace, et la vérification laissait ces blocs en
+	anglais. Comparer sans séparateur garde l'essentiel : aucun chiffre perdu ni inventé."""
+	return set(re.findall(r"\d+", _SEPARATEUR_CHIFFRES.sub("", texte or "")))
 
 
 def verifier_lot(entree: list[str], sortie) -> tuple[bool, str]:
@@ -88,45 +96,89 @@ def verifier_lot(entree: list[str], sortie) -> tuple[bool, str]:
 
 
 def traduire_lot(textes: list[str], langue: dict, *, glossaire: str = "", instructions: str = "",
-                 contexte: str = "", doc=None, essais: int = 2) -> tuple[list[str], list[int]]:
-	"""-> (traductions dans l'ordre, positions laissées en anglais)."""
+                 contexte: str = "", doc=None, essais: int = 2, contexte_ia=None, journal_differe: list | None = None) -> tuple[list[str], list[int]]:
+	"""-> (traductions dans l'ordre, positions laissées en anglais). Avec `contexte_ia`
+	(client, modèle, température), l'appel ne touche pas à Frappe et ses lignes de journal vont
+	dans `journal_differe` : c'est la forme qui tourne dans un thread."""
 	systeme = prompt_systeme(langue, glossaire, instructions, contexte)
 	for _essai in range(max(1, essais)):
-		try:
-			sortie = chat_json(systeme, prompt_utilisateur(textes), fonctionnalite="Manuel", doc=doc)
-		except Exception:
-			continue
+		if contexte_ia is not None:
+			r = chat_json_differe(contexte_ia, systeme, prompt_utilisateur(textes))
+			if journal_differe is not None:
+				journal_differe.append(r["journal"])
+			sortie = r["sortie"]
+			if sortie is None:
+				continue
+		else:
+			try:
+				sortie = chat_json(systeme, prompt_utilisateur(textes), fonctionnalite="Manuel", doc=doc)
+			except Exception:
+				continue
 		ok, _motif = verifier_lot(textes, sortie)
 		if ok:
 			return [item["t"] for item in sorted(sortie["items"], key=lambda x: x["i"])], []
 	if len(textes) > 1:
 		m = len(textes) // 2
 		a, na = traduire_lot(textes[:m], langue, glossaire=glossaire, instructions=instructions,
-		                     contexte=contexte, doc=doc, essais=essais)
+		                     contexte=contexte, doc=doc, essais=essais, contexte_ia=contexte_ia, journal_differe=journal_differe)
 		b, nb = traduire_lot(textes[m:], langue, glossaire=glossaire, instructions=instructions,
-		                     contexte=contexte, doc=doc, essais=essais)
+		                     contexte=contexte, doc=doc, essais=essais, contexte_ia=contexte_ia, journal_differe=journal_differe)
 		return a + b, na + [m + i for i in nb]
 	return list(textes), [0]
 
 
 def traduire_tout(paragraphes: list[dict], langue: dict, *, glossaire: str = "", instructions: str = "",
                   contexte: str = "", doc=None, taille_lot: int = 25,
-                  progression: Callable[[int, int], None] | None = None) -> tuple[dict, list[int]]:
+                  progression: Callable[[int, int], None] | None = None, parallele: int | None = None) -> tuple[dict, list[int]]:
 	"""-> ({id paragraphe: traduction}, ids laissés en anglais). Les paragraphes non traduisibles
-	(nombres, références…) ne figurent pas dans le dict : ils restent tels quels dans le PDF."""
+	(nombres, références…) ne figurent pas dans le dict : ils restent tels quels dans le PDF.
+	Les lots partent `parallele` à la fois (threads : appels réseau) ; journal et progression
+	restent dans le thread principal."""
 	cibles = [p for p in paragraphes if est_traduisible(p["texte"])]
 	uniques, index = dedoublonner(cibles)
 	lots = repartir_lots(uniques, taille_lot)
 	resultats, rates = {}, set()
-	for k, lot in enumerate(lots):
-		trad, non = traduire_lot([uniques[i] for i in lot], langue, glossaire=glossaire,
-		                         instructions=instructions, contexte=contexte, doc=doc)
-		for pos, i in enumerate(lot):
-			resultats[i] = trad[pos]
-			if pos in non:
-				rates.add(i)
-		if progression:
-			progression(k + 1, len(lots))
+	parallele = PARALLELE if parallele is None else max(1, int(parallele))
+	if parallele > 1 and len(lots) > 1:
+		_traduire_lots_paralleles(lots, uniques, langue, glossaire, instructions, contexte, doc, parallele, progression, resultats, rates)
+	else:
+		for k, lot in enumerate(lots):
+			trad, non = traduire_lot([uniques[i] for i in lot], langue, glossaire=glossaire,
+			                         instructions=instructions, contexte=contexte, doc=doc)
+			for pos, i in enumerate(lot):
+				resultats[i] = trad[pos]
+				if pos in non:
+					rates.add(i)
+			if progression:
+				progression(k + 1, len(lots))
 	traductions = {p["id"]: resultats[index[p["id"]]] for p in cibles if index[p["id"]] not in rates}
 	laisses = [p["id"] for p in cibles if index[p["id"]] in rates]
 	return traductions, laisses
+
+
+def _traduire_lots_paralleles(lots, uniques, langue, glossaire, instructions, contexte, doc, parallele, progression, resultats, rates):
+	from concurrent.futures import ThreadPoolExecutor, as_completed
+
+	from aquaworld_ia.ia import journal
+	from aquaworld_ia.ia.client import client_et_modele
+
+	contexte_ia = client_et_modele("texte")
+	journaux = {k: [] for k in range(len(lots))}
+
+	def un_lot(k):
+		return k, traduire_lot([uniques[i] for i in lots[k]], langue, glossaire=glossaire, instructions=instructions,
+		                       contexte=contexte, doc=None, contexte_ia=contexte_ia, journal_differe=journaux[k])
+
+	faits = 0
+	with ThreadPoolExecutor(max_workers=parallele) as pool:
+		for fut in as_completed([pool.submit(un_lot, k) for k in range(len(lots))]):
+			k, (trad, non) = fut.result()
+			for pos, i in enumerate(lots[k]):
+				resultats[i] = trad[pos]
+				if pos in non:
+					rates.add(i)
+			for entree in journaux[k]:
+				journal.enregistrer(fonctionnalite="Manuel", doc=doc, **entree)
+			faits += 1
+			if progression:
+				progression(faits, len(lots))

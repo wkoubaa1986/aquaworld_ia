@@ -32,8 +32,11 @@ class TestBibliotheque(unittest.TestCase):
 		self.assertEqual(S.categorie_par_defaut("logo"), "Logo")
 		self.assertIn("Motif", S.CHAMPS_BIBLIOTHEQUE["image_fond"])
 		self.assertNotIn("Logo", S.CHAMPS_BIBLIOTHEQUE["image_fond"])
+		# Demande utilisateur 24/09/2026 : « dans photo du produit je peux choisir de la bibliothèque ».
+		self.assertEqual(S.categorie_par_defaut("photo_produit"), "Photo produit")
+		self.assertNotIn("Photo produit", S.CHAMPS_BIBLIOTHEQUE["logo"])
 		with self.assertRaises(ValueError):
-			S.categorie_par_defaut("photo_produit")
+			S.categorie_par_defaut("couleur_fond")
 
 
 class TestAtelierImage(unittest.TestCase):
@@ -67,3 +70,27 @@ class TestImagesDuDesign(unittest.TestCase):
 		self.assertIsNone(g("EMB-2026-0002-apercu56dace.png", "EMB-2026-0002"))
 		self.assertEqual(g("P-F-S-10'-O-SC_13b865a.jpg", "EMB-2026-0002"), "Téléversé")
 		self.assertEqual(g("ecopurium.png", "EMB-2026-0002"), "Téléversé")
+
+
+class TestDuplication(unittest.TestCase):
+	"""Dupliquer un design (demande utilisateur 24/09/2026)."""
+
+	def test_l_onglet_images_reconnait_les_fichiers_de_l_original(self):
+		self.assertEqual(S.genre_image("EMB-2026-0002-fond07aafa.png", "EMB-2026-0003"), "Fond IA")
+		self.assertEqual(S.genre_image("EMB-2026-0002-v3a85c9e.png", "EMB-2026-0003"), "Variante")
+		self.assertIsNone(S.genre_image("EMB-2026-0002-apercu1.png", "EMB-2026-0003"))
+		self.assertEqual(S.genre_image("ecopurium.png", "EMB-2026-0003"), "Téléversé")
+
+	def test_nom_des_fichiers_recopies(self):
+		self.assertEqual(S.nom_copie("EMB-2026-0002-logo-ia3.png", "EMB-2026-0002", "EMB-2026-0009"), "EMB-2026-0009-logo-ia3")
+		self.assertEqual(S.nom_copie("ecopurium.png", "EMB-2026-0002", "EMB-2026-0009"), "ecopurium")
+		self.assertEqual(S.nom_copie(None, "A", "B"), "fichier")
+
+	def test_statut_jamais_plan_pret(self):
+		self.assertEqual(S.statut_copie("{}", [{"statut": "Prête"}]), "Variantes prêtes")
+		self.assertEqual(S.statut_copie("{}", [{"statut": "À générer"}]), "Textes prêts")
+		self.assertEqual(S.statut_copie(None, []), "Brouillon")
+
+	def test_les_resultats_ne_suivent_pas(self):
+		for champ in ("plan_a_plat", "apercu_plan", "apercu_3d", "journal", "statut"):
+			self.assertIn(champ, S.CHAMPS_NON_DUPLIQUES)

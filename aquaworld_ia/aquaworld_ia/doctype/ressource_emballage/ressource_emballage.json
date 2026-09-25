@@ -29,9 +29,9 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Catégorie",
-   "options": "Fond\nMotif\nLogo",
+   "options": "Fond\nMotif\nLogo\nPhoto produit",
    "reqd": 1,
-   "description": "Fond ou motif : réutilisable comme image de fond d'un design. Logo : une variante de logo, à choisir par design."
+   "description": "Fond ou motif : réutilisable comme image de fond d'un design. Logo : une variante de logo, à choisir par design. Photo produit : une photo (détourée, retouchée) réutilisable dans un autre design."
   },
   {
    "fieldname": "marque",
@@ -75,7 +75,7 @@
  "issingle": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-09-24 12:00:00.000000",
+ "modified": "2026-09-25 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Ressource Emballage",
@@ -129,6 +129,18 @@
    "role": "Sales Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "role": "Aquaworld IA",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "print": 1,
+   "email": 1,
+   "export": 1,
+   "report": 1,
+   "share": 1
   }
  ],
  "sort_field": "modified",

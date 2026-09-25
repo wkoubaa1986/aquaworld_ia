@@ -32,6 +32,10 @@ def after_migrate():
 	from aquaworld_ia.emballage.pictos import semer_pictogrammes
 
 	semer_pictogrammes()
+	# fichiers des fixtures, Réglages, rôle « Aquaworld IA » (transfert.py) — après les fixtures
+	from aquaworld_ia import transfert
+
+	transfert.restaurer()
 	frappe.db.commit()
 
 

@@ -1,3 +1,8 @@
+# Prévient frappe_docker qu'une nouvelle version de l'app existe : le workflow
+# build-and-deploy d'opssync reconstruit l'image et redéploie la prod.
+# Copié depuis development/trigger-build-template.yml (repo frappe_docker).
+# Secret requis dans CE repo : FRAPPE_DOCKER_PAT (PAT avec repo-dispatch sur frappe_docker).
+
 name: Trigger frappe_docker Build
 
 on:

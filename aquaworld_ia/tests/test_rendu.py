@@ -56,3 +56,25 @@ class TestRectInsertion(unittest.TestCase):
 		css = R.css_base()
 		for f in ("NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "NotoNaskhArabic-Regular.ttf", "NotoNaskhArabic-Bold.ttf"):
 			self.assertIn(f, css)
+
+
+class TestExtensionADroite(unittest.TestCase):
+	"""Un bloc d'une ligne (titre) s'élargit vers la droite jusqu'au voisin ou au bord du texte."""
+	page = (0, 0, 612, 792)
+
+	def test_titre_seul_va_jusqu_au_bord_du_texte(self):
+		r = R.rect_insertion((50, 50, 160, 70), self.page, [(50, 100, 560, 200)], une_ligne=True, limite_droite=560)
+		self.assertEqual(r[2], 560)
+		self.assertLessEqual(r[3], 100 - 1.5)
+
+	def test_s_arrete_avant_le_voisin_de_la_meme_ligne(self):
+		r = R.rect_insertion((50, 50, 160, 70), self.page, [(300, 48, 400, 72)], une_ligne=True, limite_droite=560)
+		self.assertAlmostEqual(r[2], 300 - 1.5)
+
+	def test_bloc_multiligne_ne_s_elargit_pas(self):
+		r = R.rect_insertion((50, 50, 160, 70), self.page, [], une_ligne=False, limite_droite=560)
+		self.assertEqual(r[2], 160)
+
+	def test_sans_limite_le_bord_de_page_moins_la_marge(self):
+		r = R.rect_insertion((50, 50, 160, 70), self.page, [], une_ligne=True)
+		self.assertEqual(r[2], 612 - 1.5)

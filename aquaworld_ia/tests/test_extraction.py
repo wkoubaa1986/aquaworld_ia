@@ -77,3 +77,131 @@ class TestLots(unittest.TestCase):
 		self.assertEqual(E.repartir_lots(["a"] * 7, taille_max=3), [[0, 1, 2], [3, 4, 5], [6]])
 		self.assertEqual(E.repartir_lots(["x" * 5000, "y" * 5000, "z"], taille_max=10, chars_max=6000), [[0], [1, 2]])
 		self.assertEqual(E.repartir_lots([]), [])
+
+
+class TestEntreesDeListe(unittest.TestCase):
+	"""Les étapes « 1. … 2. … » d'un même bloc font des paragraphes séparés (manuel David 4000, 24/09/2026)."""
+
+	def test_marqueurs(self):
+		from aquaworld_ia.manuels.extraction import commence_une_entree
+
+		for oui in ("1. Turn off", "12) Do this", "a. Drill", "(3) Attach", "• Safety glasses", "- item", "iv. step", "d)  Place", "1.", "•", "2.Operation principle"):
+			self.assertTrue(commence_une_entree(oui), oui)
+		for non in ("4001 First Stage", "1/2-inch tubing", "2 adjustable wrenches", "Turn off 1. then", "", "A dog", "v6 engine", "3.14 bar", "a.m. today"):
+			self.assertFalse(commence_une_entree(non), non)
+
+	def test_grouper_coupe_aux_entrees(self):
+		from aquaworld_ia.manuels.extraction import grouper_lignes
+
+		def ligne(y, texte):
+			return {"bbox": (50, y, 300, y + 10), "spans": [{"text": texte}]}
+		lignes = [ligne(0, "1. Turn off water supply"), ligne(11, "and release pressure."), ligne(22, "2. Unscrew housing."), ligne(33, "3. Discard.")]
+		groupes = grouper_lignes(lignes)
+		self.assertEqual([len(g) for g in groupes], [2, 1, 1])
+
+	def test_marqueur_seul_sur_sa_ligne(self):
+		"""Word : « 1. » et la phrase sont deux lignes à la même hauteur ; « 2. » ouvre l'entrée suivante."""
+		from aquaworld_ia.manuels.extraction import fusionner_lignes, grouper_lignes
+
+		def ligne(y, x, texte):
+			return {"bbox": (x, y, x + 200, y + 10), "spans": [{"text": texte}]}
+		lignes = [ligne(0, 87, "1."), ligne(0, 105, "Turn off water."), ligne(12, 105, "NOTE: place a pan."), ligne(24, 87, "2."), ligne(24, 105, "Unscrew.")]
+		groupes = grouper_lignes(lignes)
+		self.assertEqual([len(g) for g in groupes], [3, 2])
+		self.assertEqual(fusionner_lignes(["".join(s["text"] for s in l["spans"]) for l in groupes[1]]), "2. Unscrew.")
+
+
+class TestParagraphesOCR(unittest.TestCase):
+	"""Lignes OCR libres -> paragraphes, colonne par colonne (Tesseract mélange les deux colonnes)."""
+
+	def _l(self, x, y, texte, w=200, h=10):
+		return {"bbox": (x, y, x + w, y + h), "spans": [{"text": texte, "size": 10, "flags": 0, "font": "GlyphLessFont", "color": 0}]}
+
+	def test_deux_colonnes_et_paragraphes(self):
+		from aquaworld_ia.manuels.extraction import paragraphes_depuis_lignes
+
+		lignes = [self._l(440, 30, "Something to respectable clients"), self._l(35, 30, "CATALOGUE"),
+		          self._l(440, 42, "Thank you for your purchase"), self._l(440, 54, "of the water purifier."),
+		          self._l(35, 60, "1.Function characteristic *** 1"), self._l(35, 72, "2.Operation principle *** 2-10"),
+		          self._l(440, 80, "Now you own an advanced unit.")]
+		paras = paragraphes_depuis_lignes(lignes, 1, (0, 0, 794, 561))
+		self.assertEqual([p["texte"] for p in paras], [
+			"CATALOGUE", "1.Function characteristic 1", "2.Operation principle 2-10",
+			"Something to respectable clients Thank you for your purchase of the water purifier.", "Now you own an advanced unit."])
+		self.assertEqual(paras[3]["lignes"], 3)
+		self.assertEqual(paras[3]["bbox"], (440, 30, 640, 64))
+
+	def test_alinea_et_ligne_pleine_continuent_le_paragraphe(self):
+		"""Alinéa de première ligne (OCR) puis lignes au bord gauche ; une ligne pleine continue même en retrait."""
+		from aquaworld_ia.manuels.extraction import paragraphes_depuis_lignes
+
+		lignes = [self._l(460, 30, "Thank you for your purchase of the", w=280), self._l(440, 42, "Reverse Osmosis Water Purifier", w=300),
+		          self._l(440, 54, "System.", w=60), self._l(500, 66, "Now you own an advanced unit", w=240)]
+		paras = paragraphes_depuis_lignes(lignes, 0, (0, 0, 794, 561))
+		self.assertEqual([p["texte"] for p in paras], ["Thank you for your purchase of the Reverse Osmosis Water Purifier System.", "Now you own an advanced unit"])
+
+	def test_taille_mediane(self):
+		from aquaworld_ia.manuels.extraction import paragraphes_depuis_lignes
+
+		l1, l2, l3 = self._l(35, 30, "a b c"), self._l(35, 42, "d e f"), self._l(35, 54, "g h i")
+		l1["spans"][0]["size"], l2["spans"][0]["size"], l3["spans"][0]["size"] = 9.5, 10.0, 16.0
+		self.assertEqual(paragraphes_depuis_lignes([l1, l2, l3], 0, (0, 0, 794, 561))[0]["style"]["taille"], 10.0)
+		l1["spans"][0]["size"] = 40.0   # ligne de 10 pt de haut lue « géante » : bornée à la hauteur de ligne
+		self.assertEqual(paragraphes_depuis_lignes([l1], 0, (0, 0, 794, 561))[0]["style"]["taille"], 10.0)
+
+	def test_decalage_de_colonne_coupe(self):
+		from aquaworld_ia.manuels.extraction import paragraphes_depuis_lignes
+
+		paras = paragraphes_depuis_lignes([self._l(35, 30, "Titre"), self._l(120, 42, "loin à droite")], 0, (0, 0, 794, 561))
+		self.assertEqual(len(paras), 2)
+
+	def test_vide(self):
+		from aquaworld_ia.manuels.extraction import paragraphes_depuis_lignes
+
+		self.assertEqual(paragraphes_depuis_lignes([], 0, (0, 0, 10, 10)), [])
+
+
+class TestDechetsOCR(unittest.TestCase):
+	def test_nettoyer(self):
+		from aquaworld_ia.manuels.extraction import nettoyer_ocr
+
+		self.assertEqual(nettoyer_ocr("3.Main technical parameter “eee e eee EE EE 10"), "3.Main technical parameter e 10")
+		self.assertEqual(nettoyer_ocr("**********\"\"\"\"\" 4"), "4")
+		self.assertEqual(nettoyer_ocr("@ Using imported membrane"), "• Using imported membrane")
+		self.assertEqual(nettoyer_ocr("reliable quality. @"), "reliable quality.")
+		self.assertEqual(nettoyer_ocr("info@site.com"), "info@site.com")
+		self.assertEqual(nettoyer_ocr("Reverse osmosis (RO) system - see p. 3"), "Reverse osmosis (RO) system - see p. 3")
+		self.assertEqual(nettoyer_ocr("Operation principle & technical process 2-10"), "Operation principle & technical process 2-10")
+
+	def test_non_traduisible(self):
+		from aquaworld_ia.manuels.extraction import est_traduisible
+
+		self.assertFalse(est_traduisible("**********\"\"\"\"\" 4"))
+		self.assertFalse(est_traduisible("¥ ** 12"))
+		self.assertTrue(est_traduisible("Using imported famous brand reverse osmosis membrane"))
+		self.assertTrue(est_traduisible("CATALOGUE"))
+		self.assertTrue(est_traduisible("• Using imported membrane"))
+		self.assertFalse(est_traduisible("info@bdavidwater.com"))
+		self.assertTrue(est_traduisible("WARNING"))
+		self.assertFalse(est_traduisible("RO-50G"))
+		self.assertFalse(est_traduisible("AB1234"))
+
+
+class TestPucesOCR(unittest.TestCase):
+	def test_le_losange_rejoint_sa_ligne(self):
+		from aquaworld_ia.manuels.extraction import paragraphes_depuis_lignes, rattacher_puces
+
+		def l(x, y, texte, w=200):
+			return {"bbox": (x, y, x + w, y + 10), "spans": [{"text": texte, "size": 10}]}
+		lignes = [l(440, 40, "reliable quality.", w=80), l(428, 52, "@", w=6), l(444, 52, "Pre treating cartridge can be replaced")]
+		out = rattacher_puces(lignes)
+		self.assertEqual(len(out), 2)
+		self.assertEqual(out[1]["spans"][0]["text"], "• Pre treating cartridge can be replaced")
+		self.assertEqual(out[1]["bbox"][0], 428)
+		paras = paragraphes_depuis_lignes(lignes, 0, (0, 0, 794, 561))
+		self.assertEqual([p["texte"] for p in paras], ["reliable quality.", "• Pre treating cartridge can be replaced"])
+
+	def test_un_losange_sans_ligne_reste(self):
+		from aquaworld_ia.manuels.extraction import rattacher_puces
+
+		self.assertEqual(len(rattacher_puces([{"bbox": (10, 10, 16, 20), "spans": [{"text": "@"}]}])), 1)

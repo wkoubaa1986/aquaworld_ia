@@ -16,6 +16,15 @@ frappe.ui.form.on("Manuel Article", {
 		}, __("Aquaworld IA"));
 
 		frm.add_custom_button(__("Traduire"), () => aqia_manuel_dialogue_traduire(frm), __("Aquaworld IA"));
+		// Le studio : la page plein écran, page par page, où l'on corrige, déplace, masque ou ajoute
+		// des blocs et redessine les illustrations dans la langue (demande utilisateur 24/09/2026).
+		if (frm.doc.pdf_source) frm.add_custom_button(__("Ouvrir le studio"), () => frappe.set_route("studio-manuel", frm.doc.name));
+		if ((frm.doc.traductions || []).some((l) => l.statut === "Terminé" && l.fichier)) {
+			frm.add_custom_button(__("PDF toutes langues"), () => {
+				frappe.call({ method: "aquaworld_ia.manuels.studio.combiner", args: { manuel: frm.doc.name }, freeze: true })
+					.then((r) => { frappe.show_alert({ message: __("PDF toutes langues généré"), indicator: "green" }); frm.reload_doc(); window.open(r.message.fichier, "_blank"); });
+			}, __("Aquaworld IA"));
+		}
 
 		frappe.call({ method: "aquaworld_ia.manuels.job.etat_manuel", args: { manuel: frm.doc.name } }).then((r) => {
 			const e = r.message || {};

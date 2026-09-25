@@ -1,0 +1,114 @@
+[
+ {
+  "doctype": "Aquaworld IA Pictogramme",
+  "name": "water quality association",
+  "champ": "image",
+  "url": "/private/files/wqa-logo-vectoriel-net.svg",
+  "fichier": "wqa-logo-vectoriel-net.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Aquaworld IA Pictogramme",
+  "name": "water_quality_association",
+  "champ": "image",
+  "url": "/private/files/wqa-cercle-eau-hybride.svg",
+  "fichier": "wqa-cercle-eau-hybride.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Aquaworld IA Pictogramme",
+  "name": "water_quality_association_r",
+  "champ": "image",
+  "url": "/private/files/wqa-logo-black.svg",
+  "fichier": "wqa-logo-black.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0011",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0003-photo-iad8dd53.png",
+  "fichier": "EMB-2026-0003-photo-iad8dd53.png",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0010",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0003-photo-ia7abd7a.png",
+  "fichier": "EMB-2026-0003-photo-ia7abd7a.png",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0009",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0002-photo-ia369d07.png",
+  "fichier": "EMB-2026-0002-photo-ia369d07.png",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0008",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0002-photo-ia369d07.png",
+  "fichier": "EMB-2026-0002-photo-ia369d07.png",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0007",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0002-photo-ia369d07.png",
+  "fichier": "EMB-2026-0002-photo-ia369d07.png",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0006",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0002-photo-iabb201f.png",
+  "fichier": "EMB-2026-0002-photo-iabb201f.png",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0005",
+  "champ": "image",
+  "url": "/private/files/eco-purium-blue-carré.svg",
+  "fichier": "eco-purium-blue-carré.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0004",
+  "champ": "image",
+  "url": "/private/files/eco-purium-rectangle-horizontal.svg",
+  "fichier": "eco-purium-rectangle-horizontal.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0003",
+  "champ": "image",
+  "url": "/private/files/eco-purium-simple-net.svg",
+  "fichier": "eco-purium-simple-net.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0002",
+  "champ": "image",
+  "url": "/private/files/eco-purium-logo-seul.svg",
+  "fichier": "eco-purium-logo-seul.svg",
+  "prive": true
+ },
+ {
+  "doctype": "Ressource Emballage",
+  "name": "RES-0001",
+  "champ": "image",
+  "url": "/private/files/EMB-2026-0002-fond07aafa.png",
+  "fichier": "EMB-2026-0002-fond07aafa.png",
+  "prive": true
+ }
+]

@@ -22,4 +22,15 @@ doctype_js = {"Item": "public/js/item.js"}
 
 app_include_css = "/assets/aquaworld_ia/css/aquaworld_ia.css"
 
-fixtures = []
+# Le « contenu de référence » de l'app voyage avec le code (demande utilisateur 25/09/2026 : la base
+# de dev arrive en prod au déploiement) : rôle, langues, pictogrammes, polices, bibliothèque
+# d'emballage. Les fichiers qu'ils référencent sont emballés dans fixtures/fichiers/ (transfert.py)
+# et restaurés après migration ; les Réglages (sans secret) dans fixtures/reglages.json.
+# ⚠️ Le dev est la source : `bench export-fixtures` avant de pousser, sinon migrate ramène l'ancien état.
+fixtures = [
+	{"dt": "Role", "filters": [["name", "in", ["Aquaworld IA"]]]},
+	{"dt": "Aquaworld IA Langue"},
+	{"dt": "Aquaworld IA Pictogramme"},
+	{"dt": "Police Emballage"},
+	{"dt": "Ressource Emballage"},
+]

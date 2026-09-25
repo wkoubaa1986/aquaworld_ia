@@ -1,0 +1,16 @@
+{
+ "modele_image": "gpt-image-2",
+ "qualite_image": "medium",
+ "variantes_max": 4,
+ "lot_paragraphes": 25,
+ "plafond_mensuel_usd": 50.0,
+ "alerte_pourcentage": 80,
+ "prix_image_low": 0.006,
+ "prix_image_medium": 0.053,
+ "prix_image_high": 0.211,
+ "couleur_manuels": "#1d4ed8",
+ "format_manuels": "Original",
+ "fond_perdu_mm": 3.0,
+ "zone_securite_mm": 3.0,
+ "patte_collage_mm": 15.0
+}

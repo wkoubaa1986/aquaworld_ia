@@ -12,6 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
+from aquaworld_ia.emballage import mise_en_forme
 from aquaworld_ia.ia import journal
 from aquaworld_ia.ia.chat import chat_json
 from aquaworld_ia.ia.client import reglages
@@ -31,8 +32,10 @@ def prompt_preparation(nom_produit: str, marque: str, caracteristiques: list[str
 		"Tu es un concepteur-rédacteur packaging. On te donne un produit, ses caractéristiques brutes et un brief.",
 		"Tâche 1 — TEXTES, pour CHACUNE des langues demandées (%s) :" % codes,
 		"- accroche : une phrase courte (≤ 8 mots) pour la face avant ;",
-		"- caracteristiques : les caractéristiques REFORMULÉES, une par entrée, courtes et imprimables ; "
-		"n'invente AUCUNE caractéristique, ne supprime aucune valeur chiffrée ni unité ;",
+		"- caracteristiques : les caractéristiques REFORMULÉES, courtes et imprimables, EXACTEMENT une entrée par "
+		"ligne fournie (%d entrées), dans le même ordre — un intertitre reste une entrée à lui seul, ne fusionne ni "
+		"ne découpe aucune ligne (la mise en page les apparie rang pour rang) ; n'invente AUCUNE caractéristique, "
+		"ne supprime aucune valeur chiffrée ni unité ;" % len(caracteristiques),
 		"- avertissements : les avertissements fournis, reformulés sans en retirer ; si la liste est vide, "
 		"propose les 2 mentions standard les plus pertinentes pour ce type de produit ;",
 		"- contact : le contact fourni, tel quel (ne pas traduire les noms, adresses, numéros).",
@@ -77,6 +80,21 @@ def normaliser_preparation(sortie: dict, codes: list[str], nb_styles: int, repli
 	return textes, styles
 
 
+def _li(ligne: str) -> str:
+	"""Une caractéristique dans l'aperçu de la fiche, avec sa mise en forme. Pur."""
+	esc = frappe.utils.escape_html
+	style, texte = mise_en_forme.analyser(ligne)
+	css = ""
+	if style:
+		css = "".join((
+			"font-size:%d%%;" % round(style["taille"] / 8.5 * 100) if style.get("taille") else "",
+			"font-weight:700;" if style.get("gras") else "",
+			"font-style:italic;" if style.get("italique") else "",
+			"list-style:none;" if style.get("puce") is False else "",
+		))
+	return "<li%s>%s</li>" % (" style='%s'" % css if css else "", esc(texte))
+
+
 def html_textes(textes: dict, langues: dict) -> str:
 	"""Rendu lisible des textes préparés, une colonne par langue. Pur."""
 	if not textes:
@@ -89,7 +107,7 @@ def html_textes(textes: dict, langues: dict) -> str:
 		cols.append(
 			"<div class='aqia-col'><h6>%s</h6>" % esc(info.get("libelle") or code)
 			+ "<p%s><b>%s</b></p>" % (rtl, esc(t.get("accroche") or ""))
-			+ "<ul%s>%s</ul>" % (rtl, "".join("<li>%s</li>" % esc(x) for x in t.get("caracteristiques") or []))
+			+ "<ul%s>%s</ul>" % (rtl, "".join(_li(x) for x in t.get("caracteristiques") or []))
 			+ "<p class='text-muted small'>%s</p>" % esc(_("Avertissements"))
 			+ "<ul%s class='small'>%s</ul>" % (rtl, "".join("<li>%s</li>" % esc(x) for x in t.get("avertissements") or []))
 			+ "<p%s class='small'>%s</p></div>" % (rtl, esc(t.get("contact") or ""))
@@ -114,14 +132,18 @@ def preparer(design: str) -> dict:
 	journal.verifier_plafond()
 	nb = max(1, min(cint(doc.nb_variantes) or 3, cint(getattr(reglages(), "variantes_max", 4)) or 4))
 	langues_infos = _langues_du_design(doc)
+	# L'IA reçoit le texte SANS les préfixes de mise en forme (elle les traduirait ou les perdrait) ;
+	# la mise en forme est reposée ensuite, rang pour rang.
+	caracteristiques = [mise_en_forme.texte_seul(l) for l in lignes(doc.caracteristiques)]
 	systeme, utilisateur = prompt_preparation(
-		doc.nom_produit or doc.article, doc.marque, lignes(doc.caracteristiques), lignes(doc.avertissements),
+		doc.nom_produit or doc.article, doc.marque, caracteristiques, lignes(doc.avertissements),
 		doc.contact or getattr(reglages(), "contact_par_defaut", "") or "", langues_infos,
 		doc.brief_style, doc.palette, nb)
 	sortie = chat_json(systeme, utilisateur, fonctionnalite="Emballage texte", doc=doc)
 	repli = {"caracteristiques": lignes(doc.caracteristiques), "avertissements": lignes(doc.avertissements),
 	         "contact": doc.contact or ""}
 	textes, styles = normaliser_preparation(sortie, [l["code"] for l in langues_infos], nb, repli)
+	textes, _non_apparies = mise_en_forme.reporter_styles(doc.caracteristiques, textes)
 	doc.textes_ia = json.dumps(textes, ensure_ascii=False)
 	# On ne touche pas aux variantes déjà générées (elles ont coûté) : on remplace seulement
 	# celles encore « À générer » / en échec, et on complète jusqu'au nombre demandé.

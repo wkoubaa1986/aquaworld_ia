@@ -70,11 +70,20 @@ class StudioEmballage {
 		try { this.mep = JSON.parse(this.d.mise_en_page || "{}") || {}; } catch (e) { this.mep = {}; }
 	}
 
-	async enregistrer(valeurs) {
+	// Les enregistrements partent l'un après l'autre : deux enregistrements simultanés de la même fiche
+	// (police du bloc puis sa taille, frappe dans l'éditeur…) faisaient échouer le second
+	// (« document modifié entre-temps »).
+	enregistrer(valeurs) {
+		const tache = (this._file_enreg || Promise.resolve()).catch(() => {}).then(() => this._enregistrer(valeurs));
+		this._file_enreg = tache;
+		return tache;
+	}
+
+	async _enregistrer(valeurs) {
 		const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.enregistrer",
 			args: { design: this.nom, valeurs }, freeze: false });
 		this.data = r.message; this.d = this.data.doc; this._lire_mep();
-		this.rendre_scene(); this.rendre_droite(); this.rendre_barre(); this.rendre_etats_etapes();
+		this.rendre_scene(); this.rendre_droite(); this.rendre_barre(); this.rendre_etats_etapes(); this.rendre_avert_lignes();
 	}
 	// (la scène Images lit this.data.images, rechargé par enregistrer())
 
@@ -122,6 +131,7 @@ class StudioEmballage {
 			<span class="se-chip ${chip}">${this._esc(d.statut || "")}</span>
 			<span class="se-chip">${this._esc(d.type_boite || "")}</span>
 			<a class="btn btn-xs btn-default" href="/app/design-emballage/${encodeURIComponent(d.name)}">${__("Fiche")}</a>
+			<button class="btn btn-xs btn-default" data-role="dupliquer" title="${__("Une copie de ce design, pour un autre article ou une autre piste")}">⧉ ${__("Dupliquer")}</button>
 			<span class="se-cout">${__("Coût IA de ce design : {0} $", [((this.data.etat || {}).cout_document || 0).toFixed(3)])}</span>`);
 		const $sel = this.$barre.find('[data-role="selecteur"]');
 		$sel.on("focus", async () => {
@@ -131,6 +141,7 @@ class StudioEmballage {
 			$sel.data("charge", 1);
 		});
 		$sel.on("change", () => frappe.set_route("studio-emballage", $sel.val()));
+		this.$barre.find('[data-role="dupliquer"]').on("click", () => aqia_dupliquer_design(d, (nom) => frappe.set_route("studio-emballage", nom)));
 	}
 
 	rendre_gauche() {
@@ -154,8 +165,8 @@ class StudioEmballage {
 				${d[champ] ? `<button class="btn btn-xs btn-default" data-effacer="${champ}">✕</button>` : ""}
 				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_ia" title="${__("Changer les couleurs, épurer, moderniser — par IA, avant de le poser")}">✨ ${__("Retoucher par IA")}</button>` : ""}
 				${champ === "photo_produit" && d.photo_produit ? `<button class="btn btn-xs btn-default" data-action="photo_ia" title="${__("Détourer sur blanc pur, éclairage studio, retirer les accessoires — par IA, plusieurs propositions")}">✨ ${__("Améliorer par IA")}</button>` : ""}
-				${champ === "logo" || champ === "image_fond" ? `<button class="btn btn-xs btn-default" data-bibliotheque="${champ}" title="${__("Reprendre un fond, un motif ou une variante de logo gardés en bibliothèque")}">📚 ${__("Bibliothèque")}</button>` : ""}
-				${(champ === "logo" || champ === "image_fond") && d[champ] ? `<button class="btn btn-xs btn-default" data-garder="${champ}" title="${__("Garder ce fichier en bibliothèque, sous un nom, pour un autre design")}">💾 ${__("Garder")}</button>` : ""}
+				${StudioEmballage.BIBLIO[champ] ? `<button class="btn btn-xs btn-default" data-bibliotheque="${champ}" title="${__("Reprendre un fond, un motif, une variante de logo ou une photo gardés en bibliothèque")}">📚 ${__("Bibliothèque")}</button>` : ""}
+				${StudioEmballage.BIBLIO[champ] && d[champ] ? `<button class="btn btn-xs btn-default" data-garder="${champ}" title="${__("Garder ce fichier en bibliothèque, sous un nom, pour un autre design")}">💾 ${__("Garder")}</button>` : ""}
 			</div>`;
 		const pretes = (d.variantes || []).filter((v) => v.statut === "Prête").length;
 		const a_generer = (d.variantes || []).filter((v) => ["À générer", "Échec"].includes(v.statut)).length;
@@ -183,7 +194,7 @@ class StudioEmballage {
 					${fichier("logo", __("Logo (photo ou SVG)"))}
 					${fichier("photo_produit", __("Photo du produit"))}
 					<label>${__("Langues")}</label><div class="se-chips" data-liste="langues">${langues}</div>
-					<label>${__("Caractéristiques (une par ligne)")}</label><textarea data-champ="caracteristiques">${esc(d.caracteristiques || "")}</textarea>
+					<label>${__("Caractéristiques (une par ligne)")}</label><div data-role="editeur-car"></div><div data-role="avert-lignes"></div>
 					<label>${__("Avertissements (un par ligne)")}</label><textarea data-champ="avertissements">${esc(d.avertissements || "")}</textarea>
 					<label>${__("Contact")}</label><textarea data-champ="contact">${esc(d.contact || "")}</textarea>
 					<label>${__("Pictogrammes et certifications")}</label><div class="se-chips" data-liste="pictogrammes">${pictos}</div>
@@ -283,6 +294,86 @@ class StudioEmballage {
 		$g.find("[data-bibliotheque]").on("click", (e) => this.bibliotheque($(e.currentTarget).attr("data-bibliotheque")));
 		$g.find("[data-garder]").on("click", (e) => this.garder($(e.currentTarget).attr("data-garder")));
 		$g.find("[data-action]").on("click", (e) => this.action($(e.currentTarget).attr("data-action")));
+		this.monter_editeur();
+	}
+
+	// ─── caractéristiques : éditeur ligne par ligne, polices ─────────────────────
+	monter_editeur() {
+		const d = this.d;
+		this.injecter_polices();
+		this.editeur = new EditeurLignes(this.$root.find('[data-role="editeur-car"]'), d.caracteristiques || "", {
+			polices: this.data.polices || [], bloc: { police: d.police_caracteristiques || "", taille: +d.taille_caracteristiques || 0 },
+			bloc_modifiable: true,
+			on_change: frappe.utils.debounce((val) => this.modifier({ caracteristiques: val }, false), 600),
+			on_bloc: (b) => this.modifier({ police_caracteristiques: b.police || "", taille_caracteristiques: b.taille || 0 }, false),
+			on_ajouter_police: (apres) => this.ajouter_police(apres),
+		});
+		this.rendre_avert_lignes();
+	}
+
+	rendre_avert_lignes() {
+		const d = this.d, des = this.data.desalignes || [];
+		let codes = [];
+		try { codes = Object.keys(JSON.parse(d.textes_ia || "{}")); } catch (e) { codes = []; }
+		let h = "";
+		if (d.textes_ia) h += `<p class="text-muted small" style="margin:4px 0 0">${__("Ce sont les textes préparés (étape 3) qui s'impriment : la mise en forme de ces lignes leur est reportée, ligne pour ligne.")}</p>`;
+		if (des.length) {
+			const detail = des.map((x) => __("{0} : {1} lignes préparées pour {2} ici", [x.code.toUpperCase(), x.lignes, x.brutes])).join(" · ");
+			h += `<p class="text-danger small" style="margin:4px 0 0">⚠ ${__("Mise en forme non reportée ({0}). Imprimez vos lignes telles quelles ci-dessous, re-préparez les textes, ou mettez-les en forme dans « Modifier les textes ».", [this._esc(detail)])}</p>`;
+		}
+		// Vos lignes déjà écrites dans la langue de l'emballage : elles remplacent la reformulation de l'IA.
+		if (codes.length) h += `<div class="se-btns" style="margin-top:4px">${codes.map((c) => `<button class="btn btn-xs ${des.some((x) => x.code === c) ? "btn-primary" : "btn-default"}" data-lignes-brutes="${this._esc(c)}" title="${__("Remplace les caractéristiques préparées pour cette langue par les lignes ci-dessus, mise en forme comprise. À utiliser quand vos lignes sont déjà écrites dans cette langue.")}">${__("Imprimer mes lignes telles quelles ({0})", [this._esc(c.toUpperCase())])}</button>`).join("")}</div>`;
+		const $a = this.$root.find('[data-role="avert-lignes"]').html(h);
+		$a.find("[data-lignes-brutes]").on("click", async (e) => {
+			const langue = $(e.currentTarget).attr("data-lignes-brutes");
+			try {
+				// Les frappes en attente d'abord : c'est le texte à l'écran qui doit partir.
+				await this.enregistrer({ caracteristiques: this.editeur ? this.editeur.valeur() : d.caracteristiques });
+				const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.utiliser_lignes_brutes", args: { design: this.nom, langue }, freeze: true });
+				this.data = r.message; this.d = this.data.doc; this._lire_mep();
+				this.rendre_scene(); this.rendre_droite(); this.rendre_avert_lignes();
+				frappe.show_alert({ message: __("Vos lignes s'impriment en {0} : recomposez le plan (étape 4).", [langue.toUpperCase()]), indicator: "green" });
+			} catch (e2) { frappe.msgprint(this._msg(e2)); }
+		});
+	}
+
+	// Les polices dans le navigateur (@font-face), pour que l'éditeur montre chaque ligne dans la sienne.
+	injecter_polices() {
+		const STYLES = { regulier: [400, "normal"], gras: [700, "normal"], italique: [400, "italic"], gras_italique: [700, "italic"] };
+		const css = (this.data.polices || []).map((p) => Object.entries(p.styles || {}).map(([cle, url]) => {
+			const [poids, style] = STYLES[cle] || [400, "normal"];
+			return `@font-face{font-family:"AQIA ${p.famille}";src:url("${encodeURI(url)}");font-weight:${poids};font-style:${style};font-display:swap}`;
+		}).join("")).join("");
+		let el = document.getElementById("aqia-polices");
+		if (!el) { el = document.createElement("style"); el.id = "aqia-polices"; document.head.appendChild(el); }
+		if (el.textContent !== css) el.textContent = css;
+	}
+
+	ajouter_police(apres) {
+		const police = (nom, libelle, reqd) => ({ fieldtype: "Attach", fieldname: nom, label: libelle, reqd: reqd ? 1 : 0,
+			options: { restrictions: { allowed_file_types: [".ttf", ".otf"] } } });
+		const dlg = new frappe.ui.Dialog({ title: __("Ajouter une police"),
+			fields: [
+				{ fieldtype: "Data", fieldname: "nom", label: __("Nom"), reqd: 1, description: __("Tel qu'il apparaîtra dans la liste, ex. « EcoPurium Sans »") },
+				police("regulier", __("Normal (TTF ou OTF)"), true),
+				police("gras", __("Gras")),
+				police("italique", __("Italique")),
+				police("gras_italique", __("Gras italique")),
+				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("Un fichier par style : sans fichier gras, une ligne en gras s'imprime en normal (le moteur PDF ne fabrique ni le gras ni l'italique). Vérifiez que la licence de la police autorise l'impression commerciale.")}</p>` },
+			],
+			primary_action_label: __("Ajouter"),
+			primary_action: async (v) => {
+				let r;
+				try {
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.ajouter_police", args: v, freeze: true });
+				} catch (e) { frappe.msgprint(this._msg(e)); return; }
+				this.data.polices = r.message || [];
+				this.injecter_polices();
+				dlg.hide();
+				frappe.show_alert({ message: __("Police ajoutée : {0}", [v.nom]), indicator: "green" });
+				if (apres) apres(v.nom.trim(), this.data.polices);
+			} });
+		dlg.show();
 	}
 
 	async modifier(valeurs, redessiner_gauche) {
@@ -474,7 +565,7 @@ class StudioEmballage {
 					<button class="btn btn-xs btn-default" data-usage="logo" data-url="${esc(im.file_url)}" title="${__("Utiliser comme logo du design")}">${__("Logo")}</button>
 					<button class="btn btn-xs btn-default" data-usage="photo_produit" data-url="${esc(im.file_url)}" title="${__("Utiliser comme photo du produit")}">${__("Photo")}</button>
 					<button class="btn btn-xs btn-default" data-usage="image_fond" data-url="${esc(im.file_url)}" title="${__("Utiliser comme image de fond")}">${__("Fond")}</button>
-					<button class="btn btn-xs btn-default" data-garder-url="${esc(im.file_url)}" data-garder-champ="${im.genre.startsWith("Logo") ? "logo" : "image_fond"}" title="${__("Garder en bibliothèque, sous un nom")}">💾</button>
+					<button class="btn btn-xs btn-default" data-garder-url="${esc(im.file_url)}" data-garder-champ="${im.genre.startsWith("Logo") ? "logo" : im.genre.startsWith("Photo") ? "photo_produit" : "image_fond"}" title="${__("Garder en bibliothèque, sous un nom")}">💾</button>
 					<a class="btn btn-xs btn-default" href="${esc(im.file_url)}" target="_blank" title="${__("Ouvrir le fichier")}">↗</a>
 				</div></div>`).join("")}</div>`);
 		$s.find("[data-usage]").on("click", (e) => this.modifier({ [$(e.currentTarget).attr("data-usage")]: $(e.currentTarget).attr("data-url") }, true));
@@ -633,6 +724,7 @@ class StudioEmballage {
 					args: { design: this.nom, variante: this.d.variante_choisie }, freeze: true, freeze_message: __("Composition du plan à l'échelle…") });
 				frappe.show_alert({ message: __("Plan à plat prêt : feuille {0} × {1} mm.", [r.message.feuille.w, r.message.feuille.h]), indicator: "green" });
 				await this.recharger(); this.etape = 4; this.onglet = "artwork"; this.rendre();
+				this.signaler_reductions(r.message.reductions || []);
 			} else if (nom === "faces") {
 				frappe.confirm(__("Générer les 5 autres faces dans le style de la variante choisie, puis recomposer le plan ? (5 images facturées)"), async () => {
 					await frappe.call({ method: "aquaworld_ia.emballage.job.lancer_faces", args: { design: this.nom } });
@@ -647,26 +739,51 @@ class StudioEmballage {
 		}
 	}
 
+	// Les tailles choisies ligne par ligne sont des maximums : un bloc trop long pour sa zone est réduit
+	// en entier. Le dire, sinon « 14 pt » imprimé plus petit paraît ignoré.
+	signaler_reductions(reductions) {
+		if (!reductions.length) return;
+		const ZONES = { caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), accroche: __("Accroche") };
+		const lignes = reductions.map((x) => x.echelle
+			? __("{0} · {1} : imprimé à {2} % de la taille demandée", [ZONES[x.zone] || x.zone, this._esc(x.libelle), Math.round(x.echelle * 100)])
+			: __("{0} · {1} : ne tient pas, même réduit à 40 % — non imprimé", [ZONES[x.zone] || x.zone, this._esc(x.libelle)]));
+		frappe.msgprint({ title: __("Textes réduits pour tenir dans leur zone"), indicator: "orange",
+			message: lignes.join("<br>") + `<p class="text-muted small" style="margin-top:8px">${__("Agrandissez la zone sur le plan, raccourcissez le texte ou baissez les tailles.")}</p>` });
+	}
+
 	dialogue_textes() {
 		let textes = {};
 		try { textes = JSON.parse(this.d.textes_ia || "{}"); } catch (e) { textes = {}; }
-		const codes = Object.keys(textes), fields = [];
+		const codes = Object.keys(textes), fields = [], editeurs = {};
 		codes.forEach((c) => {
 			const t = textes[c] || {};
 			fields.push({ fieldtype: "Section Break", label: c.toUpperCase() });
 			fields.push({ fieldtype: "Data", fieldname: `acc_${c}`, label: __("Accroche"), default: t.accroche });
-			fields.push({ fieldtype: "Small Text", fieldname: `car_${c}`, label: __("Caractéristiques (une par ligne)"), default: (t.caracteristiques || []).join("\n") });
+			fields.push({ fieldtype: "HTML", fieldname: `car_${c}`, options: `<label class="control-label">${__("Caractéristiques (une par ligne)")}</label><div data-car="1"></div>` });
 			fields.push({ fieldtype: "Small Text", fieldname: `ave_${c}`, label: __("Avertissements (un par ligne)"), default: (t.avertissements || []).join("\n") });
 			fields.push({ fieldtype: "Small Text", fieldname: `con_${c}`, label: __("Contact"), default: t.contact });
 		});
 		const dlg = new frappe.ui.Dialog({ title: __("Textes imprimés"), size: "large", fields, primary_action_label: __("Enregistrer"),
 			primary_action: async (v) => {
 				const out = {};
-				codes.forEach((c) => { out[c] = { accroche: v[`acc_${c}`] || "", caracteristiques: (v[`car_${c}`] || "").split("\n").filter(Boolean),
+				codes.forEach((c) => { out[c] = { accroche: v[`acc_${c}`] || "", caracteristiques: editeurs[c].valeur().split("\n").filter((x) => x.trim()),
 					avertissements: (v[`ave_${c}`] || "").split("\n").filter(Boolean), contact: v[`con_${c}`] || "" }; });
 				await frappe.call({ method: "aquaworld_ia.emballage.textes.enregistrer_textes", args: { design: this.nom, textes: out } });
 				dlg.hide(); await this.recharger();
 			} });
+		// Même éditeur qu'à l'étape 2, langue par langue (la police du bloc se règle à l'étape 2).
+		this.injecter_polices();
+		codes.forEach((c) => {
+			const lg = (this.data.langues || []).find((l) => l.code === c) || {};
+			editeurs[c] = new EditeurLignes(dlg.get_field(`car_${c}`).$wrapper.find("[data-car]"), ((textes[c] || {}).caracteristiques || []).join("\n"), {
+				polices: this.data.polices || [], bloc: { police: this.d.police_caracteristiques || "", taille: +this.d.taille_caracteristiques || 0 },
+				rtl: !!lg.rtl, auto_intertitres: false,
+				on_ajouter_police: (apres) => this.ajouter_police((nom, polices) => {
+					codes.forEach((k) => { editeurs[k].o.polices = polices; if (k !== c) editeurs[k].rendre(); });
+					apres(nom, polices);
+				}),
+			});
+		});
 		dlg.show();
 	}
 
@@ -732,16 +849,17 @@ class StudioEmballage {
 		dlg.show();
 	}
 
-	// ─── bibliothèque : fonds, motifs, variantes de logo ────────────────────────
+	// ─── bibliothèque : fonds, motifs, variantes de logo, photos du produit ─────
 	garder(champ, url) {
-		const est_logo = champ === "logo";
-		url = url || this.d[champ];
-		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Garder ce logo en bibliothèque") : __("Garder ce fond en bibliothèque"),
+		const b = StudioEmballage.BIBLIO[champ], d = this.d;
+		url = url || d[champ];
+		const nom = { logo: (d.marque || "") + " ", photo_produit: d.nom_produit || d.article || "", image_fond: (d.brief_style || "").slice(0, 40) }[champ];
+		const dlg = new frappe.ui.Dialog({ title: b.garder,
 			fields: [
 				{ fieldtype: "HTML", options: `<img src="${this._esc(url)}" style="max-height:120px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
-				{ fieldtype: "Data", fieldname: "nom", label: __("Nom"), reqd: 1, default: est_logo ? (this.d.marque || "") + " " : (this.d.brief_style || "").slice(0, 40) },
-				{ fieldtype: "Select", fieldname: "categorie", label: __("Catégorie"), default: est_logo ? "Logo" : "Fond", options: (est_logo ? ["Logo"] : ["Fond", "Motif"]).join("\n") },
-				{ fieldtype: "Small Text", fieldname: "notes", label: __("Notes"), default: est_logo ? "" : [this.d.brief_style, this.d.palette].filter(Boolean).join(" · ") },
+				{ fieldtype: "Data", fieldname: "nom", label: __("Nom"), reqd: 1, default: nom },
+				{ fieldtype: "Select", fieldname: "categorie", label: __("Catégorie"), default: b.categories[0], options: b.categories.join("\n") },
+				{ fieldtype: "Small Text", fieldname: "notes", label: __("Notes"), default: champ === "image_fond" ? [d.brief_style, d.palette].filter(Boolean).join(" · ") : "" },
 				{ fieldtype: "HTML", options: `<p class="text-muted small">${__("Marque : {0}. La ressource garde son propre fichier : le design d'origine peut disparaître, elle reste.", [this._esc(this.d.marque || "—")])}</p>` },
 			],
 			primary_action_label: __("Garder"),
@@ -755,8 +873,8 @@ class StudioEmballage {
 	}
 
 	bibliotheque(champ, on_choisir) {
-		const est_logo = champ === "logo";
-		const dlg = new frappe.ui.Dialog({ title: est_logo ? __("Variantes de logo") : __("Fonds et motifs"), size: "large",
+		const b = StudioEmballage.BIBLIO[champ];
+		const dlg = new frappe.ui.Dialog({ title: b.liste, size: "large",
 			fields: [
 				{ fieldtype: "Data", fieldname: "recherche", label: __("Rechercher") },
 				{ fieldtype: "HTML", fieldname: "grille" },
@@ -765,10 +883,10 @@ class StudioEmballage {
 		const charger = async () => {
 			const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_liste", args: { champ, marque: this.d.marque, recherche: dlg.get_value("recherche") } });
 			const lignes = r.message || [];
-			if (!lignes.length) { $grille.html(`<div class="se-vide">${__("Rien en bibliothèque pour l'instant : gardez un fond ou un logo avec le bouton « Garder ».")}</div>`); return; }
+			if (!lignes.length) { $grille.html(`<div class="se-vide">${__("Rien en bibliothèque pour l'instant : gardez un fond, un logo ou une photo avec le bouton « Garder ».")}</div>`); return; }
 			$grille.html(`<div class="se-galerie">${lignes.map((l) => `
 				<div class="se-carte" data-res="${this._esc(l.name)}" style="cursor:pointer">
-					<img src="${this._esc(l.image)}" alt="" style="aspect-ratio:${est_logo ? "3 / 2" : "4 / 3"};object-fit:contain;background:#fff">
+					<img src="${this._esc(l.image)}" alt="" style="aspect-ratio:${b.ratio};object-fit:contain;background:#fff">
 					<div class="leg"><b>${this._esc(l.nom)}</b> <span class="se-chip">${this._esc(l.categorie)}</span>${l.marque ? `<br><span class="text-muted">${this._esc(l.marque)}</span>` : ""}${l.notes ? `<br><span class="text-muted small">${this._esc(l.notes)}</span>` : ""}</div>
 				</div>`).join("")}</div>`);
 			$grille.find("[data-res]").on("click", async (e) => {
@@ -776,7 +894,7 @@ class StudioEmballage {
 				try {
 					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_choisir", args: { design: this.nom, ressource: $(e.currentTarget).attr("data-res"), champ }, freeze: true });
 					dlg.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
-					frappe.show_alert({ message: est_logo ? __("Logo remplacé.") : __("Fond remplacé : recomposez le plan."), indicator: "green" });
+					frappe.show_alert({ message: b.remplace, indicator: "green" });
 				} catch (e2) { frappe.msgprint(this._msg(e2)); }
 			});
 		};
@@ -823,8 +941,361 @@ class StudioEmballage {
 
 	_esc(v) { return frappe.utils.escape_html(String(v == null ? "" : v)); }
 	static get CHAMPS_DIMS() { return { L: "longueur_mm", H: "hauteur_mm", P: "profondeur_mm", R: "repli_mm" }; }
+	// Les champs que la bibliothèque sait remplir (mêmes catégories que studio.CHAMPS_BIBLIOTHEQUE).
+	static get BIBLIO() {
+		return {
+			logo: { categories: ["Logo"], garder: __("Garder ce logo en bibliothèque"), liste: __("Variantes de logo"), ratio: "3 / 2", remplace: __("Logo remplacé.") },
+			image_fond: { categories: ["Fond", "Motif"], garder: __("Garder ce fond en bibliothèque"), liste: __("Fonds et motifs"), ratio: "4 / 3", remplace: __("Fond remplacé : recomposez le plan.") },
+			photo_produit: { categories: ["Photo produit"], garder: __("Garder cette photo en bibliothèque"), liste: __("Photos du produit"), ratio: "1 / 1", remplace: __("Photo remplacée : recomposez le plan.") },
+		};
+	}
 	_msg(e) {
 		const m = (e && (e.message || (e._server_messages && JSON.parse(e._server_messages)[0]))) || e;
 		try { return typeof m === "string" ? (JSON.parse(m).message || m) : JSON.stringify(m); } catch (_x) { return String(m); }
 	}
+}
+
+// Éditeur des caractéristiques ligne par ligne (demande utilisateur 24/09/2026 : « plusieurs tailles
+// ligne par ligne, italique ou gras, choisir la police »). Il lit et écrit le préfixe de
+// emballage/mise_en_forme.py — « {14pt, gras, italique, sans puce, police: Montserrat} Débit » — :
+// le texte enregistré reste lisible et se modifie aussi à la main (« Texte brut »).
+class EditeurLignes {
+	// opts : polices [{famille, styles}], bloc {police, taille}, bloc_modifiable, rtl, puces (défaut vrai),
+	// auto_intertitres (lignes en capitales = intertitres, comme au rendu du texte brut), on_change(texte),
+	// on_bloc({police, taille}), on_ajouter_police(apres(nom)).
+	constructor($parent, texte, opts) {
+		this.$p = $parent;
+		this.o = Object.assign({ puces: true, rtl: false, bloc: {}, polices: [], auto_intertitres: true }, opts || {});
+		this.lignes = String(texte || "").split("\n").map((l) => EditeurLignes.analyser(l));
+		this.cur = 0;
+		this.brut = false;
+		this.rendre();
+	}
+
+	// ─── syntaxe (miroir de mise_en_forme.analyser / ecrire) ─────────────────────
+	static analyser(ligne) {
+		ligne = ligne || "";
+		const m = ligne.match(/^\s*\{([^{}]*)\}[ \t]?([\s\S]*)$/);
+		if (!m) return { style: null, texte: ligne };
+		const style = {};
+		for (let j of m[1].replace(/(\d),(\d)/g, "$1.$2").split(",")) {
+			j = j.trim();
+			const bas = j.toLowerCase(), t = bas.match(/^(\d{1,2}(?:\.\d{1,2})?)\s*pt$/), p = j.match(/^police\s*[:=]\s*(.+)$/i);
+			if (!bas || bas === "normal") continue;
+			if (t) {
+				const v = parseFloat(t[1]);
+				if (v < 4 || v > 72) return { style: null, texte: ligne };
+				style.taille = v;
+			} else if (["gras", "bold"].includes(bas)) style.gras = true;
+			else if (["italique", "italic"].includes(bas)) style.italique = true;
+			else if (["sans puce", "no bullet"].includes(bas)) style.puce = false;
+			else if (["puce", "bullet"].includes(bas)) style.puce = true;
+			else if (p && /^[\p{L}\p{N}_][\p{L}\p{N}_ .\-]{0,60}$/u.test(p[1].trim())) style.police = p[1].trim();
+			else return { style: null, texte: ligne };
+		}
+		return { style, texte: m[2].trim() };
+	}
+
+	static ecrire(style, texte) {
+		texte = String(texte || "");
+		// Une ligne vide ne garde pas sa mise en forme : elle compterait comme une caractéristique.
+		if (!style || !texte.trim()) return texte;
+		const j = [];
+		if (style.taille) j.push(`${style.taille}pt`);
+		if (style.gras) j.push("gras");
+		if (style.italique) j.push("italique");
+		if (style.puce === false) j.push("sans puce");
+		else if (style.puce === true) j.push("puce");
+		if (style.police) j.push(`police: ${style.police}`);
+		return `{${j.join(", ") || "normal"}} ${texte.trim()}`;
+	}
+
+	static intertitre(texte) {
+		const t = String(texte || "").trim(), lettres = [...t].filter((c) => /\p{L}/u.test(c));
+		return (lettres.length >= 3 && lettres.every((c) => c === c.toUpperCase() && c !== c.toLowerCase())) || t.endsWith(":");
+	}
+
+	static manques(p) {
+		const s = p.styles || {}, m = [];
+		if (!s.gras) m.push(__("sans gras"));
+		if (!s.italique) m.push(__("sans italique"));
+		return m.length ? ` (${m.join(", ")})` : "";
+	}
+
+	valeur() { return this.lignes.map((l) => EditeurLignes.ecrire(l.style, l.texte)).join("\n"); }
+
+	// Le style qui s'imprimera : le préfixe, sinon celui d'un intertitre automatique.
+	effectif(l) {
+		if (l.style) return l.style;
+		return this.o.auto_intertitres && EditeurLignes.intertitre(l.texte) ? { gras: true, puce: false } : {};
+	}
+	puce(l) { const s = this.effectif(l); return "puce" in s ? s.puce : this.o.puces; }
+
+	// Un style égal au style implicite de la ligne n'a pas besoin de préfixe.
+	normaliser(s, texte) {
+		const n = {};
+		if (+s.taille) n.taille = +s.taille;
+		if (s.gras) n.gras = true;
+		if (s.italique) n.italique = true;
+		if (s.puce === !this.o.puces) n.puce = s.puce;
+		if (s.police) n.police = s.police;
+		const impl = this.o.auto_intertitres && EditeurLignes.intertitre(texte) ? { gras: true, puce: false } : {};
+		const cle = (x) => JSON.stringify(Object.keys(x).sort().map((k) => [k, x[k]]));
+		return cle(n) === cle(impl) ? null : n;
+	}
+
+	// ─── rendu ──────────────────────────────────────────────────────────────────
+	rendre() {
+		const o = this.o, esc = (v) => frappe.utils.escape_html(String(v == null ? "" : v));
+		const tailles = [6, 7, 8, 8.5, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36];
+		const opt_tailles = (vide) => `<option value="">${vide}</option>` + tailles.map((t) => `<option value="${t}">${String(t).replace(".", ",")} pt</option>`).join("");
+		const polices = (o.polices || []).map((p) => `<option value="${esc(p.famille)}">${esc(p.famille)}${esc(EditeurLignes.manques(p))}</option>`).join("");
+		const ajout = o.on_ajouter_police ? `<option value="+">＋ ${__("Ajouter une police…")}</option>` : "";
+		this.$p.html(`<div class="se-ed${o.rtl ? " rtl" : ""}">
+			${o.bloc_modifiable ? `<div class="se-ed-bloc"><span>${__("Tout le bloc")}</span>
+				<select data-bloc="police" title="${__("Police de toutes les lignes ; une ligne peut choisir la sienne")}"><option value="">${__("Noto Sans (par défaut)")}</option>${polices}${ajout}</select>
+				<select data-bloc="taille" title="${__("Taille de toutes les lignes, en points")}">${opt_tailles(__("8,5 pt (auto)"))}</select></div>` : ""}
+			<div class="se-ed-barre">
+				<button type="button" class="b" data-b="gras" title="${__("Gras (Ctrl+B)")}"><b>G</b></button>
+				<button type="button" class="b" data-b="italique" title="${__("Italique (Ctrl+I)")}"><i>I</i></button>
+				<button type="button" class="b" data-b="puce" title="${__("Puce")}">•</button>
+				<select data-b="taille" title="${__("Taille de cette ligne, en points")}">${opt_tailles(__("Taille"))}</select>
+				<select data-b="police" ${o.rtl ? "disabled" : ""} title="${o.rtl ? __("Cette langue garde sa police") : __("Police de cette ligne")}"><option value="">${__("Police du bloc")}</option>${polices}${ajout}</select>
+				<button type="button" class="b" data-b="effacer" title="${__("Retirer la mise en forme de cette ligne")}">⌫</button>
+			</div>
+			<div class="se-ed-lignes"></div>
+			<textarea class="se-ed-brut" style="display:none" spellcheck="false"></textarea>
+			<div class="se-ed-pied"><a href="#" data-b="brut">${__("Texte brut")}</a><span>${__("Entrée : nouvelle ligne · Ctrl+B, Ctrl+I")}</span></div>
+		</div>`);
+		this.choisir(this.$p.find('[data-bloc="police"]'), (o.bloc || {}).police || "");
+		this.choisir(this.$p.find('[data-bloc="taille"]'), +(o.bloc || {}).taille ? String(+o.bloc.taille) : "");
+		this.lier();
+		this.rendre_lignes();
+	}
+
+	rendre_lignes(focus) {
+		const $l = this.$p.find(".se-ed-lignes").empty();
+		this.lignes.forEach((l, i) => {
+			const $r = $(`<div class="se-ed-l"><span class="p"></span><input type="text" spellcheck="true" ${this.o.rtl ? 'dir="rtl"' : ""}></div>`);
+			$r.find("input").val(l.texte);
+			$l.append($r);
+			this.styler(i, $r);
+		});
+		this.lier_lignes();
+		this.maj_barre();
+		if (focus) this.focus(focus.i, focus.pos);
+	}
+
+	styler(i, $r) {
+		$r = $r || this.$p.find(".se-ed-l").eq(i);
+		const l = this.lignes[i], s = this.effectif(l), b = this.o.bloc || {};
+		const pt = s.taille || +b.taille || 8.5;
+		const police = (!this.o.rtl && (s.police || b.police)) || "Noto Sans";
+		$r.find("input").css({
+			"font-family": `"AQIA ${police}", "AQIA Noto Sans", sans-serif`, "font-weight": s.gras ? 700 : 400,
+			"font-style": s.italique ? "italic" : "normal", "font-size": `${Math.max(11, Math.min(28, pt * 1.55))}px`,
+		});
+		$r.find(".p").text(this.puce(l) && String(l.texte || "").trim() ? "•" : "");   // une ligne vide ne s'imprime pas
+		$r.toggleClass("cur", i === this.cur).toggleClass("explicite", !!l.style);
+	}
+
+	maj_barre() {
+		const l = this.lignes[this.cur] || { style: null, texte: "" }, s = this.effectif(l), $b = this.$p.find(".se-ed-barre");
+		$b.find('[data-b="gras"]').toggleClass("on", !!s.gras);
+		$b.find('[data-b="italique"]').toggleClass("on", !!s.italique);
+		$b.find('[data-b="puce"]').toggleClass("on", this.puce(l));
+		$b.find('[data-b="effacer"]').prop("disabled", !l.style);
+		this.choisir($b.find('select[data-b="taille"]'), s.taille ? String(s.taille) : "");
+		this.choisir($b.find('select[data-b="police"]'), s.police || "");
+	}
+
+	// Sélectionne une valeur, en l'ajoutant à la liste si elle n'y est pas (taille tapée à la main,
+	// police supprimée depuis).
+	choisir($sel, val) {
+		if (!$sel.length) return;
+		if (val && !$sel.find("option").filter((_i, op) => op.value === val).length) {
+			$sel.find("option").first().after($("<option>").val(val).text(val));
+		}
+		$sel.val(val);
+	}
+
+	focus(i, pos) {
+		const inp = this.$p.find(".se-ed-l input").get(i);
+		if (!inp) return;
+		inp.focus();
+		const p = Math.min(pos == null ? inp.value.length : pos, inp.value.length);
+		inp.setSelectionRange(p, p);
+	}
+
+	change() { if (this.o.on_change) this.o.on_change(this.valeur()); }
+
+	// ─── actions ────────────────────────────────────────────────────────────────
+	appliquer(modif) {
+		const l = this.lignes[this.cur];
+		if (!l) return;
+		const s = Object.assign({}, this.effectif(l));
+		modif(s, l);
+		l.style = this.normaliser(s, l.texte);
+		this.styler(this.cur);
+		this.maj_barre();
+		this.change();
+	}
+
+	lier() {
+		const $e = this.$p.find(".se-ed");
+		// mousedown sans défaut : la ligne en cours garde le focus (et son curseur) pendant le clic.
+		$e.find(".se-ed-barre .b").on("mousedown", (e) => e.preventDefault()).on("click", (e) => {
+			const b = $(e.currentTarget).attr("data-b");
+			if (b === "effacer") {
+				const l = this.lignes[this.cur];
+				if (l) { l.style = null; this.styler(this.cur); this.maj_barre(); this.change(); }
+			} else if (b === "puce") this.appliquer((s, l) => { s.puce = !this.puce(l); });
+			else this.appliquer((s) => { s[b] = !s[b]; });
+		});
+		$e.find('.se-ed-barre select[data-b="taille"]').on("change", (e) => {
+			const v = $(e.currentTarget).val();
+			this.appliquer((s) => { s.taille = v ? +v : 0; });
+			this.focus(this.cur);
+		});
+		$e.find('.se-ed-barre select[data-b="police"]').on("change", (e) => {
+			const v = $(e.currentTarget).val();
+			if (v === "+") {
+				this.maj_barre();
+				this.o.on_ajouter_police((nom, polices) => { this.o.polices = polices; this.rendre(); this.appliquer((s) => { s.police = nom; }); });
+				return;
+			}
+			this.appliquer((s) => { s.police = v; });
+			this.focus(this.cur);
+		});
+		$e.find(".se-ed-bloc select").on("change", (e) => {
+			const $s = $(e.currentTarget), quoi = $s.attr("data-bloc"), v = $s.val();
+			if (v === "+") {
+				this.choisir($s, (this.o.bloc || {}).police || "");
+				this.o.on_ajouter_police((nom, polices) => { this.o.polices = polices; this.o.bloc = Object.assign({}, this.o.bloc, { police: nom }); this.rendre(); this.o.on_bloc(this.o.bloc); });
+				return;
+			}
+			this.o.bloc = Object.assign({}, this.o.bloc, { [quoi]: quoi === "taille" ? +v || 0 : v });
+			this.rendre_lignes();
+			if (this.o.on_bloc) this.o.on_bloc(this.o.bloc);
+		});
+		$e.find('[data-b="brut"]').on("click", (e) => { e.preventDefault(); this.basculer_brut(); });
+		$e.find(".se-ed-brut").on("input", (e) => {
+			this.lignes = $(e.currentTarget).val().split("\n").map((l) => EditeurLignes.analyser(l));
+			this.change();
+		});
+		// Un clic sous la dernière ligne y place le curseur.
+		$e.find(".se-ed-lignes").on("mousedown", (e) => {
+			if (e.target === e.currentTarget) { e.preventDefault(); this.focus(this.lignes.length - 1); }
+		});
+	}
+
+	lier_lignes() {
+		const self = this;
+		this.$p.find(".se-ed-l input").each(function (i) {
+			$(this).on("focus", () => {
+				self.cur = i;
+				self.$p.find(".se-ed-l").removeClass("cur").eq(i).addClass("cur");
+				self.maj_barre();
+			}).on("input", () => {
+				self.lignes[i].texte = this.value;
+				self.styler(i);
+				self.maj_barre();
+				self.change();
+			}).on("keydown", (e) => self.touche(e, i, this))
+				.on("paste", (e) => self.coller(e, i, this));
+		});
+	}
+
+	touche(e, i, input) {
+		const debut = input.selectionStart, fin = input.selectionEnd, l = this.lignes[i];
+		if ((e.ctrlKey || e.metaKey) && ["b", "i"].includes(e.key.toLowerCase())) {
+			e.preventDefault();
+			const prop = e.key.toLowerCase() === "b" ? "gras" : "italique";
+			this.appliquer((s) => { s[prop] = !s[prop]; });
+		} else if (e.key === "Enter") {
+			e.preventDefault();
+			const apres = l.texte.slice(fin);
+			l.texte = l.texte.slice(0, debut);
+			// Couper une ligne garde sa mise en forme aux deux morceaux ; une nouvelle ligne après un
+			// intertitre (gras sans puce) repart en ligne ordinaire.
+			const titre = l.style && l.style.gras && l.style.puce === false;
+			const style = l.style && (apres || !titre) ? Object.assign({}, l.style) : null;
+			this.lignes.splice(i + 1, 0, { style, texte: apres });
+			this.cur = i + 1;
+			this.rendre_lignes({ i: i + 1, pos: 0 });
+			this.change();
+		} else if (e.key === "Backspace" && debut === 0 && fin === 0 && i > 0) {
+			e.preventDefault();
+			const prec = this.lignes[i - 1], pos = prec.texte.length;
+			prec.texte += l.texte;
+			this.lignes.splice(i, 1);
+			this.cur = i - 1;
+			this.rendre_lignes({ i: i - 1, pos });
+			this.change();
+		} else if (e.key === "Delete" && debut === input.value.length && fin === debut && i < this.lignes.length - 1) {
+			e.preventDefault();
+			const pos = l.texte.length;
+			l.texte += this.lignes[i + 1].texte;
+			this.lignes.splice(i + 1, 1);
+			this.rendre_lignes({ i, pos });
+			this.change();
+		} else if (e.key === "ArrowUp" && i > 0) {
+			e.preventDefault();
+			this.focus(i - 1, debut);
+		} else if (e.key === "ArrowDown" && i < this.lignes.length - 1) {
+			e.preventDefault();
+			this.focus(i + 1, debut);
+		}
+	}
+
+	// Coller plusieurs lignes les répartit, chacune avec son éventuel préfixe.
+	coller(e, i, input) {
+		const txt = ((e.originalEvent || e).clipboardData || window.clipboardData).getData("text");
+		if (!txt || !txt.includes("\n")) return;
+		e.preventDefault();
+		const l = this.lignes[i], avant = l.texte.slice(0, input.selectionStart), apres = l.texte.slice(input.selectionEnd);
+		const morceaux = txt.replace(/\r/g, "").split("\n").map((x) => EditeurLignes.analyser(x));
+		l.texte = avant + morceaux[0].texte;
+		if (morceaux[0].style) l.style = morceaux[0].style;
+		const suite = morceaux.slice(1), dernier = suite[suite.length - 1], pos = dernier.texte.length;
+		dernier.texte += apres;
+		this.lignes.splice(i + 1, 0, ...suite);
+		this.cur = i + suite.length;
+		this.rendre_lignes({ i: this.cur, pos });
+		this.change();
+	}
+
+	basculer_brut() {
+		this.brut = !this.brut;
+		const $t = this.$p.find(".se-ed-brut");
+		this.$p.find(".se-ed-lignes, .se-ed-barre").toggle(!this.brut);
+		$t.toggle(this.brut);
+		this.$p.find('[data-b="brut"]').text(this.brut ? __("Lignes mises en forme") : __("Texte brut"));
+		if (this.brut) { $t.val(this.valeur()).trigger("focus"); return; }
+		if (!this.lignes.length) this.lignes = [{ style: null, texte: "" }];
+		this.cur = Math.min(this.cur, this.lignes.length - 1);
+		this.rendre_lignes();
+	}
+}
+
+// Dupliquer un design (studio et fiche) : tout ce qui a été saisi, dessiné et généré suit, sauf le plan
+// et les aperçus, à recomposer.
+function aqia_dupliquer_design(d, apres) {
+	const dlg = new frappe.ui.Dialog({ title: __("Dupliquer {0}", [d.name]),
+		fields: [
+			{ fieldtype: "Link", options: "Item", fieldname: "article", label: __("Article"), default: d.article, reqd: 1,
+			  description: __("Un autre article : son nom, sa photo et son code-barres remplacent ceux de l'original.") },
+			{ fieldtype: "HTML", options: `<p class="text-muted small">${__("La copie reprend la forme, les dimensions, les textes et leur mise en forme, les langues, les pictogrammes, le fond, la mise en page dessinée et les variantes IA déjà générées (rien n'est refacturé). Le plan à plat et les aperçus sont à recomposer.")}</p>` },
+		],
+		primary_action_label: __("Dupliquer"),
+		primary_action: async (v) => {
+			let r;
+			try {
+				r = await frappe.call({ method: "aquaworld_ia.emballage.studio.dupliquer", args: { design: d.name, article: v.article }, freeze: true, freeze_message: __("Copie du design…") });
+			} catch (e) { return; }
+			dlg.hide();
+			frappe.show_alert({ message: __("Copie créée : {0}. Recomposez le plan à plat.", [r.message.name]), indicator: "green" });
+			apres(r.message.name);
+		} });
+	dlg.show();
 }
