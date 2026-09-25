@@ -2,8 +2,8 @@
 amène sa base actuelle en prod ») : les fichiers rattachés aux fixtures (images de pictogrammes,
 polices, fonds et logos de la bibliothèque) et les Réglages sans secret.
 
-- `exporter()` (en dev, avant de pousser) : copie ces fichiers dans `fixtures/fichiers/` avec un
-  manifeste, et écrit `fixtures/reglages.json`. Se lance avec `bench export-fixtures` via le hook
+- `exporter()` (en dev, avant de pousser) : copie ces fichiers dans `contenu/fichiers/` avec un
+  manifeste, et écrit `contenu/reglages.json`. Se lance avec `bench export-fixtures` via le hook
   `export_fixtures`… ou à la main : `bench --site <site> execute aquaworld_ia.transfert.exporter`.
 - `restaurer()` (après migration, partout) : recrée les fiches File manquantes et pose les fichiers
   sur le site ; applique les Réglages ; donne le rôle « Aquaworld IA » aux utilisateurs listés.
@@ -18,7 +18,10 @@ import shutil
 
 import frappe
 
-DOSSIER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
+# ⚠️ PAS dans fixtures/ : Frappe importe chaque .json de ce dossier comme un document (le deploy du
+# 25/09/2026 a échoué sur reglages.json → KeyError 'doctype'). Les fichiers et les réglages vivent
+# dans contenu/, à côté.
+DOSSIER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contenu")
 DOSSIER_FICHIERS = os.path.join(DOSSIER, "fichiers")
 MANIFESTE = os.path.join(DOSSIER_FICHIERS, "manifeste.json")
 REGLAGES = os.path.join(DOSSIER, "reglages.json")
