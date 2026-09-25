@@ -123,6 +123,14 @@ gpt-image-1 plafonne à 1536 px (≈ 300 dpi jusqu'à 13 cm) ; textes, logo, cod
 vectoriels et restent nets. Les pictogrammes livrés dans `public/pictos/` sont des dessins
 génériques **à faire valider** avant impression.
 
+## Transfert dev → prod des documents de travail
+
+Les manuels et designs ne sont pas des fixtures. `transfert.exporter_travail(chemin, noms=None)` écrit un zip
+(docs.json + files/ + files.json) ; `transfert.importer_travail(chemin, remplacer=0)` recrée les documents sous les
+mêmes noms (existants sautés, sauf `remplacer`), pose les fichiers manquants et leurs fiches File, et aligne les
+compteurs de série (`aligner_series`). Ex. :
+`bench --site <site> execute aquaworld_ia.transfert.exporter_travail --kwargs "{'chemin': '/tmp/travail.zip'}"`.
+
 ## Réglages et coûts
 
 - Clé OpenAI : `AI Settings.openai_api_key` (Single livré par woocommerce_fusion) ou
