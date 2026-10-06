@@ -25,6 +25,8 @@ faces : une arête partagée par deux faces est un pli, une arête libre est une
 
 from __future__ import annotations
 
+import html
+
 ETUI = "Étui à rabats"
 CAISSE = "Caisse américaine"
 SAC = "Sac à soufflets latéraux"
@@ -90,8 +92,17 @@ LIBELLES = {
 ZONES_LIBELLES = {
 	"logo": "Logo", "nom": "Nom du produit", "accroche": "Accroche", "caracteristiques": "Caractéristiques",
 	"avertissements": "Avertissements", "contact": "Contact", "pictos": "Pictogrammes", "code_barres": "Code-barres",
-	"photo": "Photo produit",
+	"photo": "Photo produit", "texte_libre": "Texte libre",
 }
+
+
+def libelle_zone(z: dict) -> str:
+	"""Le nom d'une zone dans le studio et l'aperçu ; un texte libre montre le début de son texte. Pur."""
+	base = ZONES_LIBELLES.get(z.get("zone"), z.get("zone") or "")
+	if z.get("zone") == "texte_libre" and isinstance(z.get("texte"), str) and z["texte"].strip():
+		debut = z["texte"].strip().splitlines()[0].strip()
+		return "%s : %s" % (base, debut[:28] + ("…" if len(debut) > 28 else ""))
+	return base
 
 
 def _face(code, x, y, w, h, imprimable, securite, libelle=None, reserve_haut=0.0):
@@ -459,7 +470,7 @@ def apercu_svg(plan: dict, largeur_px: int = 640, zones: dict | None = None, com
 				"0.6" if fond else "0.12", W / 900, W / 240, W / 480))
 			corps = max(2.0, min(min(z["w"], z["h"]) / 4, W / 70))
 			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' fill='#1d4ed8' font-family='sans-serif' pointer-events='none'>%s</text>" % (
-				z["x"] + W / 400, z["y"] + corps, corps, ZONES_LIBELLES.get(z["zone"], z["zone"])))
+				z["x"] + W / 400, z["y"] + corps, corps, html.escape(libelle_zone(z))))
 		parts.append("</g>")
 	parts.append("</svg>")
 	return "".join(parts)

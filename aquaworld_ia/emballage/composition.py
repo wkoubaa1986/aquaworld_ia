@@ -114,7 +114,14 @@ def maquette_face(face: dict, contenu: dict) -> list[dict]:
 
 
 ZONES_AJOUTABLES = ("logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos",
-                    "code_barres", "photo")
+                    "code_barres", "photo", "texte_libre")
+
+#: Les zones qui impriment du texte : chacune accepte sa police, sa taille, gras/italique,
+#: son alignement (`typo`) et sa couleur (`style.texte`) — demande utilisateur 06/10/2026.
+#: « texte_libre » : un texte saisi dans le studio, jamais touché par l'IA ; plusieurs par face.
+ZONES_TEXTE = ("nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre")
+ALIGNEMENTS = ("left", "center", "right", "justify")
+TAILLE_TEXTE_LIBRE = 10.0
 
 
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -138,9 +145,35 @@ def style_zone(zone: dict) -> dict | None:
 	return {"fond": fond, "texte": texte, "rayon": rayon}
 
 
-#: Ce qu'une zone dessinée à la main transporte en plus de sa géométrie : son style et, pour un
-#: logo, le fichier d'une variante propre à cette face.
-CLES_ZONE_CONSERVEES = ("style", "logo", "pictos")
+def typo_zone(zone: dict, familles: set | None = None) -> dict:
+	"""La typographie choisie pour une zone de texte, normalisée : {police, taille, gras, italique,
+	align} — seules les clés réglées sont rendues. Une police inconnue (supprimée depuis) est
+	ignorée quand `familles` est fourni ; taille bornée à 4–120 pt. Pur."""
+	t = zone.get("typo")
+	if not isinstance(t, dict):
+		return {}
+	out = {}
+	police = t.get("police")
+	if isinstance(police, str) and police.strip() and len(police) <= 80 and (familles is None or police.strip() in familles):
+		out["police"] = police.strip()
+	try:
+		taille = float(t.get("taille") or 0)
+	except (TypeError, ValueError):
+		taille = 0.0
+	if taille:
+		out["taille"] = round(max(4.0, min(120.0, taille)), 1)
+	for cle in ("gras", "italique"):
+		if isinstance(t.get(cle), bool):
+			out[cle] = t[cle]
+	if t.get("align") in ALIGNEMENTS:
+		out["align"] = t["align"]
+	return out
+
+
+#: Ce qu'une zone dessinée à la main transporte en plus de sa géométrie : son style, sa
+#: typographie, le texte d'un « texte libre » et, pour un logo, le fichier d'une variante propre
+#: à cette face.
+CLES_ZONE_CONSERVEES = ("style", "logo", "pictos", "typo", "texte")
 
 
 def borner_zone(zone: dict, face: dict) -> dict:
@@ -603,7 +636,7 @@ def _rect_pt(x, y, w, h):
 
 def html_bloc(lignes: list[str], *, taille_pt: float, rtl: bool, famille: str, couleur: str = "#111827",
               gras: bool = False, puces: bool = False, align: str | None = None, facteur: float = 1.0,
-              police_libre: bool = True, familles: set | None = None) -> str:
+              police_libre: bool = True, familles: set | None = None, italique: bool = False) -> str:
 	"""Les paragraphes d'un bloc. Chaque ligne peut porter sa mise en forme (`mise_en_forme`) :
 	taille en pt (multipliée par `facteur`, le rapport de la langue — 2e langue plus petite, arabe
 	relevé), gras, italique, puce, police. La police d'une ligne ne s'applique que si
@@ -630,7 +663,7 @@ def html_bloc(lignes: list[str], *, taille_pt: float, rtl: bool, famille: str, c
 		puce = st["puce"] if "puce" in st else puces
 		style = ("font-family:'%s';font-size:%.1fpt;color:%s;direction:%s;%sfont-weight:%d;font-style:%s;line-height:1.25"
 		         % (fam, taille, couleur, "rtl" if rtl else "ltr", alignement_css(align, rtl),
-		            700 if en_gras else 400, "italic" if st.get("italique") else "normal"))
+		            700 if en_gras else 400, "italic" if (st.get("italique") or italique) else "normal"))
 		# Un intertitre (ou, dans une liste à puces, une ligne grasse sans puce) : un peu d'air au-dessus.
 		marge = "0.5em 0 0.2em 0" if (titre or (en_gras and not puce and puces)) else "0 0 0.3em 0"
 		out.append("<p style=\"%s;margin:%s\">%s%s</p>" % (style, marge, (PUCE + " ") if puce else "", html.escape(texte)))
@@ -774,34 +807,67 @@ def police_libre(langue: dict) -> bool:
 	return not langue.get("rtl") and not langue.get("police_fichier")
 
 
-def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: float, couleur: str,
-                     police_bloc: str | None = None, familles: set | None = None) -> str:
-	"""Le HTML d'une zone, toutes langues empilées (première langue plus grande). `police_bloc` :
-	la police choisie pour les caractéristiques du design."""
+_ARABE = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
+
+
+def html_texte_libre(texte: str | None, typo: dict, couleur: str, familles: set | None = None) -> str:
+	"""Le HTML d'une zone « texte libre » : le texte tel que saisi, ligne par ligne (une ligne
+	vide garde son espace), dans la typographie de la zone. Chaque ligne accepte la même mise en
+	forme que les caractéristiques (« {14pt, gras} … »). Un texte en arabe passe de droite à
+	gauche, dans la police arabe : une police latine n'a pas ses glyphes. Pur."""
+	texte = (texte or "").replace("\r\n", "\n").strip("\n")
+	if not texte.strip():
+		return ""
+	rtl = bool(_ARABE.search(texte))
+	taille = typo.get("taille") or TAILLE_TEXTE_LIBRE
+	famille = "Noto Naskh Arabic" if rtl else (typo.get("police") or "Noto Sans")
 	morceaux = []
+	for ligne in texte.split("\n"):
+		if not ligne.strip():
+			morceaux.append("<p style=\"font-size:%.1fpt;line-height:1.25;margin:0\">&#160;</p>" % taille)
+			continue
+		morceaux.append(html_bloc([ligne], taille_pt=taille, rtl=rtl, famille=famille, couleur=couleur,
+		                          gras=bool(typo.get("gras")), italique=bool(typo.get("italique")),
+		                          align=typo.get("align"), police_libre=not rtl, familles=familles))
+	return "".join(morceaux)
+
+
+def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: float, couleur: str,
+                     police_bloc: str | None = None, familles: set | None = None, typo: dict | None = None) -> str:
+	"""Le HTML d'une zone, toutes langues empilées (première langue plus grande). `police_bloc` :
+	la police choisie pour les caractéristiques du design. `typo` : la typographie choisie pour
+	CETTE zone dans le studio (police, gras, italique, alignement) — elle prime ; la police ne
+	vaut que pour les langues qui l'acceptent (`police_libre`)."""
+	morceaux = []
+	typo = typo or {}
 	perso = {f for f, _u in rendu.polices_personnalisees()}
 	familles = rendu.familles_disponibles() if familles is None else familles
+	police_zone = typo.get("police") if typo.get("police") in familles else None
 	for k, (code, t) in enumerate(textes.items()):
 		lg = langues.get(code) or {}
 		rtl, fam, libre = bool(lg.get("rtl")), _famille(lg, rendu.FAMILLE_TEXTES in perso), police_libre(lg)
 		taille = taille_langue(taille_pt, k, rtl)
 		facteur = taille_langue(1.0, k, rtl)
+		if libre and police_zone:
+			fam = police_zone
+		commun = dict(rtl=rtl, couleur=couleur, facteur=facteur, police_libre=libre, familles=familles,
+		              italique=bool(typo.get("italique")))
 		if nom_zone == "nom":
 			continue
 		if nom_zone == "accroche" and t.get("accroche"):
-			morceaux.append(html_bloc([t["accroche"]], taille_pt=taille, rtl=rtl, famille=fam, couleur=couleur, gras=True,
-			                          align="center", facteur=facteur, police_libre=libre, familles=familles))
+			morceaux.append(html_bloc([t["accroche"]], taille_pt=taille, famille=fam, gras=typo.get("gras", True),
+			                          align=typo.get("align") or "center", **commun))
 		elif nom_zone == "caracteristiques" and t.get("caracteristiques"):
-			if libre and police_bloc and police_bloc in familles:
+			if libre and not police_zone and police_bloc and police_bloc in familles:
 				fam = police_bloc
-			morceaux.append(html_bloc(t["caracteristiques"], taille_pt=taille, rtl=rtl, famille=fam, couleur=couleur, puces=True,
-			                          facteur=facteur, police_libre=libre, familles=familles))
+			morceaux.append(html_bloc(t["caracteristiques"], taille_pt=taille, famille=fam, puces=True,
+			                          gras=bool(typo.get("gras")), align=typo.get("align"), **commun))
 		elif nom_zone == "avertissements" and t.get("avertissements"):
-			morceaux.append(html_bloc(t["avertissements"], taille_pt=taille * 0.85, rtl=rtl, famille=fam, couleur=couleur,
-			                          facteur=facteur, police_libre=libre, familles=familles))
+			morceaux.append(html_bloc(t["avertissements"], taille_pt=taille * 0.85, famille=fam,
+			                          gras=bool(typo.get("gras")), align=typo.get("align"), **commun))
 		elif nom_zone == "contact" and t.get("contact"):
-			morceaux.append(html_bloc(t["contact"].splitlines(), taille_pt=taille * 0.85, rtl=rtl, famille=fam, couleur=couleur,
-			                          facteur=facteur, police_libre=libre, familles=familles))
+			morceaux.append(html_bloc(t["contact"].splitlines(), taille_pt=taille * 0.85, famille=fam,
+			                          gras=bool(typo.get("gras")), align=typo.get("align"), **commun))
 	return "".join(morceaux)
 
 
@@ -961,15 +1027,22 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				if logo_face:
 					poser_logo(page, rect, logo_face)
 			elif z["zone"] == "nom":
+				typo = typo_zone(z, familles)
 				interieur = dessiner_cartouche(page, rect, style)
-				taille = taille_nom(interieur[2] - interieur[0], interieur[3] - interieur[1], nom_produit)
-				poser_texte(page, interieur, html_bloc([nom_produit], taille_pt=taille, rtl=False, famille=fam_titres,
-				                                       couleur=couleur_zone, gras=True, align="center"), archive, css)
-			elif z["zone"] in ("accroche", "caracteristiques", "avertissements", "contact"):
-				base = {"accroche": 11.0, "caracteristiques": flt(doc.get("taille_caracteristiques")) or 8.5,
-				        "avertissements": 7.0, "contact": 7.0}[z["zone"]]
-				contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_zone,
-				                                police_bloc=doc.get("police_caracteristiques"), familles=familles)
+				taille = typo.get("taille") or taille_nom(interieur[2] - interieur[0], interieur[3] - interieur[1], nom_produit)
+				poser_texte(page, interieur, html_bloc([nom_produit], taille_pt=taille, rtl=False,
+				                                       famille=typo.get("police") or fam_titres, couleur=couleur_zone,
+				                                       gras=typo.get("gras", True), italique=bool(typo.get("italique")),
+				                                       align=typo.get("align") or "center"), archive, css)
+			elif z["zone"] in ("accroche", "caracteristiques", "avertissements", "contact", "texte_libre"):
+				typo = typo_zone(z, familles)
+				if z["zone"] == "texte_libre":
+					contenu_html = html_texte_libre(z.get("texte"), typo, couleur_zone, familles)
+				else:
+					base = typo.get("taille") or {"accroche": 11.0, "caracteristiques": flt(doc.get("taille_caracteristiques")) or 8.5,
+					                              "avertissements": 7.0, "contact": 7.0}[z["zone"]]
+					contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_zone,
+					                                police_bloc=doc.get("police_caracteristiques"), familles=familles, typo=typo)
 				if contenu_html:
 					if style and style.get("fond"):
 						echelle = poser_texte(page, dessiner_cartouche(page, rect, style), contenu_html, archive, css)

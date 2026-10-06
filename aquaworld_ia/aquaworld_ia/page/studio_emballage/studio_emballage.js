@@ -419,8 +419,8 @@ class StudioEmballage {
 		// Barre d'outils de la face épinglée, AU-DESSUS du plan : ajouter une zone (logo, photo,
 		// pictogrammes…), revenir à la maquette, libérer — la colonne de droite n'est pas toujours visible.
 		const fe = this.epinglee && infos[this.epinglee];
-		const TYPES = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
-		const LIBS = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes / certifications"), code_barres: __("Code-barres"), photo: __("Photo produit") };
+		const TYPES = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre", "pictos", "code_barres", "photo"];
+		const LIBS = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), texte_libre: __("Texte libre (sans IA)"), pictos: __("Pictogrammes / certifications"), code_barres: __("Code-barres"), photo: __("Photo produit") };
 		const outils = fe ? `<div class="se-outils" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 8px;margin-bottom:6px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;font-size:12.5px">
 				<b>${this._esc(fe.libelle)}</b> <span class="text-muted">${__("épinglée")}</span>
 				<span style="margin-left:8px">${__("Ajouter :")}</span>
@@ -467,12 +467,13 @@ class StudioEmballage {
 		const NS = "http://www.w3.org/2000/svg";
 		const W = svg.viewBox.baseVal.width, POIGNEE = Math.max(2.5, W / 90);
 		const g = document.createElementNS(NS, "g"); g.setAttribute("class", "se-edit"); svg.appendChild(g);
-		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null, pictos: z.pictos || null }));
+		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null, pictos: z.pictos || null, typo: z.typo || null, texte: z.texte || "" }));
 		const u = face.utile || face;   // une zone ne va jamais dans une bande réservée (repli agrafé)
 		const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); g.appendChild(n); return n; };
 		const point = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
 		const sauver = () => {
-			this.mep[face.code] = zones.map((z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {}, z.pictos && z.pictos.length ? { pictos: z.pictos } : {}));
+			this.mep[face.code] = zones.map((z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {}, z.pictos && z.pictos.length ? { pictos: z.pictos } : {},
+				z.typo && Object.keys(z.typo).length ? { typo: z.typo } : {}, z.zone === "texte_libre" ? { texte: z.texte || "" } : {}));
 			this.modifier({ mise_en_page: this.mep }, false);
 		};
 		zones.forEach((z, i) => {
@@ -481,6 +482,10 @@ class StudioEmballage {
 				stroke: this.zone_sel === i ? "#dc2626" : "#d97706", "stroke-width": this.zone_sel === i ? W / 350 : W / 700, style: "cursor:move" });
 			const t = el("text", { x: z.x + W / 400, y: z.y + Math.max(2, Math.min(z.w, z.h) / 4), "font-size": Math.max(2, Math.min(Math.min(z.w, z.h) / 4, W / 70)), fill: "#92400e", "font-family": "sans-serif", style: "pointer-events:none" });
 			t.textContent = z.libelle || z.zone;
+			if (z.zone === "texte_libre") {
+				if (z.typo && z.typo.police) t.setAttribute("font-family", `"AQIA ${z.typo.police}", sans-serif`);
+				if (z.style && z.style.texte) t.setAttribute("fill", z.style.texte);
+			}
 			const p = el("rect", { x: z.x + z.w - POIGNEE, y: z.y + z.h - POIGNEE, width: POIGNEE, height: POIGNEE, fill: "#d97706", style: "cursor:nwse-resize" });
 			const x = el("text", { x: z.x + z.w - POIGNEE * 0.9, y: z.y + POIGNEE * 1.1, "font-size": POIGNEE * 1.3, fill: "#b91c1c", "font-family": "sans-serif", style: "cursor:pointer;font-weight:bold" });
 			x.textContent = "×"; x.addEventListener("click", (e) => { e.stopPropagation(); zones.splice(i, 1); sauver(); });
@@ -514,7 +519,11 @@ class StudioEmballage {
 		const f = c.face.utile || c.face;
 		// Une photo part grande et centrée (on la réduit ensuite) ; un texte ou un logo, en bandeau.
 		const g = type === "photo" ? { x: 0.2, y: 0.25, w: 0.6, h: 0.45 } : { x: 0.3, y: 0.4, w: 0.4, h: 0.15 };
-		c.zones.push({ zone: type, x: f.x + f.w * g.x, y: f.y + f.h * g.y, w: f.w * g.w, h: f.h * g.h, libelle: type });
+		const z = { zone: type, x: f.x + f.w * g.x, y: f.y + f.h * g.y, w: f.w * g.w, h: f.h * g.h, libelle: type };
+		if (type === "texte_libre") z.texte = __("Votre texte");
+		c.zones.push(z);
+		// Un texte libre s'écrit tout de suite : ses réglages (texte, police, couleur) s'ouvrent.
+		if (type === "texte_libre") this.zone_sel = c.zones.length - 1;
 		c.sauver();
 	}
 
@@ -594,7 +603,7 @@ class StudioEmballage {
 		const $b = this.$root.find('[data-role="face"]');
 		if (!f) return $b.html(`<span class="text-muted">${__("Survolez une face du plan.")}</span>`);
 		const epinglee = this.epinglee === f.code;
-		const zones = (f.zones || []).map((z, i) => `<li ${epinglee ? `data-zi="${i}" style="cursor:pointer${this.zone_sel === i ? ";font-weight:600;color:#b91c1c" : ""}"` : ""}>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span>${z.style && z.style.fond ? ` <span class="se-chip" style="background:${this._esc(z.style.fond)};color:${this._esc((z.style.texte) || "#fff")}">${__("cartouche")}</span>` : ""}${z.logo ? ` <span class="se-chip">${__("logo propre")}</span>` : ""}${z.pictos && z.pictos.length ? ` <span class="se-chip">${__("{0} picto(s)", [z.pictos.length])}</span>` : ""}</li>`).join("");
+		const zones = (f.zones || []).map((z, i) => `<li ${epinglee ? `data-zi="${i}" style="cursor:pointer${this.zone_sel === i ? ";font-weight:600;color:#b91c1c" : ""}"` : ""}>${this._esc(z.libelle)} <span class="text-muted">${z.w.toFixed(0)} × ${z.h.toFixed(0)} mm</span>${z.style && z.style.fond ? ` <span class="se-chip" style="background:${this._esc(z.style.fond)};color:${this._esc((z.style.texte) || "#fff")}">${__("cartouche")}</span>` : ""}${z.logo ? ` <span class="se-chip">${__("logo propre")}</span>` : ""}${z.pictos && z.pictos.length ? ` <span class="se-chip">${__("{0} picto(s)", [z.pictos.length])}</span>` : ""}${this._chip_typo(z)}</li>`).join("");
 		const sel = epinglee && this.zone_sel != null ? (f.zones || [])[this.zone_sel] : null;
 		const TEXTES = ["nom", "accroche", "caracteristiques", "avertissements", "contact"];
 		let props = "";
@@ -617,16 +626,8 @@ class StudioEmballage {
 					<button class="btn btn-xs btn-default" data-role="centrer-v" title="${__("Centrer verticalement sur la face")}">↕ ${__("Centrer")}</button>
 					<button class="btn btn-xs btn-default" data-role="pleine-largeur" title="${__("Toute la largeur utile de la face")}">${__("Pleine largeur")}</button></div></div>`;
 		}
-		if (sel && TEXTES.includes(sel.zone)) {
-			const st = sel.style || {};
-			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Zone « {0} »", [this._esc(sel.libelle)])}</h6>
-				<div style="display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;font-size:12px">
-					<span>${__("Cartouche")}</span><input type="color" data-prop="fond" value="${this._esc(st.fond || "#1d4ed8")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_fond" ${st.fond ? "checked" : ""}> ${__("fond")}</label>
-					<span>${__("Texte")}</span><input type="color" data-prop="texte" value="${this._esc(st.texte || "#ffffff")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_texte" ${st.texte ? "checked" : ""}> ${__("couleur")}</label>
-					<span>${__("Coins (mm)")}</span><input type="number" data-prop="rayon" min="0" step="0.5" value="${st.rayon || 0}" style="width:70px"><span></span>
-				</div>
-				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-style">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="style-aucun">${__("Sans cartouche")}</button></div>
-				<div class="text-muted small" style="margin-top:6px">${__("Exemple : fond bleu, coins 4 mm, texte blanc. Le cartouche épouse la zone : ajustez sa taille sur le plan.")}</div></div>`;
+		if (sel && (TEXTES.includes(sel.zone) || sel.zone === "texte_libre")) {
+			props += this._panneau_texte(sel);
 		} else if (sel && sel.zone === "logo") {
 			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Logo de cette face")}</h6>
 				<div class="se-fichier"><img src="${this._esc(sel.logo || this.d.logo || "")}" alt="">
@@ -646,8 +647,8 @@ class StudioEmballage {
 		} else if (sel) {
 			props += `<div class="text-muted small" style="margin-top:6px">${__("Cette zone n'a pas de réglage : déplacez-la ou redimensionnez-la sur le plan.")}</div>`;
 		}
-		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "pictos", "code_barres", "photo"];
-		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
+		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre", "pictos", "code_barres", "photo"];
+		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), texte_libre: __("Texte libre (sans IA)"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
 		const source = f.copie_de && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_de);
 		const bloquee = f.copie_bloquee && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_bloquee);
 		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}${source ? ` <span class="se-chip" title="${__("Modifiez la face source : cette face la suit. Dessinez ici pour la rendre indépendante.")}">${__("copie de {0}", [this._esc(source.libelle)])}</span>` : ""}${bloquee ? ` <span class="se-chip echec" title="${__("Option cochée, mais cette face a sa propre mise en page : « Revenir à la maquette automatique » pour qu'elle recopie.")}">${__("ne copie plus {0}", [this._esc(bloquee.libelle)])}</span>` : ""}</h6>
@@ -671,8 +672,27 @@ class StudioEmballage {
 			const rayon = parseFloat($b.find('[data-prop="rayon"]').val()) || 0;
 			if (rayon) st.rayon = rayon;
 			z.style = (st.fond || st.texte) ? st : null;
+			// Typographie de la zone (06/10/2026) : police, taille, gras, italique, alignement.
+			const ty = {};
+			const police = $b.find('[data-prop="police"]').val(); if (police) ty.police = police;
+			const taille = parseFloat($b.find('[data-prop="taille"]').val()); if (taille) ty.taille = taille;
+			ty.gras = $b.find('[data-prop="gras"]').is(":checked");
+			if ($b.find('[data-prop="italique"]').is(":checked")) ty.italique = true;
+			const align = $b.find('[data-prop="align"]').val(); if (align) ty.align = align;
+			z.typo = ty;
+			if (z.zone === "texte_libre") z.texte = $b.find('[data-prop="texte_libre"]').val() || "";
 			this._zones_en_cours.sauver();
 		});
+		// La police choisie se voit tout de suite dans le champ de texte.
+		$b.find('[data-prop="police"]').on("change", (e) => {
+			const v = $(e.currentTarget).val();
+			$b.find('[data-prop="texte_libre"]').css("font-family", v ? `"AQIA ${v}", sans-serif` : "");
+		});
+		$b.find('[data-prop="texte"], [data-prop="avec_texte"]').on("change", () => {
+			const avec = $b.find('[data-prop="avec_texte"]').is(":checked");
+			$b.find('[data-prop="texte_libre"]').css("color", avec ? $b.find('[data-prop="texte"]').val() : "");
+		});
+		$b.find('[data-role="police-zone-ajouter"]').on("click", () => this.ajouter_police(() => this.face_info(f)));
 		$b.find('[data-role="style-aucun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.style = null; this._zones_en_cours.sauver(); });
 		const utile = () => { const c = this._zones_en_cours || {}; return c.face ? (c.face.utile || c.face) : null; };
 		$b.find('[data-role="appliquer-pos"]').on("click", () => {
@@ -690,6 +710,41 @@ class StudioEmballage {
 		$b.find('[data-role="logo-variante"]').on("click", () => this.bibliotheque("logo", (l) => { const z = zone_courante(); if (!z) return; z.logo = l.image; this._zones_en_cours.sauver(); }));
 		$b.find('[data-role="logo-commun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.logo = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="reinit-face"]').on("click", () => this.reinitialiser_face(f.code));
+	}
+
+	// Une zone de texte : son texte (texte libre, jamais touché par l'IA), sa typographie et sa
+	// couleur — demande utilisateur 06/10/2026 : « chaque zone texte je peux contrôler font et couleur ».
+	_panneau_texte(sel) {
+		this.injecter_polices();   // les polices du studio, pour l'aperçu dans le champ et sur le plan
+		const esc = this._esc, st = sel.style || {}, ty = sel.typo || {};
+		const libre = sel.zone === "texte_libre";
+		const gras = ty.gras !== undefined ? ty.gras : ["nom", "accroche"].includes(sel.zone);
+		const polices = (this.data.polices || []).map((p) => p.famille);
+		const ALIGN = [["", __("Par défaut")], ["left", __("Gauche")], ["center", __("Centré")], ["right", __("Droite")], ["justify", __("Justifié")]];
+		const apercu = `${ty.police ? `font-family:&quot;AQIA ${esc(ty.police)}&quot;, sans-serif;` : ""}${st.texte ? `color:${esc(st.texte)};` : ""}${st.fond ? `background:${esc(st.fond)};` : ""}`;
+		const defaut_taille = { nom: __("auto"), accroche: "11", caracteristiques: String(+this.d.taille_caracteristiques || 8.5), avertissements: "7", contact: "7", texte_libre: "10" }[sel.zone];
+		return `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Zone « {0} »", [esc(sel.libelle)])}</h6>
+			${libre ? `<label class="small" style="margin:0">${__("Texte")}</label>
+				<textarea class="form-control" data-prop="texte_libre" rows="4" style="font-size:13px;${apercu}">${esc(sel.texte || "")}</textarea>
+				<div class="text-muted small" style="margin:3px 0 8px">${__("Imprimé tel quel, jamais modifié par l'IA. Une ligne peut avoir sa propre mise en forme : « {14pt, gras} Ma ligne ».")}</div>` : ""}
+			<div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 8px;align-items:center;font-size:12px">
+				<span>${__("Police")}</span><span style="display:flex;gap:4px;min-width:0"><select class="form-control input-xs" data-prop="police" style="height:26px;font-size:12px;flex:1;min-width:0"><option value="">${__("Par défaut")}</option>${polices.map((p) => `<option value="${esc(p)}" ${p === ty.police ? "selected" : ""}>${esc(p)}</option>`).join("")}</select><button class="btn btn-xs btn-default" data-role="police-zone-ajouter" title="${__("Ajouter une police (TTF/OTF)")}">＋</button></span>
+				<span>${__("Taille (pt)")}</span><input type="number" data-prop="taille" min="4" max="120" step="0.5" value="${ty.taille || ""}" placeholder="${esc(defaut_taille)}" style="width:80px">
+				<span>${__("Style")}</span><span><label class="se-check" style="margin:0 10px 0 0"><input type="checkbox" data-prop="gras" ${gras ? "checked" : ""}> <b>${__("Gras")}</b></label><label class="se-check" style="margin:0"><input type="checkbox" data-prop="italique" ${ty.italique ? "checked" : ""}> <i>${__("Italique")}</i></label></span>
+				<span>${__("Alignement")}</span><select class="form-control input-xs" data-prop="align" style="height:26px;font-size:12px">${ALIGN.map(([v, l]) => `<option value="${v}" ${(ty.align || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+				<span>${__("Couleur")}</span><span style="display:flex;gap:8px;align-items:center"><input type="color" data-prop="texte" value="${esc(st.texte || "#111827")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_texte" ${st.texte ? "checked" : ""}> ${__("imposer")}</label></span>
+				<span>${__("Cartouche")}</span><span style="display:flex;gap:8px;align-items:center"><input type="color" data-prop="fond" value="${esc(st.fond || "#1d4ed8")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_fond" ${st.fond ? "checked" : ""}> ${__("fond")}</label></span>
+				<span>${__("Coins (mm)")}</span><input type="number" data-prop="rayon" min="0" step="0.5" value="${st.rayon || 0}" style="width:70px">
+			</div>
+			<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-style">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="style-aucun">${__("Sans cartouche")}</button></div>
+			<div class="text-muted small" style="margin-top:6px">${__("La taille est un maximum : si le texte ne tient pas dans la zone, il est réduit (agrandissez la zone sur le plan). « Par défaut » = la police du design. Puis recomposez le plan (étape 4) pour voir le résultat imprimé.")}</div></div>`;
+	}
+
+	_chip_typo(z) {
+		const ty = z.typo || {}, st = z.style || {};
+		if (!ty.police && !ty.taille && !(st.texte && !st.fond)) return "";
+		const style = `${ty.police ? `font-family:&quot;AQIA ${this._esc(ty.police)}&quot;, sans-serif;` : ""}${st.texte && !st.fond ? `color:${this._esc(st.texte)};` : ""}`;
+		return ` <span class="se-chip" style="${style}">Aa ${this._esc([ty.police, ty.taille ? ty.taille + " pt" : ""].filter(Boolean).join(" · ") || __("couleur"))}</span>`;
 	}
 
 	// ─── actions ────────────────────────────────────────────────────────────────

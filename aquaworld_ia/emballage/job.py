@@ -82,7 +82,7 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 	        "faces": [{"code": f["code"], "libelle": f["libelle"], "x": f["x"], "y": f["y"], "w": f["w"], "h": f["h"],
 	                   "utile": f.get("utile"), "copie_de": copies.get(f["code"]), "copie_bloquee": bloquees.get(f["code"]),
 	                   "personnalisee": bool(mep and f["code"] in mep),
-	                   "zones": [dict(z, libelle=geometrie.ZONES_LIBELLES.get(z["zone"], z["zone"])) for z in zones[f["code"]]]}
+	                   "zones": [dict(z, libelle=geometrie.libelle_zone(z)) for z in zones[f["code"]]]}
 	                  for f in plan["faces"] if f["imprimable"]]}
 
 
