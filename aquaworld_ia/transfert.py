@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 
 import frappe
@@ -124,12 +125,31 @@ def restaurer_fichiers() -> int:
 			poses += 1
 		if not frappe.db.exists("File", {"file_url": e["url"]}):
 			rattache = e["doctype"] != "Aquaworld IA Reglages" and frappe.db.exists(e["doctype"], e["name"])
-			frappe.get_doc({
-				"doctype": "File", "file_name": e["fichier"], "file_url": e["url"], "is_private": 1 if e["prive"] else 0,
+			fiche_fichier_existant({
+				"file_name": e["fichier"], "file_url": e["url"], "is_private": 1 if e["prive"] else 0,
 				"attached_to_doctype": e["doctype"] if rattache else None, "attached_to_name": e["name"] if rattache else None,
 				"attached_to_field": e["champ"] if rattache else None,
-			}).insert(ignore_permissions=True)
+			})
 	return poses
+
+
+def fiche_fichier_existant(valeurs: dict):
+	"""La fiche File d'un fichier DÉJÀ posé sur le site, sous SON nom. Un `insert()` ordinaire relit le
+	fichier et le réécrit : trouvant un fichier du même nom, Frappe en pose une copie suffixée de
+	l'empreinte (« …apercu-3d09a609.png » → « …apercu-3d09a60909a609.png ») et la fiche pointe la copie ;
+	le document, lui, pointe l'original, sans fiche → « Forbidden » pour un fichier privé (constaté en
+	prod le 06/10/2026 sur EMB-2026-0006, et sur 0002-0005 depuis le transfert du 25/09)."""
+	from frappe.core.doctype.file.utils import get_content_hash
+
+	f = frappe.get_doc(dict(valeurs, doctype="File"))
+	chemin = _chemin_site(f.file_url)
+	if os.path.exists(chemin):
+		with open(chemin, "rb") as fh:
+			contenu = fh.read()
+		f.content_hash = get_content_hash(contenu)
+		f.file_size = len(contenu)
+	f.flags.copy_from_existing_file = True       # Frappe ≥ 15.10x : ni relecture ni réécriture du fichier
+	return f.insert(ignore_permissions=True)
 
 
 def appliquer_reglages() -> int:
@@ -263,9 +283,9 @@ def importer_travail(chemin: str, remplacer: int = 0) -> dict:
 					shutil.copyfileobj(src, out)
 				fichiers += 1
 			if not frappe.db.exists("File", {"file_url": f["file_url"], "attached_to_name": f["attached_to_name"]}):
-				frappe.get_doc({"doctype": "File", "file_name": f["file_name"], "file_url": f["file_url"], "is_private": f.get("is_private") or 0,
-				                "attached_to_doctype": f["attached_to_doctype"], "attached_to_name": f["attached_to_name"],
-				                "attached_to_field": f.get("attached_to_field")}).insert(ignore_permissions=True)
+				fiche_fichier_existant({"file_name": f["file_name"], "file_url": f["file_url"], "is_private": f.get("is_private") or 0,
+				                        "attached_to_doctype": f["attached_to_doctype"], "attached_to_name": f["attached_to_name"],
+				                        "attached_to_field": f.get("attached_to_field")})
 	aligner_series(crees)
 	frappe.db.commit()
 	return {"crees": crees, "sautes": sautes, "fichiers": fichiers}
@@ -287,3 +307,58 @@ def aligner_series(noms) -> dict:
 			else:
 				frappe.db.sql("UPDATE `tabSeries` SET current = %s WHERE name = %s", (n, prefixe))
 	return maxima
+
+
+# ------------------------------------------------------------------ réparation des copies suffixées
+_DOUBLE = re.compile(r"^(.*?)([0-9a-f]{6})\2(\.[A-Za-z0-9]+)$")
+
+
+def url_d_origine(file_url: str, content_hash: str | None) -> str | None:
+	"""« /private/files/X09a60909a609.png » (empreinte 09a609 en double) -> « /private/files/X09a609.png » :
+	la copie qu'un ancien import a fabriquée, et le nom d'origine que le document emploie. None si l'URL
+	n'est pas une telle copie. Pur."""
+	m = _DOUBLE.match(file_url or "")
+	if not m or not content_hash or not content_hash.endswith(m.group(2)):
+		return None
+	return m.group(1) + m.group(2) + m.group(3)
+
+
+def reparer_fichiers_doubles(appliquer: int = 1) -> dict:
+	"""Les fiches File qui pointent une copie suffixée (voir `fiche_fichier_existant`) reprennent le nom
+	d'origine — même contenu, déjà sur le disque, et c'est lui que les documents emploient — puis la
+	copie devenue orpheline est effacée. Idempotent. `appliquer=0` : ne fait que compter."""
+	from frappe.core.doctype.file.utils import get_content_hash
+
+	# Seulement ce que l'app a transféré : ses documents de travail, ses fixtures, et les fichiers de design /
+	# manuel restés sans rattachement. Les autres modules ne passent pas par cet import : on n'y touche pas.
+	doctypes = list(DOCTYPES_TRAVAIL) + list(CHAMPS_FICHIERS)
+	fiches = frappe.db.sql("""select name, file_url, content_hash from `tabFile`
+		where is_folder = 0 and file_url regexp '[0-9a-f]{6}[0-9a-f]{6}[.][A-Za-z0-9]+$'
+		  and (attached_to_doctype in %(doctypes)s
+		       or (ifnull(attached_to_doctype, '') = '' and (file_name like 'EMB-%%' or file_name like 'MAN-%%')))""",
+		{"doctypes": doctypes}, as_dict=True)
+	reparees, copies = [], set()
+	for f in fiches:
+		origine = url_d_origine(f.file_url, f.content_hash)
+		if not origine:
+			continue
+		chemin = _chemin_site(origine)
+		if not os.path.exists(chemin):
+			continue
+		with open(chemin, "rb") as fh:
+			if get_content_hash(fh.read()) != f.content_hash:
+				continue                                  # même nom, autre contenu : on n'y touche pas
+		reparees.append(f.name)
+		copies.add(f.file_url)
+		if int(appliquer):
+			frappe.db.set_value("File", f.name, {"file_url": origine, "file_name": origine.rsplit("/", 1)[-1]}, update_modified=False)
+	effacees = 0
+	if int(appliquer):
+		for url in copies:
+			chemin = _chemin_site(url)
+			if not frappe.db.exists("File", {"file_url": url}) and os.path.exists(chemin):
+				os.remove(chemin)
+				effacees += 1
+		frappe.db.commit()
+	return {"fiches": len(reparees), "copies": len(copies), "copies_effacees": effacees}
+
