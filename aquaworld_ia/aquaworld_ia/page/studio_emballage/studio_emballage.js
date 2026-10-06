@@ -156,14 +156,16 @@ class StudioEmballage {
 			: "").join("");
 		const langues = (this.data.langues || []).map((l) => `<span class="c ${(d.langues || []).some((x) => x.langue === l.code) ? "on" : ""}" data-langue="${esc(l.code)}">${esc(l.libelle)}</span>`).join("");
 		const pictos = (this.data.pictos || []).map((p) => `<span class="c pic ${(d.pictogrammes || []).some((x) => x.pictogramme === p.code) ? "on" : ""}" data-picto="${esc(p.code)}" title="${esc(p.categorie || "")}">${p.url ? `<img src="${esc(p.url)}" alt="">` : ""}${esc(p.libelle)}</span>`).join("")
-			+ `<span class="c ajout" data-ajouter-picto="1" title="${__("Ajouter un pictogramme ou une certification depuis une image")}">＋ ${__("Ajouter")}</span>`;
+			+ `<span class="c ajout" data-ajouter-picto="1" title="${__("Ajouter un pictogramme ou une certification depuis une image")}">＋ ${__("Ajouter")}</span>`
+			+ `<span class="c ajout" data-tampon-ia="1" title="${__("Un tampon / badge vectoriel (SVG) dessiné par l'IA : poids, garantie, « 100 % naturel »…")}">✨ ${__("Tampon IA")}</span>`;
 		const fichier = (champ, libelle) => `
 			<label>${libelle}</label>
 			<div class="se-fichier">
-				${d[champ] ? `<img src="${esc(d[champ])}" alt="">` : `<span class="text-muted small">${__("aucun fichier")}</span>`}
+				${d[champ] ? `<img src="${esc(d[champ])}" alt="" data-voir="${champ}" style="cursor:zoom-in" title="${__("Ouvrir en grand — prendre une couleur à la pipette")}">` : `<span class="text-muted small">${__("aucun fichier")}</span>`}
 				<button class="btn btn-xs btn-default" data-televerser="${champ}">${d[champ] ? __("Remplacer") : __("Choisir un fichier")}</button>
 				${d[champ] ? `<button class="btn btn-xs btn-default" data-effacer="${champ}">✕</button>` : ""}
 				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_ia" title="${__("Changer les couleurs, épurer, moderniser — par IA, avant de le poser")}">✨ ${__("Retoucher par IA")}</button>` : ""}
+				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_couleur" title="${__("Le logo en UNE couleur choisie dans une palette, exacte et sans IA, en SVG ou PNG")}">🎨 ${__("Couleur & SVG")}</button>` : ""}
 				${champ === "photo_produit" && d.photo_produit ? `<button class="btn btn-xs btn-default" data-action="photo_ia" title="${__("Détourer sur blanc pur, éclairage studio, retirer les accessoires — par IA, plusieurs propositions")}">✨ ${__("Améliorer par IA")}</button>` : ""}
 				${StudioEmballage.BIBLIO[champ] ? `<button class="btn btn-xs btn-default" data-bibliotheque="${champ}" title="${__("Reprendre un fond, un motif, une variante de logo ou une photo gardés en bibliothèque")}">📚 ${__("Bibliothèque")}</button>` : ""}
 				${StudioEmballage.BIBLIO[champ] && d[champ] ? `<button class="btn btn-xs btn-default" data-garder="${champ}" title="${__("Garder ce fichier en bibliothèque, sous un nom, pour un autre design")}">💾 ${__("Garder")}</button>` : ""}
@@ -203,7 +205,12 @@ class StudioEmballage {
 						<div><label>${__("Code")}</label><select data-champ="type_code_barres">${["EAN-13", "QR", "EAN-13 + QR", "Aucun"].map((o) => `<option ${o === d.type_code_barres ? "selected" : ""}>${o}</option>`).join("")}</select></div>
 						<div><label>${__("EAN-13")}</label><input type="text" data-champ="code_barres" value="${esc(d.code_barres || "")}"></div>
 					</div>
-					<label>${__("URL du QR")}</label><input type="text" data-champ="url_qr" value="${esc(d.url_qr || "")}">
+					<label>${__("URL du QR")}</label><input type="text" data-champ="url_qr" value="${esc(d.url_qr || "")}" placeholder="https://…">
+					<label>${__("Couleur du QR")}</label>
+					<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input type="color" data-champ="couleur_qr" value="${esc(d.couleur_qr || "#000000")}" style="width:44px;height:26px;padding:1px">
+						${this._palette().map((c) => { const ok = this._contraste_blanc(c) >= 3; return `<span class="se-pastille petite" style="background:${esc(c)};${ok ? "" : "opacity:.35;cursor:not-allowed"}" title="${esc(c)}${ok ? "" : " — " + __("trop clair pour un QR")}" ${ok ? `data-qr-couleur="${esc(c)}"` : ""}></span>`; }).join("")}
+						${d.couleur_qr && d.couleur_qr !== "#000000" ? `<button class="btn btn-xs btn-default" data-qr-couleur="">${__("Noir")}</button>` : ""}</div>
+					<div class="text-muted small">${__("Une teinte foncée : le QR se lit sur son cartouche blanc (les couleurs trop claires sont refusées). Pour le poser sur une face : épinglez-la, puis « Ajouter : QR code ».")}</div>
 				</div>
 			</div>
 			<div class="se-etape" data-etape="3">
@@ -215,14 +222,16 @@ class StudioEmballage {
 						<span class="small text-muted">${d.couleur_fond ? esc(d.couleur_fond) + ` <a href="#" data-effacer="couleur_fond">✕</a>` : __("Sans couleur choisie : la dominante du visuel IA.")}</span>
 					</div>
 					${fichier("image_fond", __("Image de fond (texture, motif)"))}
-					<div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${this._dims_ok() ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button></div>
+					<div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${this._dims_ok() ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button>
+						<button class="btn btn-sm btn-default" data-action="integrer" ${this._dims_ok() ? "" : "disabled"} title="${__("L'IA fond ensemble l'image de fond, la photo du produit et les couleurs du logo sur une face, selon votre consigne")}">✨ ${__("Intégrer photo + fond (IA)")}</button></div>
 					<label class="se-check"><input type="checkbox" data-champ="fond_continu" ${d.fond_continu ? "checked" : ""}> ${__("Fond continu sur toutes les faces (panorama découpé aux plis)")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="faces_identiques" ${d.faces_identiques ? "checked" : ""}> ${__("Face arrière identique à la face avant")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="cotes_identiques" ${d.cotes_identiques ? "checked" : ""} title="${__("Avec le dos identique à l'avant, le code-barres et les avertissements sont dupliqués sur les deux côtés.")}"> ${__("Côtés identiques (gauche = droit)")}</label>
 					<p class="text-muted small" style="margin:2px 0 6px">${__("Avec une couleur ou une image de fond et la photo du produit, le plan se compose aussi SANS variante IA.")}</p>
 					<label>${__("Brief de style")}</label><textarea data-champ="brief_style" placeholder="${__("ex. haut de gamme, bleu profond, minimaliste")}">${esc(d.brief_style || "")}</textarea>
 					<div class="se-3" style="grid-template-columns:1.6fr 1fr">
-						<div><label>${__("Palette (hex)")}</label><input type="text" data-champ="palette" value="${esc(d.palette || "")}"></div>
+						<div><label>${__("Palette (hex)")}</label><input type="text" data-champ="palette" value="${esc(d.palette || "")}">
+							<div class="se-palette" data-role="palette-pastilles">${this._pastilles_palette()}</div></div>
 						<div><label>${__("Variantes")}</label><input type="number" min="1" max="4" data-champ="nb_variantes" value="${d.nb_variantes || 3}"></div>
 					</div>
 					<div class="se-btns">
@@ -281,7 +290,9 @@ class StudioEmballage {
 			if (e.type === "change" || $i.is("textarea, input[type=text]")) sauver(champ, $i.val());
 			if (e.type === "input" && $i.is("input[type=number]")) sauver(champ, $i.val());
 		});
+		$g.find("[data-qr-couleur]").on("click", (e) => this.modifier({ couleur_qr: $(e.currentTarget).attr("data-qr-couleur") }, true));
 		$g.find("[data-ajouter-picto]").on("click", () => this.ajouter_picto());
+		$g.find("[data-tampon-ia]").on("click", () => this.atelier_tampon());
 		$g.find("[data-liste] .c").on("click", (e) => {
 			const $c = $(e.currentTarget), liste = $c.parent().attr("data-liste");
 			$c.toggleClass("on");
@@ -294,6 +305,17 @@ class StudioEmballage {
 		$g.find("[data-bibliotheque]").on("click", (e) => this.bibliotheque($(e.currentTarget).attr("data-bibliotheque")));
 		$g.find("[data-garder]").on("click", (e) => this.garder($(e.currentTarget).attr("data-garder")));
 		$g.find("[data-action]").on("click", (e) => this.action($(e.currentTarget).attr("data-action")));
+		// Une vignette s'ouvre en grand, avec la pipette (demande utilisateur 06/10/2026).
+		$g.find("[data-voir]").on("click", (e) => {
+			const champ = $(e.currentTarget).attr("data-voir");
+			this.visionneuse(this.d[champ], { logo: __("Logo"), photo_produit: __("Photo du produit"), image_fond: __("Image de fond") }[champ] || "");
+		});
+		// La palette se redessine pendant la frappe ; une pastille cliquée sort de la palette.
+		$g.find('[data-champ="palette"]').on("input", (e) => $g.find('[data-role="palette-pastilles"]').html(this._pastilles_palette(e.currentTarget.value)));
+		$g.on("click", '[data-role="palette-pastilles"] [data-retirer]', (e) => {
+			const c = $(e.currentTarget).attr("data-retirer");
+			this.modifier({ palette: this._palette().filter((x) => x !== c).join(", ") }, true);
+		});
 		this.monter_editeur();
 	}
 
@@ -321,20 +343,25 @@ class StudioEmballage {
 			const detail = des.map((x) => __("{0} : {1} lignes préparées pour {2} ici", [x.code.toUpperCase(), x.lignes, x.brutes])).join(" · ");
 			h += `<p class="text-danger small" style="margin:4px 0 0">⚠ ${__("Mise en forme non reportée ({0}). Imprimez vos lignes telles quelles ci-dessous, re-préparez les textes, ou mettez-les en forme dans « Modifier les textes ».", [this._esc(detail)])}</p>`;
 		}
-		// Vos lignes déjà écrites dans la langue de l'emballage : elles remplacent la reformulation de l'IA.
-		if (codes.length) h += `<div class="se-btns" style="margin-top:4px">${codes.map((c) => `<button class="btn btn-xs ${des.some((x) => x.code === c) ? "btn-primary" : "btn-default"}" data-lignes-brutes="${this._esc(c)}" title="${__("Remplace les caractéristiques préparées pour cette langue par les lignes ci-dessus, mise en forme comprise. À utiliser quand vos lignes sont déjà écrites dans cette langue.")}">${__("Imprimer mes lignes telles quelles ({0})", [this._esc(c.toUpperCase())])}</button>`).join("")}</div>`;
+		// Vos textes de l'étape 2 non encore imprimés (06/10/2026 : « j'ai changé le texte, je n'arrive pas à l'appliquer »).
+		const non_appliques = this.data.textes_non_appliques || [];
+		if (non_appliques.length) h += `<p class="text-danger small" style="margin:4px 0 0">⚠ ${__("Vos textes ci-dessus ne sont PAS ceux qui s'impriment ({0}) : l'emballage imprime les textes préparés. Cliquez le bouton bleu pour imprimer les vôtres.", [this._esc(non_appliques.join(", ").toUpperCase())])}</p>`;
+		// Vos textes déjà écrits dans la langue de l'emballage : ils remplacent la reformulation de l'IA.
+		if (codes.length) h += `<div class="se-btns" style="margin-top:4px">${codes.map((c) => `<button class="btn btn-xs ${des.some((x) => x.code === c) || non_appliques.includes(c) ? "btn-primary" : "btn-default"}" data-lignes-brutes="${this._esc(c)}" title="${__("Les caractéristiques (mise en forme comprise), les avertissements et le contact de l'étape 2 deviennent ceux qui s'impriment pour cette langue. À utiliser quand vous les avez écrits dans cette langue.")}">${__("Imprimer mes textes tels quels ({0})", [this._esc(c.toUpperCase())])}</button>`).join("")}</div>`;
 		const $a = this.$root.find('[data-role="avert-lignes"]').html(h);
-		$a.find("[data-lignes-brutes]").on("click", async (e) => {
-			const langue = $(e.currentTarget).attr("data-lignes-brutes");
-			try {
-				// Les frappes en attente d'abord : c'est le texte à l'écran qui doit partir.
-				await this.enregistrer({ caracteristiques: this.editeur ? this.editeur.valeur() : d.caracteristiques });
-				const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.utiliser_lignes_brutes", args: { design: this.nom, langue }, freeze: true });
-				this.data = r.message; this.d = this.data.doc; this._lire_mep();
-				this.rendre_scene(); this.rendre_droite(); this.rendre_avert_lignes();
-				frappe.show_alert({ message: __("Vos lignes s'impriment en {0} : recomposez le plan (étape 4).", [langue.toUpperCase()]), indicator: "green" });
-			} catch (e2) { frappe.msgprint(this._msg(e2)); }
-		});
+		$a.find("[data-lignes-brutes]").on("click", (e) => this.imprimer_mes_textes($(e.currentTarget).attr("data-lignes-brutes")));
+	}
+
+	// Les textes de l'étape 2 deviennent ceux qui s'impriment pour `langue` (caractéristiques, avertissements, contact).
+	async imprimer_mes_textes(langue) {
+		try {
+			// Les frappes en attente d'abord : c'est le texte à l'écran qui doit partir.
+			await this.enregistrer({ caracteristiques: this.editeur ? this.editeur.valeur() : this.d.caracteristiques });
+			const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.utiliser_lignes_brutes", args: { design: this.nom, langue }, freeze: true });
+			this.data = r.message; this.d = this.data.doc; this._lire_mep();
+			this.rendre_scene(); this.rendre_droite(); this.rendre_avert_lignes();
+			frappe.show_alert({ message: __("Vos textes s'impriment en {0} : recomposez le plan (étape 4).", [langue.toUpperCase()]), indicator: "green" });
+		} catch (e2) { frappe.msgprint(this._msg(e2)); }
 	}
 
 	// Les polices dans le navigateur (@font-face), pour que l'éditeur montre chaque ligne dans la sienne.
@@ -406,7 +433,16 @@ class StudioEmballage {
 		if (this.onglet === "variantes") return this.scene_variantes($s);
 		if (this.onglet === "images") return this.scene_images($s);
 		if (this.onglet === "artwork") return $s.html(d.apercu_plan ? `<img class="se-img" src="${this._esc(d.apercu_plan)}" alt=""><p class="text-muted small text-center" style="margin-top:8px">${__("Aperçu à l'écran. Le PDF imprimeur est à l'échelle, avec le calque de découpe.")}</p>` : `<div class="se-vide">${__("Pas encore de plan composé : choisissez une variante puis « Composer le plan à plat ».")}</div>`);
-		if (this.onglet === "3d") return $s.html(d.apercu_3d ? `<img class="se-img" src="${this._esc(d.apercu_3d)}" alt=""><p class="text-muted small text-center" style="margin-top:8px">${__("Illustration non contractuelle.")}</p>` : `<div class="se-vide">${__("Pas encore de rendu 3D : composez le plan, puis « Aperçu 3D ».")}</div>`);
+		if (this.onglet === "3d") {
+			// Pendant la génération (≈ 1 min), l'onglet le DIT : il affichait « Pas encore de rendu 3D : composez le
+			// plan… », lu comme un échec (retour utilisateur 06/10/2026 : « ça n'a pas marché », le rendu était en cours).
+			const e = this.data.etat || {};
+			if (this._mockup_en_cours || (e.tache === "mockup" && e.statut === "en cours"))
+				return $s.html(`<div class="se-vide">⏳ ${__("Rendu 3D en cours, environ une minute : l'image s'affichera ici toute seule.")}<br><span class="small text-muted" data-role="attente-txt">${this._esc(e.etape || "")}</span></div>`);
+			const echec = e.tache === "mockup" && e.statut === "echec"
+				? `<p class="text-danger small text-center">${__("Le dernier rendu 3D a échoué : {0}. Relancez « Aperçu 3D » (étape 4).", [this._esc(e.erreur || __("erreur inconnue"))])}</p>` : "";
+			return $s.html(echec + (d.apercu_3d ? `<img class="se-img" src="${this._esc(d.apercu_3d)}" alt=""><p class="text-muted small text-center" style="margin-top:8px">${__("Illustration non contractuelle.")}</p>` : `<div class="se-vide">${__("Pas encore de rendu 3D : composez le plan, puis « Aperçu 3D ».")}</div>`));
+		}
 	}
 
 	scene_plan($s) {
@@ -419,12 +455,12 @@ class StudioEmballage {
 		// Barre d'outils de la face épinglée, AU-DESSUS du plan : ajouter une zone (logo, photo,
 		// pictogrammes…), revenir à la maquette, libérer — la colonne de droite n'est pas toujours visible.
 		const fe = this.epinglee && infos[this.epinglee];
-		const TYPES = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre", "pictos", "code_barres", "photo"];
-		const LIBS = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), texte_libre: __("Texte libre (sans IA)"), pictos: __("Pictogrammes / certifications"), code_barres: __("Code-barres"), photo: __("Photo produit") };
+		const TYPES = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre", "pictos", "code_barres", "qr", "photo"];
+		const LIBS = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), texte_libre: __("Texte libre (sans IA)"), pictos: __("Pictogrammes / certifications"), code_barres: __("Code-barres"), qr: __("QR code"), photo: __("Photo produit") };
 		const outils = fe ? `<div class="se-outils" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 8px;margin-bottom:6px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;font-size:12.5px">
 				<b>${this._esc(fe.libelle)}</b> <span class="text-muted">${__("épinglée")}</span>
 				<span style="margin-left:8px">${__("Ajouter :")}</span>
-				<select class="form-control input-xs" data-role="type-zone-plan" style="height:26px;font-size:12px;width:auto;display:inline-block">${TYPES.map((t) => `<option value="${t}">${LIBS[t]}</option>`).join("")}</select>
+				<select class="form-control input-xs" data-role="type-zone-plan" style="height:26px;font-size:12px;width:auto;display:inline-block">${TYPES.map((t) => `<option value="${t}">${LIBS[t]}</option>`).join("")}${this._options_tampons()}</select>
 				<button class="btn btn-xs btn-primary" data-role="ajouter-zone-plan">＋ ${__("Ajouter la zone")}</button>
 				${fe.personnalisee ? `<button class="btn btn-xs btn-default" data-role="reinit-face-plan">${__("Revenir à la maquette automatique")}</button>` : ""}
 				<button class="btn btn-xs btn-default" data-role="liberer-face-plan">${__("Libérer")}</button>
@@ -467,13 +503,13 @@ class StudioEmballage {
 		const NS = "http://www.w3.org/2000/svg";
 		const W = svg.viewBox.baseVal.width, POIGNEE = Math.max(2.5, W / 90);
 		const g = document.createElementNS(NS, "g"); g.setAttribute("class", "se-edit"); svg.appendChild(g);
-		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null, pictos: z.pictos || null, typo: z.typo || null, texte: z.texte || "" }));
+		const zones = (face.zones || []).map((z) => ({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h, libelle: z.libelle, style: z.style || null, logo: z.logo || null, pictos: z.pictos || null, typo: z.typo || null, texte: z.texte || "", code: z.code || null, auto: z.auto || 0 }));
 		const u = face.utile || face;   // une zone ne va jamais dans une bande réservée (repli agrafé)
 		const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); g.appendChild(n); return n; };
 		const point = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
 		const sauver = () => {
 			this.mep[face.code] = zones.map((z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {}, z.pictos && z.pictos.length ? { pictos: z.pictos } : {},
-				z.typo && Object.keys(z.typo).length ? { typo: z.typo } : {}, z.zone === "texte_libre" ? { texte: z.texte || "" } : {}));
+				z.typo && Object.keys(z.typo).length ? { typo: z.typo } : {}, z.zone === "texte_libre" ? { texte: z.texte || "" } : {}, z.code ? { code: z.code } : {}));
 			this.modifier({ mise_en_page: this.mep }, false);
 		};
 		zones.forEach((z, i) => {
@@ -488,7 +524,13 @@ class StudioEmballage {
 			}
 			const p = el("rect", { x: z.x + z.w - POIGNEE, y: z.y + z.h - POIGNEE, width: POIGNEE, height: POIGNEE, fill: "#d97706", style: "cursor:nwse-resize" });
 			const x = el("text", { x: z.x + z.w - POIGNEE * 0.9, y: z.y + POIGNEE * 1.1, "font-size": POIGNEE * 1.3, fill: "#b91c1c", "font-family": "sans-serif", style: "cursor:pointer;font-weight:bold" });
-			x.textContent = "×"; x.addEventListener("click", (e) => { e.stopPropagation(); zones.splice(i, 1); sauver(); });
+			x.textContent = "×"; x.addEventListener("click", (e) => {
+				e.stopPropagation();
+				// La photo posée d'office revient tant qu'une photo produit existe : on le dit au lieu de faire semblant.
+				if (z.auto) return frappe.msgprint(__("La photo produit est posée automatiquement. Déplacez-la ou agrandissez-la pour la placer vous-même ; pour ne pas l'imprimer, retirez la photo produit à l'étape 2 (×)."));
+				zones.splice(i, 1); sauver();
+			});
+			if (z.auto) r.setAttribute("stroke-dasharray", `${W / 150},${W / 300}`);
 			const glisser = (mode) => (e) => {
 				e.preventDefault(); e.stopPropagation();
 				const p0 = point(e), z0 = { ...z };
@@ -514,9 +556,21 @@ class StudioEmballage {
 	}
 
 	ajouter_zone(type) {
+		if (String(type || "").startsWith("tampon:")) return this.placer_tampon(type.slice(7), this.epinglee);
 		const c = this._zones_en_cours;
 		if (!c) return;
 		const f = c.face.utile || c.face;
+		// Un QR code (06/10/2026 : « si je veux l'ajouter en face ? ») : une zone code-barres qui ne porte que
+		// le QR, carrée, 22 mm (le minimum confortable pour un téléphone), en bas à droite de la face.
+		if (type === "qr") {
+			const t = Math.max(10, Math.min(22, f.w * 0.45, f.h * 0.45));
+			c.zones.push({ zone: "code_barres", code: "qr", x: f.x + f.w - t - 3, y: f.y + f.h - t - 3, w: t, h: t, libelle: __("QR code") });
+			this.zone_sel = c.zones.length - 1;
+			c.sauver();
+			if (!["QR", "EAN-13 + QR"].includes(this.d.type_code_barres) || !this.d.url_qr)
+				frappe.show_alert({ message: __("Zone QR posée. Pour qu'il s'imprime : étape 2, « Code » = QR (ou EAN-13 + QR) et l'URL du QR."), indicator: "orange" }, 10);
+			return;
+		}
 		// Une photo part grande et centrée (on la réduit ensuite) ; un texte ou un logo, en bandeau.
 		const g = type === "photo" ? { x: 0.2, y: 0.25, w: 0.6, h: 0.45 } : { x: 0.3, y: 0.4, w: 0.4, h: 0.15 };
 		const z = { zone: type, x: f.x + f.w * g.x, y: f.y + f.h * g.y, w: f.w * g.w, h: f.h * g.h, libelle: type };
@@ -525,6 +579,32 @@ class StudioEmballage {
 		// Un texte libre s'écrit tout de suite : ses réglages (texte, police, couleur) s'ouvrent.
 		if (type === "texte_libre") this.zone_sel = c.zones.length - 1;
 		c.sauver();
+	}
+
+	// Les tampons cochés sur le design, proposés directement dans « Ajouter » (06/10/2026 : « le tampon généré,
+	// comment je peux l'ajouter ? » — il fallait une zone Pictogrammes, la cliquer et ne cocher que lui).
+	_options_tampons() {
+		const coches = new Set((this.d.pictogrammes || []).map((p) => p.pictogramme));
+		const tampons = (this.data.pictos || []).filter((p) => p.categorie === "Tampon" && coches.has(p.code));
+		return tampons.length ? `<optgroup label="${__("Tampons")}">${tampons.map((p) => `<option value="tampon:${this._esc(p.code)}">${__("Tampon")} : ${this._esc(p.libelle || p.code)}</option>`).join("")}</optgroup>` : "";
+	}
+
+	// Pose un tampon sur une face : une zone « Pictogrammes » qui ne montre que lui, à sa taille (mm), en bas à
+	// droite de la partie utile — ensuite on la déplace et on l'agrandit sur le plan comme toute zone.
+	async placer_tampon(code, face_code) {
+		const f = ((this.data.apercu || {}).faces || []).find((x) => x.code === face_code);
+		if (!f) return frappe.msgprint(__("Épinglez d'abord une face du plan (cliquez-la), puis ajoutez le tampon."));
+		const u = f.utile || f, p = (this.data.pictos || []).find((x) => x.code === code) || {};
+		const t = Math.max(8, Math.min(+p.taille_mm || 25, u.w * 0.45, u.h * 0.45));
+		const garder = (z) => Object.assign({ zone: z.zone, x: z.x, y: z.y, w: z.w, h: z.h }, z.style ? { style: z.style } : {}, z.logo ? { logo: z.logo } : {},
+			z.pictos && z.pictos.length ? { pictos: z.pictos } : {}, z.typo ? { typo: z.typo } : {}, z.zone === "texte_libre" ? { texte: z.texte || "" } : {}, z.code ? { code: z.code } : {});
+		const zones = (this.mep[face_code] || (f.zones || []).map(garder)).slice();
+		zones.push({ zone: "pictos", x: u.x + u.w - t - 4, y: Math.min(u.y + u.h * 0.6, u.y + u.h - t - 4), w: t, h: t, pictos: [code] });
+		this.mep[face_code] = zones;
+		await this.modifier({ mise_en_page: this.mep }, false);
+		this.epinglee = face_code; this.zone_sel = zones.length - 1; this.onglet = "plan";
+		this.rendre_scene();
+		frappe.show_alert({ message: __("Tampon posé sur « {0} » : déplacez-le ou agrandissez-le sur le plan, puis recomposez (étape 4).", [f.libelle]), indicator: "green" }, 8);
 	}
 
 	reinitialiser_face(code) {
@@ -537,19 +617,29 @@ class StudioEmballage {
 		const d = this.d, esc = this._esc;
 		const vs = d.variantes || [];
 		if (!vs.length) return $s.html(`<div class="se-vide">${__("Aucune variante : préparez les textes et styles, puis générez.")}</div>`);
-		$s.html(`<div class="se-galerie">${vs.map((v) => `
+		$s.html(`<div class="se-aide-variantes">${__("Une <b>variante</b> est une image IA de la <b>face avant entière</b> : votre photo produit mise en scène dans un style (titre et description sous chaque image). La variante <b>choisie</b> devient le visuel de la face avant du plan (et du dos si « face arrière identique ») ; les autres faces prennent la couleur ou l'image de fond. Cliquez « ✓ Choisie » pour la retirer : la face avant redevient fond + photo produit.")}</div>
+			<div class="se-galerie">${vs.map((v) => `
 			<div class="se-carte ${v.numero === d.variante_choisie ? "choisie" : ""}">
 				${v.image ? `<img src="${esc(v.image)}" alt="">` : `<div class="vide">${esc(v.statut || "")}</div>`}
 				<div class="leg"><b>${v.numero}. ${esc(v.titre || "")}</b><br><span class="text-muted">${esc(v.description || "")}</span>
 				${v.erreur ? `<br><span class="text-danger">${esc(v.erreur)}</span>` : ""}
 				${v.cout_estime ? `<br><span class="text-muted">${v.cout_estime.toFixed(3)} $</span>` : ""}</div>
 				<div class="act">
-					${v.statut === "Prête" ? `<button class="btn btn-xs btn-primary" data-choisir="${v.numero}">${v.numero === d.variante_choisie ? "✓ " + __("Choisie") : __("Choisir")}</button>` : ""}
+					${v.statut === "Prête" ? (v.numero === d.variante_choisie
+						? `<button class="btn btn-xs btn-primary" data-retirer-variante="${v.numero}" title="${__("Ne plus utiliser cette variante sur la face avant")}">✓ ${__("Choisie")} — ${__("retirer")}</button>`
+						: `<button class="btn btn-xs btn-primary" data-choisir="${v.numero}">${__("Choisir")}</button>`) : ""}
 					${["Prête", "Échec"].includes(v.statut) ? `<button class="btn btn-xs btn-default" data-regenerer="${v.numero}">${__("Régénérer")}</button>` : ""}
 				</div></div>`).join("")}</div>`);
 		$s.find("[data-choisir]").on("click", async (e) => {
 			await frappe.call({ method: "aquaworld_ia.emballage.job.choisir_variante", args: { design: this.nom, numero: $(e.currentTarget).data("choisir") } });
 			await this.recharger();
+		});
+		$s.find("[data-retirer-variante]").on("click", () => {
+			frappe.confirm(__("Ne plus utiliser de variante IA sur la face avant ? Elle redeviendra fond + photo produit (recomposez ensuite le plan, étape 4)."), async () => {
+				await frappe.call({ method: "aquaworld_ia.emballage.job.choisir_variante", args: { design: this.nom, numero: 0 } });
+				await this.recharger();
+				frappe.show_alert({ message: __("Variante retirée : recomposez le plan (étape 4)."), indicator: "green" });
+			});
 		});
 		$s.find("[data-regenerer]").on("click", (e) => {
 			const n = $(e.currentTarget).data("regenerer");
@@ -568,7 +658,7 @@ class StudioEmballage {
 		$s.html(`<p class="text-muted small">${__("Toutes les images de ce design, la plus récente d'abord : logos et logos retouchés par IA, photos, fonds, variantes, faces IA. Un clic les remet en service ou les garde en bibliothèque.")}</p>
 			<div class="se-galerie">${images.map((im) => `
 			<div class="se-carte ${im.usage ? "choisie" : ""}">
-				<img src="${esc(im.file_url)}" alt="" style="aspect-ratio:4 / 3;object-fit:contain;background:#fff">
+				<img src="${esc(im.file_url)}" alt="" data-voir-url="${esc(im.file_url)}" title="${__("Ouvrir en grand — prendre une couleur à la pipette")}" style="aspect-ratio:4 / 3;object-fit:contain;background:#fff;cursor:zoom-in">
 				<div class="leg"><span class="se-chip">${esc(im.genre)}</span> ${im.usage ? `<span class="se-chip ok">${USAGES[im.usage]}</span>` : ""}<br><span class="text-muted">${esc(frappe.datetime.str_to_user(im.creation).slice(0, 16))}</span></div>
 				<div class="act" style="flex-wrap:wrap">
 					<button class="btn btn-xs btn-default" data-usage="logo" data-url="${esc(im.file_url)}" title="${__("Utiliser comme logo du design")}">${__("Logo")}</button>
@@ -579,6 +669,7 @@ class StudioEmballage {
 				</div></div>`).join("")}</div>`);
 		$s.find("[data-usage]").on("click", (e) => this.modifier({ [$(e.currentTarget).attr("data-usage")]: $(e.currentTarget).attr("data-url") }, true));
 		$s.find("[data-garder-url]").on("click", (e) => this.garder($(e.currentTarget).attr("data-garder-champ"), $(e.currentTarget).attr("data-garder-url")));
+		$s.find("[data-voir-url]").on("click", (e) => this.visionneuse($(e.currentTarget).attr("data-voir-url"), ""));
 	}
 
 	// ─── colonne de droite ──────────────────────────────────────────────────────
@@ -591,8 +682,13 @@ class StudioEmballage {
 		].join("");
 		this.$root.find(".se-droite").html(`
 			<div class="bloc" data-role="face"><span class="text-muted">${__("Survolez une face du plan.")}</span></div>
-			<div class="bloc se-textes"><h6>${__("Textes imprimés")}</h6>${this.data.textes_html || ""}</div>
+			<div class="bloc se-textes"><h6>${__("Textes imprimés")}</h6>
+				${(this.data.textes_non_appliques || []).length ? `<div class="small text-danger" style="margin-bottom:6px">⚠ ${__("Ce ne sont pas vos textes de l'étape 2 : ce sont les textes préparés.")}
+					<div class="se-btns" style="margin-top:4px">${this.data.textes_non_appliques.map((c) => `<button class="btn btn-xs btn-primary" data-imprimer-mes-textes="${this._esc(c)}">${__("Remplacer par mes textes de l'étape 2 ({0})", [this._esc(c.toUpperCase())])}</button>`).join("")}</div></div>` : ""}
+				${this.data.textes_html || ""}
+				${this.d.textes_ia ? `<div class="small text-muted" style="margin-top:6px">${__("Pour retoucher ces textes un par un (accroche comprise) : « Modifier les textes », étape 3.")}</div>` : ""}</div>
 			<div class="bloc"><h6>${__("Fichiers")}</h6>${fichiers ? `<ul>${fichiers}</ul>` : `<span class="text-muted">${__("Rien encore.")}</span>`}</div>`);
+		this.$root.find(".se-droite [data-imprimer-mes-textes]").on("click", (e) => this.imprimer_mes_textes($(e.currentTarget).attr("data-imprimer-mes-textes")));
 		// Une face épinglée garde son panneau (zones, « Ajouter », « Revenir ») après chaque
 		// enregistrement : sans cela, déplacer une zone effaçait le panneau qui sert à continuer.
 		const f = this.epinglee && ((this.data.apercu || {}).faces || []).find((x) => x.code === this.epinglee);
@@ -644,19 +740,28 @@ class StudioEmballage {
 				${cases || `<span class="text-muted small">${__("Cochez d'abord des pictogrammes à l'étape 2.")}</span>`}
 				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-pictos">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="pictos-tous">${__("Tous")}</button></div>
 				<div class="text-muted small" style="margin-top:6px">${__("Rien de coché = tous les pictogrammes. Ils se posent côte à côte à la hauteur de la zone : agrandissez-la pour un logo de certification.")}</div></div>`;
+		} else if (sel && sel.zone === "code_barres") {
+			const PORTE = [["", __("Automatique (selon « Code », étape 2)")], ["qr", __("QR code")], ["ean", __("EAN-13")]];
+			const petit = sel.code === "qr" && Math.min(sel.w, sel.h) < 20;
+			props += `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f8fafc"><h6>${__("Contenu de cette zone")}</h6>
+				<select class="form-control input-xs" data-prop="code_zone" style="height:26px;font-size:12px">${PORTE.map(([v, l]) => `<option value="${v}" ${(sel.code || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+				<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-code">${__("Appliquer")}</button></div>
+				${petit ? `<div class="text-danger small" style="margin-top:6px">⚠ ${__("Moins de 20 mm de côté : le scan devient incertain. Agrandissez la zone.")}</div>` : ""}
+				<div class="text-muted small" style="margin-top:6px">${__("QR code : le QR, carré, au centre de la zone, dans la couleur choisie à l'étape 2. Dès qu'une zone QR code existe, les zones automatiques n'impriment plus de second QR.")}</div></div>`;
 		} else if (sel) {
 			props += `<div class="text-muted small" style="margin-top:6px">${__("Cette zone n'a pas de réglage : déplacez-la ou redimensionnez-la sur le plan.")}</div>`;
 		}
-		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre", "pictos", "code_barres", "photo"];
-		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), texte_libre: __("Texte libre (sans IA)"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), photo: __("Photo produit") };
+		const types = ["logo", "nom", "accroche", "caracteristiques", "avertissements", "contact", "texte_libre", "pictos", "code_barres", "qr", "photo"];
+		const libs = { logo: __("Logo"), nom: __("Nom du produit"), accroche: __("Accroche"), caracteristiques: __("Caractéristiques"), avertissements: __("Avertissements"), contact: __("Contact"), texte_libre: __("Texte libre (sans IA)"), pictos: __("Pictogrammes"), code_barres: __("Code-barres"), qr: __("QR code"), photo: __("Photo produit") };
 		const source = f.copie_de && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_de);
 		const bloquee = f.copie_bloquee && ((this.data.apercu || {}).faces || []).find((x) => x.code === f.copie_bloquee);
 		$b.html(`<h6>${this._esc(f.libelle)} <span class="text-muted">${f.w.toFixed(0)} × ${f.h.toFixed(0)} mm</span>${f.personnalisee ? ` <span class="se-chip encours">${__("personnalisée")}</span>` : ""}${source ? ` <span class="se-chip" title="${__("Modifiez la face source : cette face la suit. Dessinez ici pour la rendre indépendante.")}">${__("copie de {0}", [this._esc(source.libelle)])}</span>` : ""}${bloquee ? ` <span class="se-chip echec" title="${__("Option cochée, mais cette face a sa propre mise en page : « Revenir à la maquette automatique » pour qu'elle recopie.")}">${__("ne copie plus {0}", [this._esc(bloquee.libelle)])}</span>` : ""}</h6>
 			${zones ? `<ul>${zones}</ul>` : `<span class="text-muted">${__("Aucun emplacement : renseignez logo, textes, pictogrammes ou code-barres.")}</span>`}
 			${props}
+			${this.epinglee === f.code ? this._bloc_fond_face(f) : ""}
 			${this.epinglee === f.code ? `
 				<div class="small" style="margin-top:8px">${__("Sur le plan : glissez une zone pour la déplacer, tirez son coin pour l'agrandir, × pour la supprimer, cliquez-la pour ses réglages (cartouche, logo).")}</div>
-				<div style="display:flex;gap:4px;margin-top:6px;align-items:center"><select class="form-control input-xs" data-role="type-zone" style="height:26px;font-size:12px;flex:1;min-width:0">${types.map((t) => `<option value="${t}">${libs[t]}</option>`).join("")}</select>
+				<div style="display:flex;gap:4px;margin-top:6px;align-items:center"><select class="form-control input-xs" data-role="type-zone" style="height:26px;font-size:12px;flex:1;min-width:0">${types.map((t) => `<option value="${t}">${libs[t]}</option>`).join("")}${this._options_tampons()}</select>
 					<button class="btn btn-xs btn-default" data-role="ajouter-zone" style="white-space:nowrap">＋ ${__("Ajouter")}</button></div>
 				${f.personnalisee ? `<button class="btn btn-xs btn-default" style="margin-top:6px" data-role="reinit-face">${__("Revenir à la maquette automatique")}</button>` : ""}
 				<div class="text-muted small" style="margin-top:6px">${__("Cliquez à nouveau la face pour la libérer.")}</div>`
@@ -693,6 +798,12 @@ class StudioEmballage {
 			$b.find('[data-prop="texte_libre"]').css("color", avec ? $b.find('[data-prop="texte"]').val() : "");
 		});
 		$b.find('[data-role="police-zone-ajouter"]').on("click", () => this.ajouter_police(() => this.face_info(f)));
+		// Une pastille de la palette du design remplit la couleur (et coche « imposer » / « fond »).
+		$b.find("[data-pastille-cible]").on("click", (e) => {
+			const $p = $(e.currentTarget), cible = $p.attr("data-pastille-cible");
+			$b.find(`[data-prop="${cible}"]`).val($p.attr("data-couleur")).trigger("change");
+			$b.find(`[data-prop="${cible === "texte" ? "avec_texte" : "avec_fond"}"]`).prop("checked", true).trigger("change");
+		});
 		$b.find('[data-role="style-aucun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.style = null; this._zones_en_cours.sauver(); });
 		const utile = () => { const c = this._zones_en_cours || {}; return c.face ? (c.face.utile || c.face) : null; };
 		$b.find('[data-role="appliquer-pos"]').on("click", () => {
@@ -706,10 +817,161 @@ class StudioEmballage {
 		$b.find('[data-role="centrer-v"]').on("click", () => { const z = zone_courante(), u = utile(); if (!z || !u) return; z.y = u.y + (u.h - z.h) / 2; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="pleine-largeur"]').on("click", () => { const z = zone_courante(), u = utile(); if (!z || !u) return; z.x = u.x + 3; z.w = Math.max(3, u.w - 6); this._zones_en_cours.sauver(); });
 		$b.find('[data-role="appliquer-pictos"]').on("click", () => { const z = zone_courante(); if (!z) return; z.pictos = $b.find("[data-picto-zone]:checked").map((_i, el) => $(el).attr("data-picto-zone")).get(); this._zones_en_cours.sauver(); });
+		$b.find('[data-role="appliquer-code"]').on("click", () => { const z = zone_courante(); if (!z) return; z.code = $b.find('[data-prop="code_zone"]').val() || null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="pictos-tous"]').on("click", () => { const z = zone_courante(); if (!z) return; z.pictos = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="logo-variante"]').on("click", () => this.bibliotheque("logo", (l) => { const z = zone_courante(); if (!z) return; z.logo = l.image; this._zones_en_cours.sauver(); }));
 		$b.find('[data-role="logo-commun"]').on("click", () => { const z = zone_courante(); if (!z) return; z.logo = null; this._zones_en_cours.sauver(); });
 		$b.find('[data-role="reinit-face"]').on("click", () => this.reinitialiser_face(f.code));
+		// Fond de la face (06/10/2026) : mode, couleur, composition IA.
+		const regler = (reg) => {
+			const fonds = this._fonds();
+			if (reg) fonds[f.code] = Object.assign({}, fonds[f.code] || {}, reg); else delete fonds[f.code];
+			this.d.fonds_faces = JSON.stringify(fonds);
+			this.modifier({ fonds_faces: fonds }, false).then(() => {
+				this.face_info(f);
+				frappe.show_alert({ message: __("Fond de la face enregistré : recomposez le plan (étape 4)."), indicator: "green" });
+			});
+		};
+		$b.find("[data-mode-fond]").on("click", (e) => {
+			const mode = $(e.currentTarget).attr("data-mode-fond"), actuel = this._fonds()[f.code] || {};
+			if (!mode) return regler(null);
+			if (mode === "couleur") return regler({ mode, couleur: actuel.couleur || this._palette()[0] || "#e5e7eb" });
+			regler({ mode });
+		});
+		$b.find('[data-role="fond-face-couleur"]').on("change", (e) => regler({ mode: "couleur", couleur: e.currentTarget.value.toLowerCase() }));
+		$b.find("[data-fond-face-pastille]").on("click", (e) => regler({ mode: "couleur", couleur: $(e.currentTarget).attr("data-fond-face-pastille") }));
+		$b.find('[data-role="fond-face-ia"]').on("click", () => this.atelier_face(f.code));
+		$b.find('[data-role="photo-incluse"]').on("change", (e) => regler({ photo_incluse: e.currentTarget.checked }));
+		$b.find('[data-role="fond-face-blanc"]').on("click", () => this.blanchir((this._fonds()[f.code] || {}).mode === "image" ? f.code : "fond"));
+		$b.find("[data-voir-face]").on("click", (e) => { e.preventDefault(); this.visionneuse($(e.currentTarget).attr("data-voir-face"), f.libelle); });
+	}
+
+	async blanchir(cible) {
+		let r;
+		try {
+			r = await frappe.call({ method: "aquaworld_ia.emballage.studio.blanchir", args: { design: this.nom, cible }, freeze: true,
+				freeze_message: __("Blanc pur, puis recomposition du plan…") });
+		} catch (e) { frappe.msgprint(this._msg(e)); return; }
+		const m = r.message || {};
+		this.data = m; this.d = m.doc; this._lire_mep(); if (m.recompose) this.onglet = "artwork"; this.rendre();
+		frappe.show_alert({ message: __("Blanc pur : {0} % de pixels parfaitement blancs (avant : {1} %). L'ancienne image reste dans l'onglet Images.", [m.blanc_apres, m.blanc_avant]), indicator: "green" }, 8);
+	}
+
+	_fonds() {
+		try { const o = typeof this.d.fonds_faces === "string" ? JSON.parse(this.d.fonds_faces || "{}") : (this.d.fonds_faces || {}); return o && typeof o === "object" ? o : {}; }
+		catch (e) { return {}; }
+	}
+
+	// « Fond de cette face » : la règle automatique, l'image de fond du design, une couleur, du blanc, ou une image
+	// composée par l'IA (demande utilisateur 06/10/2026 : « l'image de fond, je l'applique sur la face que je veux »).
+	_bloc_fond_face(f) {
+		const esc = this._esc, reg = this._fonds()[f.code] || {}, mode = reg.mode || "";
+		const MODES = [["", __("Automatique")], ["fond", __("Image de fond")], ["couleur", __("Couleur")], ["blanc", __("Blanc")]]
+			.concat(reg.image ? [["image", __("Image IA")]] : []);
+		// Des boutons et non une liste : la liste grise ne se voyait pas comme un menu (retour utilisateur 06/10/2026).
+		return `<div class="bloc" style="margin-top:8px;padding:8px 10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px">
+			<h6>${__("Fond de cette face")}</h6>
+			<div style="display:flex;gap:4px;flex-wrap:wrap">${MODES.map(([v, l]) => `<button class="btn btn-xs ${v === mode ? "btn-primary" : "btn-default"}" data-mode-fond="${v}">${v === mode ? "✓ " : ""}${l}</button>`).join("")}</div>
+			${mode === "couleur" ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">
+				<input type="color" data-role="fond-face-couleur" value="${esc(reg.couleur || "#e5e7eb")}" style="width:44px;height:26px;padding:1px">
+				${this._palette().map((c) => `<span class="se-pastille petite" data-fond-face-pastille="${esc(c)}" title="${esc(c)}" style="background:${esc(c)}"></span>`).join("")}</div>` : ""}
+			${reg.image ? `<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><a href="#" data-voir-face="${esc(reg.image)}"><img src="${esc(reg.image)}" style="height:54px;max-width:90px;object-fit:cover;border:1px solid #e5e7eb;border-radius:6px"></a>
+				<span class="small text-muted">${mode === "image" ? __("Image IA posée sur cette face") : __("Image IA gardée (« Image IA » pour la remettre)")}</span></div>
+				${mode === "image" ? `<label class="se-check" style="margin-top:4px"><input type="checkbox" data-role="photo-incluse" ${reg.photo_incluse ? "checked" : ""}> ${__("Le produit est déjà dans cette image (ne pas reposer la photo par-dessus)")}</label>` : ""}` : ""}
+			<button class="btn btn-xs btn-default" data-role="fond-face-ia" style="margin-top:6px">✨ ${__("Composer cette face par IA")}</button>
+			${(mode === "image" && reg.image) || ((mode === "fond" || !mode) && this.d.image_fond) ? `<button class="btn btn-xs btn-default" data-role="fond-face-blanc" style="margin-top:6px" title="${__("Le presque blanc devient du blanc pur #FFFFFF, comme les faces réglées sur Blanc. Sans IA.")}">⚪ ${__("Blanc pur")}</button>` : ""}
+			<div class="text-muted small" style="margin-top:4px">${__("Automatique = l'image de fond (ou la variante sur l'avant) ; Blanc = rien d'imprimé en fond. Recomposez le plan (étape 4) pour voir le résultat.")}</div></div>`;
+	}
+
+	// Une face composée par l'IA à partir des composants choisis (fond, image actuelle de la face, photo, logo) et
+	// d'une consigne — « quelque chose de plus uniforme » ; propositions comparées, rien n'est posé avant « Utiliser ».
+	atelier_face(code, reprise) {
+		const esc = this._esc, d = this.d, est = this.data.estimation || {};
+		reprise = reprise || {};
+		const faces = ((this.data.apercu || {}).faces || []).map((x) => ({ value: x.code, label: x.libelle }));
+		const reg_de = (c) => this._fonds()[c] || {};
+		const COMPOSANTS = [["fond", __("Image de fond du design"), !!d.image_fond], ["image_face", __("Image actuelle de cette face (pour l'améliorer)"), false],
+			["photo", __("Photo du produit (intégrée par l'IA)"), !!d.photo_produit], ["logo", __("Couleurs du logo (jamais dessiné)"), !!(d.logo || d.marque)]];
+		const dlg = new frappe.ui.Dialog({ title: __("Composer une face par IA"), size: "large",
+			fields: [
+				{ fieldtype: "Select", fieldname: "face", label: __("Face"), options: faces, default: reprise.face || code },
+				{ fieldtype: "HTML", fieldname: "composants" },
+				{ fieldtype: "Small Text", fieldname: "consigne", label: __("Ce que vous voulez"), default: reprise.consigne !== undefined ? reprise.consigne : (reg_de(code).consigne || ""),
+				  description: __("ex. « intègre les pastilles dans l'eau des vagues, lumière douce, même bleu que le fond », « plus uniforme, sans démarcation »") },
+				{ fieldtype: "Select", fieldname: "nombre", label: __("Propositions à comparer"), options: "1\n2\n3\n4", default: String(reprise.nombre || 2) },
+				{ fieldtype: "Section Break", label: __("Texte envoyé à l'IA"), collapsible: 1 },
+				{ fieldtype: "HTML", fieldname: "prompt" },
+			],
+			primary_action_label: __("Générer"),
+			primary_action: async (v) => {
+				const composants = choisis();
+				if (!composants.length) return frappe.msgprint(__("Cochez au moins un composant."));
+				let r;
+				try {
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.composer_face_ia", freeze: true,
+						freeze_message: __("L'IA compose la face… (environ 30 secondes par proposition)"),
+						args: { design: this.nom, face: v.face, composants: JSON.stringify(composants), consigne: v.consigne || "", nombre: v.nombre } });
+				} catch (e) { frappe.msgprint(this._msg(e)); return; }
+				dlg.hide();
+				const fonds = this._fonds(); fonds[v.face] = Object.assign({}, fonds[v.face] || {}, { consigne: v.consigne || "" }); this.d.fonds_faces = JSON.stringify(fonds);
+				this.comparer_faces(r.message || {}, Object.assign({}, v, { composants }));
+			} });
+		const choisis = () => dlg.fields_dict.composants.$wrapper.find("[data-composant]:checked").map((_i, el) => $(el).attr("data-composant")).get();
+		const rendre_composants = () => {
+			const face = dlg.get_value("face") || code, reg = reg_de(face), pris = new Set(reprise.composants || ["fond", "photo"]);
+			dlg.fields_dict.composants.$wrapper.html(`<label class="control-label">${__("Composants envoyés à l'IA")}</label>
+				${COMPOSANTS.map(([c, l, dispo]) => {
+					const ok = c === "image_face" ? !!reg.image : dispo;
+					return `<label class="se-check" style="display:block;margin:2px 0;${ok ? "" : "opacity:.45"}"><input type="checkbox" data-composant="${c}" ${ok && pris.has(c) ? "checked" : ""} ${ok ? "" : "disabled"}> ${l}</label>`;
+				}).join("")}
+				<div class="small text-muted">${__("La photo cochée : l'IA intègre le produit dans la face, et la photo n'est plus reposée par-dessus. Le logo, le nom et les textes restent ajoutés en vectoriel.")}</div>`);
+		};
+		const libelle_bouton = () => {
+			const n = +(dlg.get_value("nombre") || reprise.nombre || 2);
+			dlg.set_primary_action(__("Générer {0} proposition(s) · ≈ {1} $", [n, ((est.cout || 0) * n).toFixed(2)]), dlg.primary_action);
+		};
+		const apercu = frappe.utils.debounce(async () => {
+			const v = dlg.get_values(true) || {};
+			try {
+				const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.composer_face_ia",
+					args: { design: this.nom, face: v.face || code, composants: JSON.stringify(choisis()), consigne: v.consigne || "", apercu: 1 } });
+				dlg.fields_dict.prompt.$wrapper.html(`<pre style="white-space:pre-wrap;font-size:11.5px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin:0">${esc((r.message || {}).prompt || "")}</pre>`);
+			} catch (e) { /* aperçu facultatif */ }
+		}, 400);
+		dlg.$wrapper.on("input change", "input, select, textarea", apercu);
+		dlg.$wrapper.on("change", '[data-fieldname="nombre"] select', libelle_bouton);
+		dlg.$wrapper.on("change", '[data-fieldname="face"] select', () => { rendre_composants(); apercu(); });
+		rendre_composants();
+		dlg.show();
+		libelle_bouton();
+		apercu();
+	}
+
+	comparer_faces(m, reglages) {
+		const esc = this._esc, candidats = m.candidats || [];
+		const carte = (src, titre, url) => `<div style="flex:1 1 220px;text-align:center;min-width:0"><div class="small text-muted">${titre}</div>
+			<a href="#" data-voir-prop="${esc(src || "")}"><img src="${esc(src || "")}" style="width:100%;max-height:300px;object-fit:contain;background:#f1f5f9;border:1px solid #e5e7eb;border-radius:8px"></a>
+			${url ? `<div style="margin-top:6px"><button class="btn btn-xs btn-primary" data-utiliser-face="${esc(url)}">${__("Utiliser sur cette face")}</button></div>` : ""}</div>`;
+		const cmp = new frappe.ui.Dialog({ title: __("Propositions pour la face"), size: "extra-large",
+			fields: [{ fieldtype: "HTML", fieldname: "galerie" }],
+			secondary_action_label: __("Réessayer"), secondary_action: () => { cmp.hide(); this.atelier_face(m.face, reglages); } });
+		cmp.fields_dict.galerie.$wrapper.html(`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+				${m.actuel ? carte(m.actuel, __("Actuel"), null) : ""}${candidats.map((u, k) => carte(u, __("Proposition {0}", [k + 1]), u)).join("")}</div>
+			<p class="small text-muted" style="margin-top:8px">${__("Rien ne change avant « Utiliser sur cette face ». Les propositions restent dans l'onglet Images.")}</p>`);
+		cmp.fields_dict.galerie.$wrapper.find("[data-voir-prop]").on("click", (e) => { e.preventDefault(); this.visionneuse($(e.currentTarget).attr("data-voir-prop"), ""); });
+		cmp.fields_dict.galerie.$wrapper.find("[data-utiliser-face]").on("click", async (e) => {
+			let r;
+			try {
+				r = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_face_ia", freeze: true, freeze_message: __("Face posée, recomposition du plan…"),
+					args: { design: this.nom, face: m.face, url: $(e.currentTarget).attr("data-utiliser-face"), photo_incluse: m.photo_incluse ? 1 : 0 } });
+			} catch (e2) { frappe.msgprint(this._msg(e2)); return; }
+			cmp.hide();
+			this.data = r.message; this.d = this.data.doc; this._lire_mep();
+			if (r.message.recompose) this.onglet = "artwork";
+			this.rendre();
+			frappe.show_alert({ message: r.message.recompose ? __("Face posée, plan recomposé.") : __("Face posée : composez le plan (étape 4)."), indicator: "green" });
+		});
+		cmp.show();
 	}
 
 	// Une zone de texte : son texte (texte libre, jamais touché par l'IA), sa typographie et sa
@@ -732,8 +994,8 @@ class StudioEmballage {
 				<span>${__("Taille (pt)")}</span><input type="number" data-prop="taille" min="4" max="120" step="0.5" value="${ty.taille || ""}" placeholder="${esc(defaut_taille)}" style="width:80px">
 				<span>${__("Style")}</span><span><label class="se-check" style="margin:0 10px 0 0"><input type="checkbox" data-prop="gras" ${gras ? "checked" : ""}> <b>${__("Gras")}</b></label><label class="se-check" style="margin:0"><input type="checkbox" data-prop="italique" ${ty.italique ? "checked" : ""}> <i>${__("Italique")}</i></label></span>
 				<span>${__("Alignement")}</span><select class="form-control input-xs" data-prop="align" style="height:26px;font-size:12px">${ALIGN.map(([v, l]) => `<option value="${v}" ${(ty.align || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>
-				<span>${__("Couleur")}</span><span style="display:flex;gap:8px;align-items:center"><input type="color" data-prop="texte" value="${esc(st.texte || "#111827")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_texte" ${st.texte ? "checked" : ""}> ${__("imposer")}</label></span>
-				<span>${__("Cartouche")}</span><span style="display:flex;gap:8px;align-items:center"><input type="color" data-prop="fond" value="${esc(st.fond || "#1d4ed8")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_fond" ${st.fond ? "checked" : ""}> ${__("fond")}</label></span>
+				<span>${__("Couleur")}</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="color" data-prop="texte" value="${esc(st.texte || "#111827")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_texte" ${st.texte ? "checked" : ""}> ${__("imposer")}</label>${this._pastilles_cible("texte")}</span>
+				<span>${__("Cartouche")}</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="color" data-prop="fond" value="${esc(st.fond || "#1d4ed8")}" style="width:44px;height:26px;padding:1px"><label class="se-check" style="margin:0"><input type="checkbox" data-prop="avec_fond" ${st.fond ? "checked" : ""}> ${__("fond")}</label>${this._pastilles_cible("fond")}</span>
 				<span>${__("Coins (mm)")}</span><input type="number" data-prop="rayon" min="0" step="0.5" value="${st.rayon || 0}" style="width:70px">
 			</div>
 			<div class="se-btns" style="margin-top:8px"><button class="btn btn-xs btn-primary" data-role="appliquer-style">${__("Appliquer")}</button><button class="btn btn-xs btn-default" data-role="style-aucun">${__("Sans cartouche")}</button></div>
@@ -766,14 +1028,14 @@ class StudioEmballage {
 				});
 			} else if (nom === "logo_ia") {
 				this.atelier_image("logo");
+			} else if (nom === "logo_couleur") {
+				this.atelier_couleur();
 			} else if (nom === "photo_ia") {
 				this.atelier_image("photo_produit");
 			} else if (nom === "fond") {
-				const continu = this.$root.find('[data-champ="fond_continu"]').is(":checked") ? 1 : 0;
-				frappe.confirm(__("Générer un fond d'ambiance par IA (sans produit) à partir du brief et des couleurs du logo, {0} ? (1 image facturée, puis recomposition du plan)", [continu ? __("en panorama continu autour de l'emballage") : __("pour chaque face séparément")]), async () => {
-					await frappe.call({ method: "aquaworld_ia.emballage.job.lancer_fond", args: { design: this.nom, continu } });
-					this.onglet = "artwork"; this.rendre_scene(); this.suivre();
-				});
+				this.atelier_fond();
+			} else if (nom === "integrer") {
+				this.atelier_face(this.epinglee || "avant");
 			} else if (nom === "composer") {
 				const r = await frappe.call({ method: "aquaworld_ia.emballage.composition.composer_et_attacher",
 					args: { design: this.nom, variante: this.d.variante_choisie }, freeze: true, freeze_message: __("Composition du plan à l'échelle…") });
@@ -787,7 +1049,8 @@ class StudioEmballage {
 				});
 			} else if (nom === "mockup") {
 				await frappe.call({ method: "aquaworld_ia.emballage.job.lancer_mockup", args: { design: this.nom } });
-				this.onglet = "3d"; this.rendre_scene(); this.suivre();
+				this.suivre(); this._mockup_en_cours = true;
+				this.onglet = "3d"; this.rendre_scene();
 			}
 		} catch (e) {
 			frappe.msgprint(this._msg(e));
@@ -879,6 +1142,367 @@ class StudioEmballage {
 				});
 			} });
 		dlg.show();
+	}
+
+	// Le fond IA sous contrôle (demande utilisateur 06/10/2026 : « est-ce que je peux contrôler ce que je génère ? »,
+	// « comment regénérer une image de fond que je contrôle bien ? ») : un NOUVEAU fond (consigne, style de la
+	// variante, logo) ou une RETOUCHE du fond actuel ; plusieurs propositions comparées au fond actuel ; rien n'est
+	// remplacé avant « Utiliser ce fond ». La consigne revient pré-remplie pour l'affiner.
+	atelier_fond(reprise) {
+		const esc = this._esc, d = this.d, est = this.data.estimation || {};
+		reprise = reprise || {};
+		const choisie = (d.variantes || []).find((v) => v.numero === d.variante_choisie);
+		const damier = "background:repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 16px 16px";
+		const MODES = [{ value: "nouveau", label: __("Nouveau fond") }].concat(d.image_fond ? [{ value: "retouche", label: __("Retoucher le fond actuel") }] : []);
+		const dlg = new frappe.ui.Dialog({ title: __("Fond d'ambiance par IA"), size: "large",
+			fields: [
+				{ fieldtype: "HTML", fieldname: "actuel" },
+				{ fieldtype: "Select", fieldname: "mode", label: __("Que faire ?"), options: MODES, default: reprise.mode || "nouveau",
+				  description: __("« Retoucher » garde votre fond et ne change que ce que vous demandez (plus clair, vagues plus fines…).") },
+				{ fieldtype: "Small Text", fieldname: "consigne", label: __("Ce que vous voulez"), default: reprise.consigne !== undefined ? reprise.consigne : (d.consigne_fond || ""),
+				  description: __("ex. « vagues bleues seulement en bas, fond blanc pur en haut », « plus clair », « vagues plus fines et plus basses »") },
+				{ fieldtype: "Check", fieldname: "suivre_style", default: choisie ? 1 : 0, hidden: choisie ? 0 : 1, depends_on: "eval:doc.mode=='nouveau'",
+				  label: choisie ? __("Suivre le style de la variante choisie : « {0} »", [choisie.titre || choisie.numero]) : "" },
+				{ fieldtype: "Check", fieldname: "avec_logo", default: (d.logo || d.marque) ? 1 : 0, hidden: (d.logo || d.marque) ? 0 : 1, depends_on: "eval:doc.mode=='nouveau'",
+				  label: __("Reprendre les couleurs du logo (le logo est montré à l'IA, jamais dessiné)") },
+				{ fieldtype: "Check", fieldname: "continu", default: d.fond_continu ? 1 : 0, label: __("Panorama continu sur toutes les faces (découpé aux plis)") },
+				{ fieldtype: "Select", fieldname: "nombre", label: __("Propositions à comparer"), options: "1\n2\n3\n4", default: String(reprise.nombre || 2) },
+				{ fieldtype: "HTML", fieldname: "sources" },
+				{ fieldtype: "Section Break", label: __("Texte envoyé à l'IA"), collapsible: 1 },
+				{ fieldtype: "HTML", fieldname: "prompt" },
+			],
+			primary_action_label: __("Générer"),
+			primary_action: async (v) => {
+				const args = { design: this.nom, consigne: v.consigne || "", nombre: v.nombre, mode: v.mode, suivre_style: v.suivre_style ? 1 : 0,
+				               avec_logo: v.avec_logo ? 1 : 0, continu: v.continu ? 1 : 0 };
+				let r;
+				try {
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.proposer_fonds", args, freeze: true,
+						freeze_message: __("L'IA dessine {0} fond(s)… (environ 30 secondes)", [v.nombre]) });
+				} catch (e) { frappe.msgprint(this._msg(e)); return; }
+				dlg.hide();
+				this.d.consigne_fond = v.consigne || "";
+				this.comparer_fonds(r.message || {}, Object.assign({}, v));
+			} });
+		const libelle_bouton = () => {
+			const n = +(dlg.get_value("nombre") || reprise.nombre || 2);
+			dlg.set_primary_action(__("Générer {0} proposition(s) · ≈ {1} $", [n, ((est.cout || 0) * n).toFixed(2)]), dlg.primary_action);
+		};
+		dlg.fields_dict.actuel.$wrapper.html(d.image_fond ? `<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+			<img src="${esc(d.image_fond)}" style="height:70px;max-width:160px;object-fit:cover;${damier};border:1px solid #e5e7eb;border-radius:6px">
+			<span class="small text-muted" style="flex:1 1 200px">${__("Fond actuel. Les anciens fonds restent dans l'onglet Images (bouton « Fond » pour revenir à l'un d'eux).")}</span>
+			<button class="btn btn-xs btn-default" data-role="blanc-pur" title="${__("Le presque blanc de l'image devient du blanc pur #FFFFFF — les couleurs ne bougent pas. Sans IA, gratuit.")}">⚪ ${__("Blanc pur")}</button></div>` : "");
+		dlg.fields_dict.actuel.$wrapper.find('[data-role="blanc-pur"]').on("click", () => { dlg.hide(); this.blanchir("fond"); });
+		const palette = this._palette();
+		dlg.fields_dict.sources.$wrapper.html(`<div class="small" style="margin-top:4px">
+			<div><b>${__("Palette")}</b> : ${palette.length ? palette.map((c) => `<span class="se-pastille petite" style="background:${esc(c)};vertical-align:middle;cursor:default" title="${esc(c)}"></span>`).join(" ") : `<span class="text-muted">${__("aucune")}</span>`}</div>
+			<div><b>${__("Brief de style")}</b> : ${d.brief_style ? esc(d.brief_style) : `<span class="text-muted">${__("aucun")}</span>`}</div>
+			<div class="text-muted">${__("La palette et le brief (étape 3) servent au « Nouveau fond » ; la retouche ne suit que votre consigne.")}</div></div>`);
+		const apercu = frappe.utils.debounce(async () => {
+			const v = dlg.get_values(true) || {};
+			try {
+				const r = await frappe.call({ method: "aquaworld_ia.emballage.job.apercu_prompt_fond",
+					args: { design: this.nom, consigne: v.consigne || "", suivre_style: v.suivre_style ? 1 : 0, continu: v.continu ? 1 : 0, mode: v.mode } });
+				dlg.fields_dict.prompt.$wrapper.html(`<pre style="white-space:pre-wrap;font-size:11.5px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin:0">${esc((r.message || {}).prompt || "")}</pre>
+					<div class="text-muted small" style="margin-top:4px">${__("En anglais : c'est la langue que le modèle d'image suit le mieux.")}</div>`);
+			} catch (e) { /* aperçu facultatif */ }
+		}, 400);
+		// Écoute au niveau du dialogue : un champ masqué (pas de variante choisie, pas de logo) n'a pas d'$input,
+		// et s'y accrocher directement plantait l'ouverture (« Cannot read properties of undefined (reading 'on') »).
+		dlg.$wrapper.on("input change", "input, select, textarea", apercu);
+		dlg.$wrapper.on("change", '[data-fieldname="nombre"] select', libelle_bouton);
+		dlg.show();
+		libelle_bouton();      // après show : les valeurs par défaut sont alors en place
+		apercu();
+	}
+
+	// Les propositions côte à côte avec le fond actuel : « Utiliser » pose le fond et recompose le plan ;
+	// « Utiliser puis retoucher » pose le fond et rouvre l'atelier en mode retouche, consigne gardée.
+	comparer_fonds(m, reglages) {
+		const esc = this._esc, candidats = m.candidats || [];
+		const carte = (src, titre, url) => `<div style="flex:1 1 220px;text-align:center;min-width:0"><div class="small text-muted">${titre}</div>
+			<a href="#" data-voir-fond="${esc(src || "")}"><img src="${esc(src || "")}" style="width:100%;max-height:260px;object-fit:contain;background:#f1f5f9;border:1px solid #e5e7eb;border-radius:8px"></a>
+			${url ? `<div class="se-btns" style="justify-content:center;margin-top:6px">
+				<button class="btn btn-xs btn-primary" data-utiliser-fond="${esc(url)}">${__("Utiliser ce fond")}</button>
+				<button class="btn btn-xs btn-default" data-utiliser-fond="${esc(url)}" data-puis-retoucher="1">${__("Utiliser puis retoucher")}</button></div>` : ""}</div>`;
+		const cmp = new frappe.ui.Dialog({ title: __("Propositions de fond"), size: "extra-large",
+			fields: [{ fieldtype: "HTML", fieldname: "galerie" }],
+			secondary_action_label: __("Réessayer"), secondary_action: () => { cmp.hide(); this.atelier_fond(reglages); } });
+		cmp.fields_dict.galerie.$wrapper.html(`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+				${m.actuel ? carte(m.actuel, __("Actuel"), null) : ""}${candidats.map((u, k) => carte(u, __("Proposition {0}", [k + 1]), u)).join("")}</div>
+			<p class="small text-muted" style="margin-top:8px">${__("Cliquez une image pour l'ouvrir en grand (pipette comprise). Rien ne change tant que vous n'avez pas cliqué « Utiliser ce fond » ; les propositions restent dans l'onglet Images.")}</p>`);
+		cmp.fields_dict.galerie.$wrapper.find("[data-voir-fond]").on("click", (e) => { e.preventDefault(); this.visionneuse($(e.currentTarget).attr("data-voir-fond"), __("Fond")); });
+		cmp.fields_dict.galerie.$wrapper.find("[data-utiliser-fond]").on("click", async (e) => {
+			const $b = $(e.currentTarget), url = $b.attr("data-utiliser-fond"), retoucher = $b.attr("data-puis-retoucher");
+			let r;
+			try {
+				r = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_fond", args: { design: this.nom, url, continu: m.continu },
+					freeze: true, freeze_message: __("Fond appliqué, recomposition du plan…") });
+			} catch (e2) { frappe.msgprint(this._msg(e2)); return; }
+			cmp.hide();
+			this.data = r.message; this.d = this.data.doc; this._lire_mep();
+			this.onglet = r.message.recompose ? "artwork" : this.onglet; this.rendre();
+			frappe.show_alert({ message: r.message.recompose ? __("Fond appliqué, plan recomposé.") : __("Fond appliqué : composez le plan (étape 4)."), indicator: "green" });
+			if (retoucher) this.atelier_fond(Object.assign({}, reglages, { mode: "retouche", consigne: "" }));
+		});
+		cmp.show();
+	}
+
+	// ─── palette du design (champ « Palette (hex) ») et pipette ─────────────────
+	_palette(valeur) {
+		const vus = new Set();
+		return String(valeur === undefined ? (this.d.palette || "") : valeur).split(/[\s,;]+/)
+			.map((c) => c.trim().toLowerCase()).map((c) => (c && !c.startsWith("#") ? "#" + c : c))
+			.filter((c) => /^#[0-9a-f]{6}$/.test(c) && !vus.has(c) && vus.add(c));
+	}
+
+	_pastilles_palette(valeur) {
+		const esc = this._esc, cs = this._palette(valeur);
+		return cs.length ? cs.map((c) => `<span class="se-pastille" style="background:${esc(c)}" title="${esc(c)} — ${__("cliquer pour la retirer")}" data-retirer="${esc(c)}"></span>`).join("")
+			: `<span class="text-muted small">${__("Ajoutez des couleurs à la pipette : cliquez la photo, le logo ou le fond.")}</span>`;
+	}
+
+	// Rapport de contraste WCAG avec le blanc (comme codes.contraste_sur_blanc côté serveur).
+	_contraste_blanc(hex) {
+		const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+		if (!m) return 1;
+		const lin = [0, 2, 4].map((i) => { const v = parseInt(m[1].slice(i, i + 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+		return 1.05 / (0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2] + 0.05);
+	}
+
+	_pastilles_cible(cible) {
+		const esc = this._esc;
+		return this._palette().map((c) => `<span class="se-pastille petite" style="background:${esc(c)}" title="${esc(c)}" data-pastille-cible="${cible}" data-couleur="${esc(c)}"></span>`).join("");
+	}
+
+	ajouter_a_la_palette(couleur) {
+		const cs = this._palette();
+		if (cs.includes(couleur)) return frappe.show_alert({ message: __("{0} est déjà dans la palette.", [couleur]), indicator: "blue" });
+		this.modifier({ palette: cs.concat([couleur]).join(", ") }, true);
+		frappe.show_alert({ message: __("{0} ajoutée à la palette du design.", [couleur]), indicator: "green" });
+	}
+
+	// Une image en grand (photo, logo, fond…) : un clic dessus prend la couleur du point (pipette).
+	visionneuse(url, titre) {
+		if (!url) return;
+		const esc = this._esc;
+		const damier = "background:repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 16px 16px";
+		const hex = (r, g, b) => "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+		let choisie = null;
+		const dlg = new frappe.ui.Dialog({ title: titre || __("Image"), size: "extra-large", fields: [{ fieldtype: "HTML", fieldname: "corps" }] });
+		const $c = dlg.fields_dict.corps.$wrapper;
+		$c.html(`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+			<div style="flex:1 1 480px;min-width:0;text-align:center">
+				<canvas data-role="toile" style="max-width:100%;max-height:62vh;cursor:crosshair;${damier};border:1px solid #e5e7eb;border-radius:8px"></canvas>
+				<div class="text-muted small" style="margin-top:4px">${__("Cliquez sur l'image pour prendre la couleur de ce point.")} <a href="${esc(url)}" target="_blank">↗ ${__("ouvrir le fichier")}</a></div>
+			</div>
+			<div style="flex:0 1 250px;min-width:220px">
+				<div class="small text-muted">${__("Survol")}</div>
+				<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><span data-role="survol" class="se-pastille" style="width:28px;height:28px;cursor:default"></span><code data-role="survol-hex">—</code></div>
+				<div class="small text-muted">${__("Couleur prise")}</div>
+				<div style="display:flex;gap:8px;align-items:center"><span data-role="prise" class="se-pastille" style="width:44px;height:44px;cursor:default"></span><code data-role="prise-hex" style="font-size:15px">—</code></div>
+				<div class="se-btns" style="margin-top:10px;flex-direction:column;align-items:stretch" data-role="actions">
+					<button class="btn btn-sm btn-primary" data-geste="palette" disabled>＋ ${__("Ajouter à la palette du design")}</button>
+					<button class="btn btn-sm btn-default" data-geste="fond" disabled>${__("Utiliser comme couleur de fond")}</button>
+					<button class="btn btn-sm btn-default" data-geste="logo" disabled>🎨 ${__("Colorer le logo avec")}</button>
+					<button class="btn btn-sm btn-default" data-geste="copier" disabled>📋 ${__("Copier le code")}</button>
+					${window.EyeDropper ? `<button class="btn btn-sm btn-default" data-geste="ecran" title="${__("Prendre une couleur n'importe où à l'écran")}">💧 ${__("Pipette sur tout l'écran")}</button>` : ""}
+				</div>
+				<div class="small text-muted" style="margin-top:12px">${__("Couleurs principales de l'image")}</div>
+				<div data-role="dominantes" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"></div>
+			</div></div>`);
+		const toile = $c.find('[data-role="toile"]')[0], ctx = toile.getContext("2d", { willReadFrequently: true });
+		const choisir = (c) => {
+			choisie = c;
+			$c.find('[data-role="prise"]').css("background", c);
+			$c.find('[data-role="prise-hex"]').text(c);
+			$c.find("[data-geste]").prop("disabled", false);
+		};
+		const lire = (e, rayon) => {
+			const r = toile.getBoundingClientRect();
+			const x = Math.floor((e.clientX - r.left) * toile.width / r.width), y = Math.floor((e.clientY - r.top) * toile.height / r.height);
+			const x0 = Math.max(0, x - rayon), y0 = Math.max(0, y - rayon);
+			const d = ctx.getImageData(x0, y0, Math.min(toile.width - x0, 2 * rayon + 1), Math.min(toile.height - y0, 2 * rayon + 1)).data;
+			let n = 0, s = [0, 0, 0];
+			for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 20) { s[0] += d[i]; s[1] += d[i + 1]; s[2] += d[i + 2]; n++; }
+			return n ? hex(...s.map((v) => Math.round(v / n))) : null;      // moyenne 3×3 : un pixel isolé ne trompe pas
+		};
+		const img = new Image();
+		img.onload = () => {
+			const k = Math.min(1, 1400 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+			toile.width = Math.max(1, Math.round((img.naturalWidth || 800) * k));
+			toile.height = Math.max(1, Math.round((img.naturalHeight || 600) * k));
+			ctx.drawImage(img, 0, 0, toile.width, toile.height);
+			// Couleurs principales : histogramme grossier (5 bits par canal) des pixels visibles, blanc exclu.
+			const d = ctx.getImageData(0, 0, toile.width, toile.height).data, comptes = new Map(), pas = Math.max(1, Math.floor(d.length / 4 / 60000));
+			for (let i = 0; i < d.length; i += 4 * pas) {
+				if (d[i + 3] < 128 || Math.min(d[i], d[i + 1], d[i + 2]) > 235) continue;
+				const cle = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3), c = comptes.get(cle) || [0, 0, 0, 0];
+				c[0]++; c[1] += d[i]; c[2] += d[i + 1]; c[3] += d[i + 2]; comptes.set(cle, c);
+			}
+			const top = [...comptes.values()].sort((a, b) => b[0] - a[0]).slice(0, 8).map((c) => hex(Math.round(c[1] / c[0]), Math.round(c[2] / c[0]), Math.round(c[3] / c[0])));
+			$c.find('[data-role="dominantes"]').html(top.map((c) => `<span class="se-pastille" style="background:${c}" title="${c}" data-dominante="${c}"></span>`).join("") || `<span class="text-muted small">—</span>`);
+			$c.find("[data-dominante]").on("click", (e) => choisir($(e.currentTarget).attr("data-dominante")));
+		};
+		img.onerror = () => $c.find('[data-role="dominantes"]').html(`<span class="text-danger small">${__("Image illisible.")}</span>`);
+		img.src = url;
+		$(toile).on("mousemove", (e) => { const c = lire(e, 0); if (c) { $c.find('[data-role="survol"]').css("background", c); $c.find('[data-role="survol-hex"]').text(c); } });
+		$(toile).on("click", (e) => { const c = lire(e, 1); if (c) choisir(c); });
+		$c.find('[data-geste="palette"]').on("click", () => choisie && this.ajouter_a_la_palette(choisie));
+		$c.find('[data-geste="fond"]').on("click", () => { if (!choisie) return; this.modifier({ couleur_fond: choisie }, true); frappe.show_alert({ message: __("Couleur de fond : {0}. Recomposez le plan (étape 4).", [choisie]), indicator: "green" }); });
+		$c.find('[data-geste="logo"]').on("click", () => { if (!choisie) return; dlg.hide(); this.atelier_couleur(choisie); });
+		$c.find('[data-geste="copier"]').on("click", () => choisie && frappe.utils.copy_to_clipboard(choisie));
+		$c.find('[data-geste="ecran"]').on("click", async () => {
+			try { const r = await new window.EyeDropper().open(); if (r && r.sRGBHex) choisir(r.sRGBHex.toLowerCase()); } catch (e) { /* annulé */ }
+		});
+		dlg.show();
+	}
+
+	// Le logo en UNE couleur choisie (demande utilisateur 06/10/2026) : palette du design, couleur exacte,
+	// sans IA ; sortie SVG (vectoriel : courbes gardées ; image : redessinée en courbes) ou PNG.
+	async atelier_couleur(couleur_depart) {
+		const esc = this._esc;
+		let r;
+		try {
+			r = await frappe.call({ method: "aquaworld_ia.emballage.studio.palette_logo", args: { design: this.nom }, freeze: true });
+		} catch (e) { frappe.msgprint(this._msg(e)); return; }
+		const m = r.message || {}, pal = m.palette || [];
+		const ORIGINES = { "palette": __("Palette du design"), "photo produit": __("Photo du produit"), logo: __("Couleurs du logo"), fond: __("Fond du design"), zones: __("Zones (cartouches, textes)"), "image de fond": __("Image de fond"), noir: __("Neutres"), blanc: __("Neutres") };
+		const groupes = {};
+		pal.forEach((p) => { const g = ORIGINES[p.origine] || p.origine; (groupes[g] = groupes[g] || []).push(p.couleur); });
+		const depart = couleur_depart || (pal.find((p) => p.origine === "logo") || pal[0] || {}).couleur || "#1d4ed8";
+		const damier = "background:repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 16px 16px";
+		const dlg = new frappe.ui.Dialog({ title: __("Logo d'une seule couleur — SVG ou PNG"), size: "large",
+			fields: [
+				{ fieldtype: "HTML", fieldname: "palette" },
+				{ fieldtype: "Data", fieldname: "hex", label: __("Couleur choisie (#RRGGBB)"), default: depart, reqd: 1 },
+				{ fieldtype: "Check", fieldname: "garder_blanc", label: __("Garder le blanc du logo (évidements, lettres blanches)"), default: 1 },
+				{ fieldtype: "Select", fieldname: "sortie", label: __("Format du résultat"), default: "SVG (vectoriel)", options: ["SVG (vectoriel)", "PNG"].join("\n"),
+				  description: m.vectoriel ? __("Votre logo est vectoriel : ses courbes sont gardées telles quelles, seules les couleurs changent.")
+				    : __("Votre logo est une image : il est recoloré, puis redessiné en courbes pour le SVG. Vérifiez les petits détails.") },
+				{ fieldtype: "HTML", fieldname: "resultat" },
+			],
+			primary_action_label: __("Appliquer la couleur"),
+			primary_action: async (v) => {
+				let res;
+				try {
+					res = await frappe.call({ method: "aquaworld_ia.emballage.studio.logo_couleur", freeze: true, freeze_message: __("Recoloration du logo…"),
+						args: { design: this.nom, couleur: v.hex, garder_blanc: v.garder_blanc ? 1 : 0, sortie: (v.sortie || "").startsWith("PNG") ? "png" : "svg" } });
+				} catch (e) { frappe.msgprint(this._msg(e)); return; }
+				const c = res.message || {};
+				const carte = (src, titre) => `<div style="flex:1 1 220px;text-align:center;min-width:0"><div class="text-muted small">${titre}</div>
+					<img src="${esc(src)}" style="max-width:100%;max-height:180px;${damier};border:1px solid #e5e7eb;border-radius:6px;padding:6px"></div>`;
+				dlg.fields_dict.resultat.$wrapper.html(`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+						${carte(c.source, __("Actuel"))}${carte(c.candidat, __("Résultat — {0} · {1} Ko", [String(c.format || "").toUpperCase(), c.taille_ko]))}</div>
+					<div class="se-btns" style="margin-top:10px;justify-content:center">
+						<button class="btn btn-sm btn-primary" data-role="adopter-couleur">✅ ${__("Utiliser comme logo")}</button>
+						<a class="btn btn-sm btn-default" href="${esc(c.candidat)}" download target="_blank">⬇ ${__("Télécharger")}</a>
+						<button class="btn btn-sm btn-default" data-role="garder-couleur">💾 ${__("Garder en bibliothèque")}</button></div>
+					<p class="text-muted small" style="margin-top:6px;text-align:center">${__("Rien ne change tant que vous n'avez pas cliqué « Utiliser comme logo ». Le fichier reste aussi dans l'onglet Images.")}</p>`);
+				dlg.fields_dict.resultat.$wrapper.find('[data-role="adopter-couleur"]').on("click", async () => {
+					const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_image", args: { design: this.nom, champ: "logo", url: c.candidat }, freeze: true });
+					dlg.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
+					frappe.show_alert({ message: __("Logo remplacé : recomposez le plan (étape 4)."), indicator: "green" });
+				});
+				dlg.fields_dict.resultat.$wrapper.find('[data-role="garder-couleur"]').on("click", () => this.garder("logo", c.candidat));
+			} });
+		const rendre_palette = () => {
+			const choisie = (dlg.get_value("hex") || "").toLowerCase();
+			dlg.fields_dict.palette.$wrapper.html(`
+				<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><img src="${esc(m.source)}" style="max-height:60px;max-width:200px;${damier};border:1px solid #e5e7eb;border-radius:6px;padding:4px">
+					<span class="text-muted small">${__("Choisissez une couleur : tout le logo la prend, au code près. Sans IA, gratuit.")}</span></div>
+				${Object.entries(groupes).map(([g, cs]) => `<div style="margin:4px 0"><div class="small text-muted">${esc(g)}</div>
+					<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">${cs.map((c) => `<button type="button" class="se-pastille-couleur" data-couleur="${esc(c)}" title="${esc(c)}"
+						style="width:30px;height:30px;border-radius:50%;background:${esc(c)};cursor:pointer;border:${c === choisie ? "3px solid #111827" : "1px solid #d1d5db"};box-shadow:${c === choisie ? "0 0 0 2px #fff inset" : "none"}"></button>`).join("")}</div></div>`).join("")}
+				<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><span class="small text-muted">${__("Autre couleur :")}</span>
+					<input type="color" data-role="libre" value="${esc(/^#[0-9a-f]{6}$/.test(choisie) ? choisie : "#1d4ed8")}" style="width:44px;height:28px;padding:1px"></div>`);
+			dlg.fields_dict.palette.$wrapper.find("[data-couleur]").on("click", (e) => { dlg.set_value("hex", $(e.currentTarget).attr("data-couleur")); });
+			dlg.fields_dict.palette.$wrapper.find('[data-role="libre"]').on("change", (e) => { dlg.set_value("hex", e.currentTarget.value); });
+		};
+		dlg.fields_dict.hex.$input.on("change input", frappe.utils.debounce(rendre_palette, 150));
+		rendre_palette();
+		dlg.show();
+	}
+
+	// Un tampon SVG dessiné par l'IA (demande utilisateur 06/10/2026 : « un tampon comme le poids ») : le texte,
+	// la forme, le style, les couleurs de la palette ; plusieurs propositions vectorielles, on en adopte une, qui
+	// devient un pictogramme (catégorie Tampon) coché sur le design.
+	atelier_tampon(precedent) {
+		const esc = this._esc, palette = this._palette();
+		const choisies = new Set((precedent && precedent.couleurs) || (palette.length ? [palette[palette.length - 1]] : ["#1e3a8a"]));
+		const damier = "background:repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 16px 16px";
+		const dlg = new frappe.ui.Dialog({ title: __("Tampon dessiné par l'IA (SVG)"),
+			fields: [
+				{ fieldtype: "Small Text", fieldname: "texte", label: __("Texte du tampon"), reqd: 1, default: (precedent && precedent.texte) || "",
+				  description: __("Une idée par ligne, ex. « POIDS NET » puis « 25 KG ». Les mots sont respectés à la lettre.") },
+				{ fieldtype: "Select", fieldname: "forme", label: __("Forme"), default: (precedent && precedent.forme) || "",
+				  options: [["", __("Au choix de l'IA (variée)")], ["rond", __("Rond")], ["sceau", __("Sceau dentelé")], ["ecusson", __("Écusson")], ["ruban", __("Ruban")], ["rectangle", __("Rectangle arrondi")]].map(([v, l]) => ({ value: v, label: l })) },
+				{ fieldtype: "Select", fieldname: "style", label: __("Style"), default: (precedent && precedent.style) || "",
+				  options: [["", __("Au choix")], ["plein", __("Plein (fond coloré, texte blanc)")], ["contour", __("Contour (encre seule, fond transparent)")]].map(([v, l]) => ({ value: v, label: l })) },
+				{ fieldtype: "HTML", fieldname: "couleurs" },
+				{ fieldtype: "Data", fieldname: "idee", label: __("Ambiance (facultatif)"), default: (precedent && precedent.idee) || "", description: __("ex. artisanal, premium, écologique, technique") },
+				{ fieldtype: "Select", fieldname: "nombre", label: __("Propositions"), default: "3", options: "1\n2\n3\n4",
+				  description: __("Quelques centimes pour l'ensemble : l'IA écrit le SVG, elle ne dessine pas d'image.") },
+			],
+			primary_action_label: __("Générer"),
+			primary_action: async (v) => {
+				const args = { design: this.nom, texte: v.texte, forme: v.forme || "", style: v.style || "", couleurs: JSON.stringify([...choisies]), idee: v.idee || "", nombre: v.nombre };
+				let r;
+				try {
+					r = await frappe.call({ method: "aquaworld_ia.emballage.studio.creer_tampons", args, freeze: true, freeze_message: __("L'IA dessine les tampons…") });
+				} catch (e) { frappe.msgprint(this._msg(e)); return; }
+				dlg.hide();
+				const tampons = (r.message || {}).tampons || [];
+				const res = new frappe.ui.Dialog({ title: __("Propositions de tampon"), size: "large",
+					fields: [{ fieldtype: "HTML", fieldname: "galerie" }],
+					secondary_action_label: __("Réessayer"),
+					secondary_action: () => { res.hide(); this.atelier_tampon(Object.assign({}, v, { couleurs: [...choisies] })); } });
+				res.fields_dict.galerie.$wrapper.html(`<div style="display:flex;gap:14px;flex-wrap:wrap">${tampons.map((t) => `
+					<div style="flex:1 1 200px;text-align:center;min-width:0">
+						<img src="${esc(t.url)}" style="width:100%;max-height:200px;object-fit:contain;${damier};border:1px solid #e5e7eb;border-radius:8px;padding:6px">
+						<div class="small text-muted" style="margin:4px 0">${esc(t.titre)}</div>
+						<button class="btn btn-xs btn-primary" data-utiliser="${esc(t.url)}">${__("Utiliser")}</button>
+						<a class="btn btn-xs btn-default" href="${esc(t.url)}" download target="_blank">⬇ SVG</a>
+					</div>`).join("")}</div>
+					<p class="small text-muted" style="margin-top:8px">${__("Relisez le texte de chaque proposition. Le tampon adopté devient un pictogramme (catégorie Tampon), réutilisable sur tous les designs.")}</p>`);
+				res.fields_dict.galerie.$wrapper.find("[data-utiliser]").on("click", (e) => {
+					const url = $(e.currentTarget).attr("data-utiliser");
+					frappe.prompt([
+						{ fieldtype: "Data", fieldname: "libelle", label: __("Nom du tampon"), reqd: 1, default: (v.texte || "").split("\n").map((x) => x.trim()).filter(Boolean).join(" ") },
+						{ fieldtype: "Float", fieldname: "taille_mm", label: __("Taille sur l'emballage (mm)"), default: 25 },
+					], async (p) => {
+						try {
+							const r2 = await frappe.call({ method: "aquaworld_ia.emballage.studio.adopter_tampon", args: { design: this.nom, url, libelle: p.libelle, taille_mm: p.taille_mm }, freeze: true });
+							res.hide(); this.data = r2.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
+							this.proposer_placement(r2.message.tampon, p.libelle);
+						} catch (e2) { frappe.msgprint(this._msg(e2)); }
+					}, __("Adopter ce tampon"), __("Adopter"));
+				});
+				res.show();
+			} });
+		const rendre_couleurs = () => {
+			const autres = ["#1e3a8a", "#15803d", "#b91c1c", "#000000"].filter((c) => !palette.includes(c));
+			dlg.fields_dict.couleurs.$wrapper.html(`<label class="control-label" style="margin-top:4px">${__("Couleurs (1 à 3)")}</label>
+				<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${palette.concat(autres).map((c) => `<span class="se-pastille" data-couleur-tampon="${esc(c)}" title="${esc(c)}" style="background:${esc(c)};${choisies.has(c) ? "box-shadow:0 0 0 2px #fff,0 0 0 4px #111827" : ""}"></span>`).join("")}
+					<input type="color" data-role="autre-tampon" value="#1e3a8a" title="${__("Autre couleur")}" style="width:34px;height:26px;padding:1px"></div>
+				<div class="small text-muted" style="margin-top:3px">${palette.length ? __("Les premières viennent de la palette du design.") : __("Astuce : prenez les couleurs de la photo ou du logo à la pipette (cliquez leur vignette).")}</div>`);
+			dlg.fields_dict.couleurs.$wrapper.find("[data-couleur-tampon]").on("click", (e) => {
+				const c = $(e.currentTarget).attr("data-couleur-tampon");
+				if (choisies.has(c)) choisies.delete(c); else if (choisies.size < 3) choisies.add(c);
+				rendre_couleurs();
+			});
+			dlg.fields_dict.couleurs.$wrapper.find('[data-role="autre-tampon"]').on("change", (e) => { if (choisies.size < 3) choisies.add(e.currentTarget.value.toLowerCase()); palette.push(e.currentTarget.value.toLowerCase()); rendre_couleurs(); });
+		};
+		rendre_couleurs();
+		dlg.show();
+	}
+
+	proposer_placement(code, libelle) {
+		const faces = ((this.data.apercu || {}).faces || []).map((x) => ({ value: x.code, label: x.libelle }));
+		if (!faces.length) return frappe.show_alert({ message: __("Tampon ajouté aux pictogrammes du design."), indicator: "green" });
+		frappe.prompt([{ fieldtype: "Select", fieldname: "face", label: __("Sur quelle face le poser ?"), options: faces, default: this.epinglee || "avant",
+			description: __("Il se pose en bas à droite, à sa taille ; vous le déplacez ensuite sur le plan. Il reste aussi dans « Ajouter » pour d'autres faces.") }],
+			(v) => this.placer_tampon(code, v.face), __("« {0} » est prêt", [libelle || code]), __("Poser le tampon"));
 	}
 
 	ajouter_picto() {
@@ -976,6 +1600,7 @@ class StudioEmballage {
 			if (!e || (e.nom && e.nom !== this.nom)) return;
 			$p.find("div").css("width", (e.avancement || 0) + "%");
 			$t.text(e.etape || "");
+			this.$root.find('[data-role="attente-txt"]').text(e.etape || "");
 			if (e.fin || e.avancement >= 100) { this.arreter_suivi(); this.recharger(); }
 		};
 		this._rt = afficher;
@@ -990,7 +1615,7 @@ class StudioEmballage {
 	arreter_suivi() {
 		if (this._rt) frappe.realtime.off("aqia_emballage", this._rt);
 		if (this._minuteur) clearInterval(this._minuteur);
-		this._rt = null; this._minuteur = null;
+		this._rt = null; this._minuteur = null; this._mockup_en_cours = false;
 		this.$root.find('[data-role="progress"], [data-role="progress-txt"]').hide();
 	}
 

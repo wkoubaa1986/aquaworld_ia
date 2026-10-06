@@ -109,7 +109,17 @@ def generer(design: str, numeros=None, utilisateur: str | None = None) -> None:
 	etat.progresser(GENRE, design, "terminé", 100, EVENEMENT, utilisateur, fin=1)
 
 
-def generer_fond(design: str, utilisateur: str | None = None) -> None:
+def prompt_fond_du_design(doc, plan: dict, consigne: str = "", suivre_style: bool = True) -> str:
+	"""Le texte envoyé à l'IA pour le fond de CE design — le même pour l'aperçu du studio et la génération."""
+	continu = bool(cint(doc.get("fond_continu")))
+	style = next(({"titre": v.titre, "description": v.description} for v in doc.variantes
+	              if v.numero == cint(doc.variante_choisie)), None) if suivre_style else None
+	return prompts.prompt_fond(style, doc.nom_produit or doc.article, palette=doc.palette, brief=doc.brief_style or "",
+	                           famille=plan.get("famille"), continu=continu, consigne=consigne or "")
+
+
+def generer_fond(design: str, utilisateur: str | None = None, consigne: str | None = None, suivre_style=1,
+                 avec_logo=1) -> None:
 	"""Un fond d'ambiance par IA (sans produit), posé en image de fond. En mode continu, le
 	panorama couvre la bande entière et sera découpé face par face à la composition. Puis le plan
 	se recompose de lui-même si une variante est choisie ou si l'on compose sans IA."""
@@ -120,13 +130,10 @@ def generer_fond(design: str, utilisateur: str | None = None) -> None:
 		continu = bool(cint(doc.get("fond_continu")))
 		cible = bande if continu else geometrie.face(plan, "avant")
 		taille = geometrie.taille_image_pour(cible)
-		style = next(({"titre": v.titre, "description": v.description} for v in doc.variantes
-		              if v.numero == cint(doc.variante_choisie)), None)
-		prompt = prompts.prompt_fond(style, doc.nom_produit or doc.article, palette=doc.palette,
-		                             brief=doc.brief_style or "", famille=plan.get("famille"), continu=continu)
+		prompt = prompt_fond_du_design(doc, plan, consigne or "", bool(cint(suivre_style)))
 		etat.progresser(GENRE, design, "génération du fond", 30, EVENEMENT, utilisateur)
 		qualite = qualite_image()
-		logo = url_logo(doc)
+		logo = url_logo(doc) if cint(avec_logo) else None
 		if logo:
 			png = images.editer(prompt, [("logo", fichiers.lire(logo))], taille=taille, qualite=qualite,
 			                    fonctionnalite="Emballage fond", doc=doc, fidelite=None)[0]

@@ -171,9 +171,9 @@ def typo_zone(zone: dict, familles: set | None = None) -> dict:
 
 
 #: Ce qu'une zone dessinée à la main transporte en plus de sa géométrie : son style, sa
-#: typographie, le texte d'un « texte libre » et, pour un logo, le fichier d'une variante propre
-#: à cette face.
-CLES_ZONE_CONSERVEES = ("style", "logo", "pictos", "typo", "texte")
+#: typographie, le texte d'un « texte libre », pour un logo le fichier d'une variante propre
+#: à cette face et, pour un code-barres, ce qu'elle porte (« qr » ou « ean », 06/10/2026).
+CLES_ZONE_CONSERVEES = ("style", "logo", "pictos", "typo", "texte", "code")
 
 
 def borner_zone(zone: dict, face: dict) -> dict:
@@ -387,6 +387,14 @@ def svg_vers_pdf(svg: bytes):
 	return pymupdf.open("pdf", pymupdf.open("svg", svg).convert_to_pdf())
 
 
+def carre_centre(rect) -> tuple:
+	"""Le plus grand carré centré dans `rect` (x0, y0, x1, y1) : la place d'un QR dans sa zone. Pur."""
+	x0, y0, x1, y1 = rect
+	cote = min(x1 - x0, y1 - y0)
+	x, y = x0 + (x1 - x0 - cote) / 2, y0 + (y1 - y0 - cote) / 2
+	return (x, y, x + cote, y + cote)
+
+
 def poser_svg(page, rect, svg: bytes) -> None:
 	import pymupdf
 
@@ -427,6 +435,90 @@ def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
 		im.putdata([(r, g, b, 0) if min(r, g, b) >= seuil else (r, g, b, a) for r, g, b, a in pixels])
 	sortie = io.BytesIO()
 	im.save(sortie, format="PNG")
+	return sortie.getvalue()
+
+
+MODES_FOND_FACE = ("fond", "image", "couleur", "blanc")
+
+
+def reglage_fond(fonds_faces, code: str) -> dict | None:
+	"""Le fond choisi pour UNE face dans le studio (demande utilisateur 06/10/2026 : « l'image de fond, je
+	l'applique sur la face que je veux, ou je la laisse blanche, ou autre chose »), normalisé : {mode, image,
+	couleur, photo_incluse} ; None = règle automatique. Pur."""
+	r = (fonds_faces or {}).get(code) if isinstance(fonds_faces, dict) else None
+	if not isinstance(r, dict) or r.get("mode") not in MODES_FOND_FACE:
+		return None
+	out = {"mode": r["mode"], "photo_incluse": bool(r.get("photo_incluse"))}
+	if r["mode"] == "couleur":
+		if not (isinstance(r.get("couleur"), str) and _HEX.match(r["couleur"])):
+			return None
+		out["couleur"] = r["couleur"]
+	if r["mode"] == "image":
+		if not (isinstance(r.get("image"), str) and r["image"].startswith(("/files/", "/private/files/"))):
+			return None
+		out["image"] = r["image"]
+	return out
+
+
+def couleur_texte_sur(fond_hex: str) -> str:
+	"""Le texte lisible sur un aplat : sombre sur clair, blanc sur foncé. Pur."""
+	return "#111827" if _luminance(fond_hex) > 0.5 else "#ffffff"
+
+
+def blanc_pur(png: bytes, debut: int = 232, fin: int = 248) -> bytes:
+	"""Le « presque blanc » d'une image IA devient du BLANC PUR (retour utilisateur 06/10/2026 : « la génération
+	n'est pas vraiment blanche » — le fond de EMB-2026-0006 valait #FDFDFD en moyenne, 25 % de pixels blancs, et
+	paraissait gris à côté des faces réglées sur Blanc). Un pixel dont le canal le plus FAIBLE dépasse `debut`
+	glisse vers 255 (courbe en S jusqu'à `fin`) : les couleurs franches ne bougent pas, la transition reste douce.
+	Sans IA, au pixel près."""
+	import numpy as np
+	from PIL import Image
+
+	im = Image.open(io.BytesIO(png))
+	alpha = im.getchannel("A") if im.mode in ("RGBA", "LA") else None
+	a = np.array(im.convert("RGB")).astype(np.float32)
+	t = np.clip((a.min(axis=2) - debut) / float(max(1, fin - debut)), 0.0, 1.0)
+	t = (t * t * (3 - 2 * t))[..., None]
+	sortie = Image.fromarray(np.clip(a + (255.0 - a) * t, 0, 255).round().astype(np.uint8), "RGB")
+	if alpha is not None:
+		sortie.putalpha(alpha)
+	b = io.BytesIO()
+	sortie.save(b, "PNG")
+	return b.getvalue()
+
+
+def part_blanc_pur(png: bytes) -> float:
+	"""Part des pixels exactement blancs (0..1) — pour dire à l'utilisateur ce que le blanc pur a changé."""
+	import numpy as np
+	from PIL import Image
+
+	a = np.array(Image.open(io.BytesIO(png)).convert("RGB"))
+	return float((a.min(axis=2) >= 255).mean())
+
+
+#: Largeur du fondu des bords d'une photo, en part de son petit côté.
+FONDU_BORDS = 0.12
+
+
+def fondre_bords(png: bytes, part: float = FONDU_BORDS) -> bytes:
+	"""Les bords OPAQUES d'une photo s'effacent en douceur dans le fond (retour utilisateur 06/10/2026 : « une
+	meilleure intégration entre la photo produit et le fond ») — l'eau d'une éclaboussure coupée net par le cadre
+	de la photo laissait deux arêtes verticales sur l'emballage. Une photo déjà détourée (bords transparents) revient
+	telle quelle. Courbe en S (smoothstep) sur `part` du petit côté."""
+	import numpy as np
+	from PIL import Image
+
+	a = np.array(Image.open(io.BytesIO(png)).convert("RGBA"))
+	h, w = a.shape[:2]
+	al = a[..., 3]
+	if max((b > 200).mean() for b in (al[:, :2], al[:, -2:], al[:2, :], al[-2:, :])) < 0.05:
+		return png
+	m = max(2.0, min(h, w) * part)
+	ys, xs = np.mgrid[0:h, 0:w]
+	t = np.clip(np.minimum.reduce([xs, w - 1 - xs, ys, h - 1 - ys]) / m, 0.0, 1.0)
+	a[..., 3] = (al.astype(np.float32) * (t * t * (3 - 2 * t))).astype(np.uint8)
+	sortie = io.BytesIO()
+	Image.fromarray(a, "RGBA").save(sortie, "PNG")
 	return sortie.getvalue()
 
 
@@ -766,6 +858,39 @@ def dessiner_cartouche(page, rect, style: dict) -> tuple:
 	return (r.x0 + m, r.y0 + m, r.x1 - m, r.y1 - m)
 
 
+def _poser_fond_regle(page, reg: dict, r, face: dict, image_fond, bande, dpi: dict) -> bool:
+	"""Pose le fond CHOISI pour une face (studio, « Fond de cette face ») ; False = rien de posable (image
+	illisible, pas d'image de fond) : la règle automatique reprend la main."""
+	import pymupdf
+
+	rect = _rect_pt(*r)
+	if reg["mode"] == "blanc":
+		page.draw_rect(pymupdf.Rect(*rect), color=None, fill=(1, 1, 1))
+		return True
+	if reg["mode"] == "couleur":
+		page.draw_rect(pymupdf.Rect(*rect), color=None, fill=_hex_rgb(reg["couleur"]))
+		return True
+	if reg["mode"] == "image":
+		try:
+			img = fichiers.lire(reg["image"])
+		except Exception:
+			return False
+		from PIL import Image
+
+		im = Image.open(io.BytesIO(img))
+		x0, y0, x1, y1 = geometrie.cadrage(r[2], r[3], im.width, im.height)
+		dpi[face["code"]] = geometrie.dpi_effectif(x1 - x0, r[2])
+		poser_image(page, rect, recadrer(img, r[2], r[3]), garder_proportions=False)
+		return True
+	if reg["mode"] == "fond" and image_fond:
+		if bande and face["code"] in bande["faces"]:
+			poser_image(page, rect, tranche_panorama(image_fond, bande, r), garder_proportions=False)
+		else:
+			poser_image(page, rect, recadrer(image_fond, r[2], r[3]), garder_proportions=False)
+		return True
+	return False
+
+
 def poser_texte(page, rect, contenu_html: str, archive, css: str) -> float:
 	import pymupdf
 
@@ -930,9 +1055,13 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		visuels["cote_gauche"] = visuels["cote_droit"]     # côtés identiques : même visuel IA à gauche
 	photo_hero = None
 	photo_url = url_photo(doc)   # la photo de la fiche, sinon l'image de l'article
-	if not visuel_avant and photo_url:
+	fonds_faces = frappe.parse_json(doc.get("fonds_faces")) if doc.get("fonds_faces") else {}
+	reglages = {f["code"]: reglage_fond(fonds_faces, f["code"]) for f in plan["faces"] if f["imprimable"]}
+	# La photo héros sert dès qu'une face avant ne porte PAS de visuel IA : pas de variante, ou une face
+	# avant réglée sur un autre fond dans le studio.
+	if photo_url and (not visuel_avant or reglages.get("avant")):
 		try:
-			photo_hero = fond_blanc_en_transparence(fichiers.lire(photo_url))
+			photo_hero = fondre_bords(fond_blanc_en_transparence(fichiers.lire(photo_url)))
 		except Exception:
 			photo_hero = fichiers.lire(photo_url)
 	dpi = {}
@@ -949,13 +1078,20 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 		if face["code"] == "patte":
 			continue  # la patte de collage reste blanche : la colle n'aime pas l'encre
 		page.draw_rect(pymupdf.Rect(*_rect_pt(*r)), color=None, fill=fond)
+	avec_visuel, textes_face = set(), {}
 	for face in plan["faces"]:
 		if not face["imprimable"]:
 			continue
 		r = rect_avec_fond_perdu(face, plan)
+		reg = reglages.get(face["code"])
+		if reg and _poser_fond_regle(page, reg, r, face, image_fond, bande, dpi):
+			if reg["mode"] in ("couleur", "blanc"):
+				textes_face[face["code"]] = couleur_texte_sur(reg.get("couleur") or "#ffffff")
+			continue
 		src = face_source(plan, face["code"], copies)          # visuel IA de la source, fond de la face
 		visuel = visuels.get(src["code"]) or visuels.get(face["code"])
 		if visuel:
+			avec_visuel.add(face["code"])
 			from PIL import Image
 
 			im = Image.open(io.BytesIO(visuel))
@@ -974,8 +1110,11 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			poser_image(page, _rect_pt(r[0], r[1], r[2], hb), recadrer(bandeau(visuel_avant), r[2], hb), garder_proportions=False)
 	# Sans visuel IA, la photo du produit est le héros de la face avant (et du dos miroir).
 	mep_brut = frappe.parse_json(doc.get("mise_en_page")) if doc.get("mise_en_page") else {}
+	sans_photo = avec_visuel | {c for c, reg in reglages.items() if reg and reg.get("photo_incluse")}
 	if photo_hero and not any(z.get("zone") == "photo" for l in (mep_brut or {}).values() if isinstance(l, list) for z in l):
 		for f in plan["faces"]:
+			if f["code"] in sans_photo:
+				continue      # un visuel IA (variante, face composée) montre déjà le produit
 			if f["code"] == "avant" or (identiques and f["code"] == "arriere" and "cote_droit" in {x["code"] for x in plan["faces"] if x["imprimable"]}):
 				poser_image(page, _rect_pt(*hero_photo_rect(f)), photo_hero, garder_proportions=True)
 
@@ -985,9 +1124,12 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	if doc.type_code_barres in ("EAN-13", "EAN-13 + QR") and doc.code_barres:
 		if codes.valider_ean13(doc.code_barres):
 			ean = codes.ean13_svg(doc.code_barres)
-	qr = codes.qr_svg(doc.url_qr) if doc.type_code_barres in ("QR", "EAN-13 + QR") and doc.url_qr else None
+	qr = codes.qr_svg(doc.url_qr, doc.get("couleur_qr")) if doc.type_code_barres in ("QR", "EAN-13 + QR") and doc.url_qr else None
 	pictos_svg = [(p.pictogramme, pictos.svg_bytes(p.pictogramme)) for p in (doc.pictogrammes or [])]
 	pictos_svg = [(c, s) for c, s in pictos_svg if s]
+	# Un tampon (badge IA, 06/10/2026) a sa propre forme : jamais de carré blanc derrière lui.
+	tampons = set(frappe.get_all("Aquaworld IA Pictogramme", filters={"categorie": "Tampon", "code": ["in", [c for c, _s in pictos_svg] or [""]]},
+	                             pluck="code")) if pictos_svg else set()
 	nom_produit = doc.nom_produit or doc.article
 	fam_titres = famille_titres(rendu.FAMILLE_TITRES in {f for f, _u in rendu.polices_personnalisees()})
 	premiere = next(iter(langues.values()), {}) if langues else {}
@@ -998,10 +1140,13 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	}
 	mise_en_page = frappe.parse_json(doc.get("mise_en_page")) if doc.get("mise_en_page") else None
 	zones = zones_par_face(plan, contenu, identiques, mise_en_page, cotes)
+	# Un QR posé à la main (zone « QR code », 06/10/2026 : « si je veux l'ajouter en face ? ») est LE QR de
+	# l'emballage : les zones code-barres automatiques n'en impriment plus un second.
+	qr_place = any(z["zone"] == "code_barres" and z.get("code") == "qr" for liste in zones.values() for z in liste)
 	photo_zone = None
 	if any(z["zone"] == "photo" for liste in zones.values() for z in liste):
 		try:
-			photo_zone = fond_blanc_en_transparence(fichiers.lire(photo_url)) if photo_url else None
+			photo_zone = fondre_bords(fond_blanc_en_transparence(fichiers.lire(photo_url))) if photo_url else None
 		except Exception:
 			photo_zone = fichiers.lire(photo_url) if photo_url else None
 	for face in plan["faces"]:
@@ -1012,10 +1157,10 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			if z["zone"] == "photo":
 				# Une face qui porte un visuel IA (variante de face avant, faces IA) montre déjà le produit :
 				# une zone « photo » dessus le doublerait (constaté sur EMB-2026-0002 le 24/09/2026).
-				if photo_zone and face["code"] not in visuels:
+				if photo_zone and face["code"] not in sans_photo:
 					poser_image(page, rect, photo_zone, garder_proportions=True)
 			style = style_zone(z)
-			couleur_zone = (style or {}).get("texte") or couleur_texte
+			couleur_zone = (style or {}).get("texte") or textes_face.get(face["code"], couleur_texte)
 			if z["zone"] == "logo" and (z.get("logo") or logo):
 				# Variante de logo propre à cette face (bibliothèque), sinon le logo du design.
 				logo_face = logo
@@ -1060,15 +1205,24 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 						rapport["reductions"].append({"face": face["code"], "libelle": face.get("libelle") or face["code"],
 						                              "zone": z["zone"], "echelle": round(echelle, 2)})
 			elif z["zone"] == "code_barres":
+				porte = z.get("code")
+				if porte == "qr":
+					# Zone « QR code » : le QR, carré, au centre de la zone, sur son cartouche blanc.
+					if qr:
+						carre = carre_centre(rect)
+						page.draw_rect(pymupdf.Rect(*carre), color=None, fill=(1, 1, 1))
+						poser_svg(page, carre, qr)
+					continue
+				qr_ici = None if (qr_place or porte == "ean") else qr
 				if ean:
 					fond_blanc = pymupdf.Rect(*rect)
 					page.draw_rect(fond_blanc, color=None, fill=(1, 1, 1))
 					poser_svg(page, rect, ean)
-				elif qr:
+				elif qr_ici:
 					cote = min(rect[2] - rect[0], rect[3] - rect[1])
 					page.draw_rect(pymupdf.Rect(rect[2] - cote, rect[3] - cote, rect[2], rect[3]), color=None, fill=(1, 1, 1))
-					poser_svg(page, (rect[2] - cote, rect[3] - cote, rect[2], rect[3]), qr)
-				if ean and qr and face["code"] == "arriere":
+					poser_svg(page, (rect[2] - cote, rect[3] - cote, rect[2], rect[3]), qr_ici)
+				if ean and qr_ici and face["code"] == "arriere":
 					cote = MM(min(18.0, z["h"]))
 					page.draw_rect(pymupdf.Rect(rect[0] - cote - MM(2), rect[3] - cote, rect[0] - MM(2), rect[3]), color=None, fill=(1, 1, 1))
 					poser_svg(page, (rect[0] - cote - MM(2), rect[3] - cote, rect[0] - MM(2), rect[3]), qr)
@@ -1076,13 +1230,17 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				# Une zone peut ne montrer que certains pictogrammes (demande utilisateur 24/09/2026 :
 				# « NSF seul sur l'avant ») ; sans sélection, elle les montre tous.
 				choisis = z.get("pictos") if isinstance(z.get("pictos"), list) and z.get("pictos") else None
-				liste = [(c, s) for c, s in pictos_svg if not choisis or c in choisis]
+				# Une zone sans sélection montre les pictogrammes, pas les TAMPONS : un tampon n'apparaît que là où
+				# on l'a posé (« Ajouter : Tampon … » du studio).
+				liste = [(c, s) for c, s in pictos_svg if (c in choisis if choisis else c not in tampons)]
 				taille = MM(taille_pictos(z["w"], z["h"], len(liste)))
 				x = rect[0]
-				for _code, svg in liste:
+				for code_picto, svg in liste:
 					if taille <= 0:
 						break
-					if sans_cartouche:
+					if code_picto in tampons:
+						pass
+					elif sans_cartouche:
 						# Demande utilisateur 24/09/2026 : posé en transparence ; un picto monochrome prend
 						# la couleur du texte de la face pour rester lisible sur le fond.
 						if est_svg(svg):

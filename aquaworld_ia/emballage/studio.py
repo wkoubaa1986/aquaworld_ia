@@ -17,7 +17,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 
-from aquaworld_ia.emballage import geometrie, job, mise_en_forme, textes
+from aquaworld_ia.emballage import codes, geometrie, job, mise_en_forme, textes
 from aquaworld_ia.manuels import rendu
 
 #: Les seuls champs que la page peut écrire. Tout le reste (statut, plan, variantes…) est le
@@ -25,8 +25,9 @@ from aquaworld_ia.manuels import rendu
 CHAMPS_EDITABLES = (
 	"nom_produit", "marque", "logo", "photo_produit", "type_boite", "longueur_mm", "hauteur_mm",
 	"profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm", "patte_collage_mm", "caracteristiques",
-	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "brief_style", "palette",
+	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "couleur_qr", "brief_style", "palette",
 	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques", "cotes_identiques", "pictos_sans_cartouche", "fond_continu", "mise_en_page",
+	"fonds_faces",
 	"police_caracteristiques", "taille_caracteristiques",
 )
 CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm",
@@ -48,7 +49,32 @@ def _contenu_du_doc(doc) -> dict:
 		"faces_identiques": bool(doc.get("faces_identiques")),
 		"cotes_identiques": bool(doc.get("cotes_identiques")),
 		"mise_en_page": doc.get("mise_en_page") or None,
+		"photo_auto": photo_automatique(doc),
 	}
+
+
+def photo_automatique(doc) -> bool:
+	"""La photo produit sera-t-elle posée D'OFFICE au centre de la face avant ? Même règle que
+	`composition.composer` : une photo, pas de visuel IA de face avant (variante choisie, hors fond
+	continu) et aucune zone « Photo produit » dessinée. Le studio la montre alors sur le plan comme une
+	zone « automatique » qu'on peut saisir (retour utilisateur 06/10/2026 : « photo produit je ne la
+	trouve pas »)."""
+	from aquaworld_ia.emballage.variantes import url_photo
+
+	from aquaworld_ia.emballage.composition import reglage_fond
+
+	if not url_photo(doc):
+		return False
+	reg = reglage_fond(frappe.parse_json(doc.fonds_faces) if doc.get("fonds_faces") else {}, "avant")
+	if reg and reg.get("photo_incluse"):
+		return False          # la face avant composée par l'IA montre déjà le produit
+	continu = cint(doc.get("fond_continu")) and doc.get("image_fond")
+	v = next((x for x in doc.get("variantes") or [] if x.numero == cint(doc.get("variante_choisie"))), None)
+	if v and v.image and not continu and not reg:
+		return False
+	mep = frappe.parse_json(doc.mise_en_page) if doc.get("mise_en_page") else {}
+	return not any(isinstance(z, dict) and z.get("zone") == "photo"
+	               for liste in (mep or {}).values() if isinstance(liste, list) for z in liste)
 
 
 def apercu_du_doc(doc) -> dict | None:
@@ -81,6 +107,7 @@ def charger(design: str) -> dict:
 		"images": images_du_design(doc),
 		"polices": polices_du_studio(),
 		"desalignes": mise_en_forme.desalignes(doc.caracteristiques, t or {}),
+		"textes_non_appliques": textes_non_appliques(doc, t or {}),
 	}
 
 
@@ -95,10 +122,29 @@ def utiliser_lignes_brutes(design: str, langue: str) -> dict:
 	t = frappe.parse_json(doc.textes_ia) if doc.textes_ia else {}
 	if langue not in (t or {}):
 		frappe.throw(_("Pas de textes préparés en {0}.").format(langue))
-	t[langue]["caracteristiques"] = mise_en_forme.lignes_imprimables(doc.caracteristiques)
+	t[langue].update(textes_de_l_etape_2(doc))
 	doc.textes_ia = json.dumps(t, ensure_ascii=False)
 	doc.save()
 	return charger(design)
+
+
+def textes_de_l_etape_2(doc) -> dict:
+	"""Ce qui s'imprime quand on choisit « mes textes tels quels » : caractéristiques (mise en forme comprise),
+	avertissements et contact de l'étape 2 (06/10/2026 : l'utilisateur avait retiré une ligne et les
+	avertissements, l'emballage gardait les textes préparés par l'IA). L'accroche reste celle des textes préparés."""
+	return {"caracteristiques": mise_en_forme.lignes_imprimables(doc.caracteristiques),
+	        "avertissements": mise_en_forme.lignes_imprimables(doc.avertissements),
+	        "contact": (doc.contact or "").strip()}
+
+
+def textes_non_appliques(doc, t: dict) -> list[str]:
+	"""Les langues dont le texte IMPRIMÉ diffère de l'étape 2 — seulement la PREMIÈRE langue préparée (celle dans
+	laquelle on écrit ; les autres sont des traductions, forcément différentes). Pur à `doc` près."""
+	if not t:
+		return []
+	code = next(iter(t))
+	brut, imprime = textes_de_l_etape_2(doc), t.get(code) or {}
+	return [code] if any((imprime.get(k) or ([] if k != "contact" else "")) != v for k, v in brut.items()) else []
 
 
 def polices_du_studio() -> list[dict]:
@@ -133,7 +179,8 @@ def ajouter_police(nom: str, regulier: str, gras: str | None = None, italique: s
 
 
 GENRES_IMAGE = (
-	("-logo-ia", "Logo IA"), ("-logo", "Logo"), ("-photo-ia", "Photo IA"), ("-photo", "Photo"), ("-fond", "Fond IA"),
+	("-logo-ia", "Logo IA"), ("-logo-couleur", "Logo couleur"), ("-logo", "Logo"), ("-tampon", "Tampon IA"),
+	("-face-", "Face composée IA"), ("-photo-ia", "Photo IA"), ("-photo", "Photo"), ("-fond", "Fond IA"),
 	("-apercu-3d", "Aperçu 3D"),
 )
 
@@ -191,7 +238,7 @@ def url_pictogramme(p) -> str | None:
 
 def pictos_avec_vignette() -> list:
 	out = frappe.get_all("Aquaworld IA Pictogramme", filters={"actif": 1},
-	                     fields=["code", "libelle", "categorie", "image", "fichier"], order_by="categorie, code")
+	                     fields=["code", "libelle", "categorie", "image", "fichier", "taille_mm"], order_by="categorie, code")
 	for p in out:
 		p["url"] = url_pictogramme(p)
 	return out
@@ -229,7 +276,7 @@ def enregistrer(design: str, valeurs) -> dict:
 			val = v[champ]
 			if champ in CHAMPS_NUMERIQUES:
 				val = flt(val)
-			if champ == "mise_en_page" and not isinstance(val, str):
+			if champ in ("mise_en_page", "fonds_faces") and not isinstance(val, str):
 				val = json.dumps(val, ensure_ascii=False) if val else None
 			doc.set(champ, val)
 	if "langues" in v:
@@ -238,6 +285,14 @@ def enregistrer(design: str, valeurs) -> dict:
 		doc.set("pictogrammes", [{"pictogramme": c} for c in (v["pictogrammes"] or []) if c])
 	if doc.type_boite and doc.type_boite not in geometrie.TYPES:
 		frappe.throw(_("Forme inconnue : {0}").format(doc.type_boite))
+	if "couleur_qr" in v and doc.couleur_qr:
+		c = codes.normaliser_couleur(doc.couleur_qr)
+		if not c:
+			frappe.throw(_("Couleur du QR invalide : choisissez-la dans la palette ou saisissez un code #RRGGBB."))
+		if codes.contraste_sur_blanc(c) < codes.CONTRASTE_QR_MIN:
+			frappe.throw(_("{0} est trop clair pour un QR : un téléphone le lirait mal sur son cartouche blanc (contraste {1}, il faut au moins {2}). Prenez une teinte plus foncée.").format(
+				c, "%.1f" % codes.contraste_sur_blanc(c), "%g" % codes.CONTRASTE_QR_MIN))
+		doc.couleur_qr = c
 	doc.save()
 	return charger(design)
 
@@ -356,6 +411,12 @@ def dupliquer(design: str, article: str | None = None) -> dict:
 				if isinstance(z, dict) and z.get("logo"):
 					z["logo"] = rattacher(z["logo"])
 		copie.mise_en_page = json.dumps(mep, ensure_ascii=False)
+	fonds = frappe.parse_json(copie.fonds_faces) if copie.get("fonds_faces") else None
+	if isinstance(fonds, dict):
+		for reg in fonds.values():
+			if isinstance(reg, dict) and reg.get("image"):
+				reg["image"] = rattacher(reg["image"])
+		copie.fonds_faces = json.dumps(fonds, ensure_ascii=False)
 	copie.save()
 	return {"name": copie.name}
 
@@ -472,8 +533,9 @@ def retoucher_image(design: str, champ: str, instruction: str, nombre=1) -> dict
 
 @frappe.whitelist()
 def adopter_image(design: str, champ: str, url: str) -> dict:
-	"""Le candidat devient le logo ou la photo produit : fond blanc rendu transparent, fichier propre."""
-	from aquaworld_ia.emballage.composition import fond_blanc_en_transparence
+	"""Le candidat devient le logo ou la photo produit : fond blanc rendu transparent, fichier propre (un
+	SVG est gardé tel quel)."""
+	from aquaworld_ia.emballage.composition import est_svg, fond_blanc_en_transparence
 	from aquaworld_ia.ia import fichiers
 	from frappe.utils.file_manager import save_file
 
@@ -481,11 +543,348 @@ def adopter_image(design: str, champ: str, url: str) -> dict:
 		frappe.throw(_("Pas d'atelier IA pour ce champ."))
 	doc = frappe.get_doc("Design Emballage", design)
 	doc.check_permission("write")
-	png = fond_blanc_en_transparence(fichiers.lire(url))
+	octets = fichiers.lire(url)
+	if est_svg(octets):
+		# Un SVG (logo recoloré, vectorisé) est déjà sans fond : il devient le logo tel quel.
+		doc.set(champ, url)
+		doc.save()
+		return charger(design)
+	png = fond_blanc_en_transparence(octets)
 	fichier = save_file("%s-%s.png" % (doc.name, "logo" if champ == "logo" else "photo"), png, "Design Emballage", doc.name, is_private=1)
 	doc.set(champ, fichier.file_url)
 	doc.save()
 	return charger(design)
+
+
+@frappe.whitelist()
+def palette_logo(design: str) -> dict:
+	"""La palette proposée pour recolorer le logo : ses propres encres, les couleurs du design (fond,
+	cartouches et textes des zones, image de fond), puis noir et blanc."""
+	from aquaworld_ia.emballage import logo_couleur as LC
+	from aquaworld_ia.emballage.composition import couleurs_dominantes
+	from aquaworld_ia.emballage.variantes import url_logo, url_photo
+	from aquaworld_ia.ia import fichiers
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("read")
+	source = url_logo(doc)
+	if not source:
+		frappe.throw(_("Attachez d'abord un logo."))
+	octets = fichiers.lire(source)
+	# La palette du design d'abord (couleurs prises à la pipette, ou saisies) ; puis le logo, la photo, le reste.
+	couleurs = [(c, "palette") for c in re.split(r"[\s,;]+", doc.get("palette") or "") if c]
+	couleurs += [(c, "logo") for c in LC.couleurs_logo(octets)]
+	photo = url_photo(doc)
+	if photo:
+		try:
+			couleurs += [(c, "photo produit") for c in LC.couleurs_logo(fichiers.lire(photo), 5)]
+		except Exception:
+			pass
+	if doc.get("couleur_fond"):
+		couleurs.append((doc.couleur_fond, "fond"))
+	mep = frappe.parse_json(doc.mise_en_page) if doc.get("mise_en_page") else {}
+	for liste in (mep or {}).values():
+		for z in liste if isinstance(liste, list) else []:
+			st = (z or {}).get("style") if isinstance(z, dict) else None
+			for cle in ("fond", "texte"):
+				if isinstance(st, dict) and st.get(cle):
+					couleurs.append((st[cle], "zones"))
+	if doc.get("image_fond"):
+		try:
+			couleurs += [(c, "image de fond") for c in couleurs_dominantes(fichiers.lire(doc.image_fond), 4)]
+		except Exception:
+			pass
+	couleurs += [("#000000", "noir"), ("#ffffff", "blanc")]
+	return {"source": source, "vectoriel": LC.svg_vectoriel(octets), "palette": LC.palette(couleurs)}
+
+
+@frappe.whitelist()
+def logo_couleur(design: str, couleur: str, garder_blanc=1, sortie: str = "svg") -> dict:
+	"""Le logo en UNE couleur choisie, en SVG (ou PNG) — un candidat attaché à la fiche, posé seulement si
+	l'utilisateur l'adopte. Sans IA : couleur exacte, gratuit (demande utilisateur 06/10/2026)."""
+	from aquaworld_ia.emballage import logo_couleur as LC
+	from aquaworld_ia.emballage.variantes import url_logo
+	from aquaworld_ia.ia import fichiers
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	source = url_logo(doc)
+	if not source:
+		frappe.throw(_("Attachez d'abord un logo."))
+	try:
+		octets, ext = LC.appliquer(fichiers.lire(source), couleur, bool(cint(garder_blanc)), sortie)
+	except ValueError as e:
+		frappe.throw(str(e))
+	nom = "%s-logo-couleur-%s.%s" % (doc.name, LC.normaliser(couleur)[1:], ext)
+	fichier = save_file(nom, octets, "Design Emballage", doc.name, is_private=1)
+	return {"candidat": fichier.file_url, "source": source, "format": ext, "taille_ko": round(len(octets) / 1024, 1)}
+
+
+@frappe.whitelist()
+def proposer_fonds(design: str, consigne: str | None = None, nombre=2, mode: str = "nouveau", suivre_style=1,
+                   avec_logo=1, continu=None) -> dict:
+	"""Des fonds IA À COMPARER, rien n'est remplacé (demande utilisateur 06/10/2026 : « regénérer une image de fond
+	que je contrôle bien ») : `mode` « nouveau » (consigne + palette + brief [+ style de la variante] [+ logo en
+	référence]) ou « retouche » (le fond ACTUEL en référence, seule la consigne change). La consigne est gardée sur
+	la fiche pour être affinée au tour suivant."""
+	from aquaworld_ia.emballage import prompts
+	from aquaworld_ia.emballage.variantes import plan_du_design, prompt_fond_du_design, url_logo
+	from aquaworld_ia.ia import couts, fichiers, images, journal
+	from aquaworld_ia.ia.client import qualite_image, reglages
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	manque = geometrie.dimensions_manquantes(doc.type_boite or geometrie.ETUI, flt(doc.longueur_mm), flt(doc.hauteur_mm),
+	                                         flt(doc.profondeur_mm), flt(doc.get("repli_mm")))
+	if manque:
+		frappe.throw(_("Renseignez d'abord les dimensions : {0}.").format(", ".join(manque)))
+	if continu is not None:
+		doc.fond_continu = cint(continu)
+	plan = plan_du_design(doc)
+	cible = (geometrie.bande(plan) or geometrie.face(plan, "avant")) if cint(doc.fond_continu) else geometrie.face(plan, "avant")
+	taille = geometrie.taille_image_pour(cible)
+	n = max(1, min(4, cint(nombre) or 2))
+	qualite = qualite_image()
+	journal.verifier_plafond(couts.cout_variantes(n, qualite, couts.tarifs_depuis_reglages(reglages())))
+	consigne = (consigne or "").strip()[:600]
+	if mode == "retouche":
+		if not doc.image_fond:
+			frappe.throw(_("Pas encore de fond à retoucher : générez-en un nouveau."))
+		pngs = images.editer(prompts.prompt_retouche_fond(consigne), [("fond", fichiers.lire(doc.image_fond))], taille=taille,
+		                     qualite=qualite, n=n, fonctionnalite="Emballage fond", doc=doc, fidelite="high")
+	else:
+		prompt = prompt_fond_du_design(doc, plan, consigne, bool(cint(suivre_style)))
+		logo = url_logo(doc) if cint(avec_logo) else None
+		pngs = (images.editer(prompt, [("logo", fichiers.lire(logo))], taille=taille, qualite=qualite, n=n,
+		                      fonctionnalite="Emballage fond", doc=doc, fidelite=None) if logo
+		        else images.generer(prompt, taille=taille, qualite=qualite, n=n, fonctionnalite="Emballage fond", doc=doc))
+	frappe.db.set_value("Design Emballage", design, "consigne_fond", consigne, update_modified=False)
+	return {"candidats": [save_file("%s-fond.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs],
+	        "actuel": doc.image_fond, "continu": cint(doc.fond_continu)}
+
+
+COMPOSANTS_FACE = ("fond", "image_face", "photo", "logo")
+
+
+def _references_face(doc, plan: dict, face: dict, composants: list[str]) -> list[tuple[str, bytes]]:
+	"""Les images envoyées à l'IA pour composer UNE face, dans l'ordre des rôles du prompt. Le fond est pris tel
+	que la face le porte : sa tranche du panorama en mode continu, sinon l'image recadrée à la face — la
+	continuité aux plis est ainsi gardée."""
+	from aquaworld_ia.emballage import composition as C
+	from aquaworld_ia.emballage.variantes import url_logo, url_photo
+	from aquaworld_ia.ia import fichiers
+
+	refs = []
+	for c in composants:
+		if c == "fond" and doc.image_fond:
+			img = fichiers.lire(doc.image_fond)
+			bande = geometrie.bande(plan) if cint(doc.fond_continu) else None
+			r = C.rect_avec_fond_perdu(face, plan)
+			if bande and face["code"] in bande["faces"]:
+				rects = [C.rect_avec_fond_perdu(f, plan) for f in plan["faces"] if f["code"] in bande["faces"]]
+				bx0, by0 = min(x[0] for x in rects), min(x[1] for x in rects)
+				bande = dict(bande, x=bx0, y=by0, w=max(x[0] + x[2] for x in rects) - bx0, h=max(x[1] + x[3] for x in rects) - by0)
+				refs.append(("fond", C.tranche_panorama(img, bande, r)))
+			else:
+				refs.append(("fond", C.recadrer(img, r[2], r[3])))
+		elif c == "image_face":
+			reg = C.reglage_fond(frappe.parse_json(doc.fonds_faces) if doc.get("fonds_faces") else {}, face["code"])
+			if reg and reg.get("image"):
+				refs.append(("image_face", fichiers.lire(reg["image"])))
+		elif c == "photo" and url_photo(doc):
+			refs.append(("photo", fichiers.lire(url_photo(doc))))
+		elif c == "logo" and url_logo(doc):
+			refs.append(("logo", fichiers.lire(url_logo(doc))))
+	return refs
+
+
+@frappe.whitelist()
+def composer_face_ia(design: str, face: str, composants=None, consigne: str | None = None, nombre=2, apercu=0) -> dict:
+	"""Une face composée par l'IA à partir des composants choisis (fond, image actuelle de la face, photo, logo) et
+	d'une consigne : `nombre` propositions à comparer, rien n'est posé avant « Utiliser ». `apercu` : seulement le
+	texte qui partirait à l'IA (rien n'est facturé)."""
+	from aquaworld_ia.emballage import prompts
+	from aquaworld_ia.emballage.variantes import plan_du_design
+	from aquaworld_ia.ia import couts, images, journal
+	from aquaworld_ia.ia.client import qualite_image, reglages
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("read" if cint(apercu) else "write")
+	plan = plan_du_design(doc)
+	f = geometrie.face(plan, face)
+	if not f or not f.get("imprimable"):
+		frappe.throw(_("Face inconnue ou non imprimable : {0}").format(face))
+	liste = frappe.parse_json(composants) if isinstance(composants, str) else (composants or [])
+	liste = [c for c in COMPOSANTS_FACE if c in liste]
+	consigne = (consigne or "").strip()[:600]
+	prompt = prompts.prompt_composition("%s panel" % (f.get("libelle") or face), doc.nom_produit or doc.article, liste, consigne,
+	                                    palette=doc.palette, brief=doc.brief_style or "", famille=plan.get("famille"))
+	if cint(apercu):
+		return {"prompt": prompt}
+	refs = _references_face(doc, plan, f, liste)
+	if not refs:
+		frappe.throw(_("Choisissez au moins un composant disponible (fond, photo, logo…)."))
+	n = max(1, min(4, cint(nombre) or 2))
+	qualite = qualite_image()
+	journal.verifier_plafond(couts.cout_variantes(n, qualite, couts.tarifs_depuis_reglages(reglages())))
+	pngs = images.editer(prompt, refs, taille=geometrie.taille_image_pour(f), qualite=qualite, n=n,
+	                     fonctionnalite="Emballage faces", doc=doc, fidelite="high")
+	fonds = frappe.parse_json(doc.fonds_faces) if doc.get("fonds_faces") else {}
+	reg = fonds.get(face) if isinstance(fonds.get(face), dict) else {}
+	frappe.db.set_value("Design Emballage", design, "fonds_faces",
+	                    json.dumps(dict(fonds, **{face: dict(reg, consigne=consigne)}), ensure_ascii=False), update_modified=False)
+	envoyes = [r[0] for r in refs]
+	return {"candidats": [save_file("%s-face-%s.png" % (doc.name, face), png, "Design Emballage", doc.name, is_private=1).file_url
+	                      for png in pngs],
+	        "actuel": reg.get("image") if reg.get("mode") == "image" else doc.image_fond, "face": face,
+	        # Le produit est dans la nouvelle image si la photo a été envoyée, OU si l'image de la face qui sert de base le
+	        # contenait déjà (06/10/2026 : recomposée sans cocher la photo, la face a montré DEUX fois le produit).
+	        "photo_incluse": "photo" in envoyes or ("image_face" in envoyes and bool(reg.get("photo_incluse")))}
+
+
+@frappe.whitelist()
+def adopter_face_ia(design: str, face: str, url: str, photo_incluse=0) -> dict:
+	"""L'image composée devient le fond de CETTE face ; si elle contient le produit, la photo n'y est plus posée
+	par-dessus. Le plan se recompose."""
+	from aquaworld_ia.emballage.composition import composer_et_attacher
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	fonds = frappe.parse_json(doc.fonds_faces) if doc.get("fonds_faces") else {}
+	reg = fonds.get(face) if isinstance(fonds.get(face), dict) else {}
+	fonds[face] = dict(reg, mode="image", image=url, photo_incluse=bool(cint(photo_incluse)))
+	doc.fonds_faces = json.dumps(fonds, ensure_ascii=False)
+	doc.apercu_3d = None
+	doc.save()
+	recompose = False
+	try:
+		composer_et_attacher(design, cint(doc.variante_choisie))
+		recompose = True
+	except Exception:
+		frappe.log_error(title="Aquaworld IA : recomposition après face %s" % design, message=frappe.get_traceback())
+	return dict(charger(design), recompose=recompose)
+
+
+@frappe.whitelist()
+def blanchir(design: str, cible: str = "fond") -> dict:
+	"""« ⚪ Blanc pur » : le presque blanc de l'image de fond (`cible` = « fond ») ou de l'image IA d'une face
+	(`cible` = code de la face) devient du blanc pur. Nouvelle version posée à la place (l'ancienne reste dans
+	l'onglet Images), plan recomposé. Sans IA."""
+	from aquaworld_ia.emballage import composition as C
+	from aquaworld_ia.ia import fichiers
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	fonds = frappe.parse_json(doc.fonds_faces) if doc.get("fonds_faces") else {}
+	if cible == "fond":
+		url = doc.image_fond
+	else:
+		reg = C.reglage_fond(fonds, cible)
+		url = reg.get("image") if reg else None
+	if not url:
+		frappe.throw(_("Pas d'image à blanchir ici."))
+	avant = fichiers.lire(url)
+	apres = C.blanc_pur(avant)
+	nom = "%s-fond.png" % doc.name if cible == "fond" else "%s-face-%s.png" % (doc.name, cible)
+	nouvelle = save_file(nom, apres, "Design Emballage", doc.name, is_private=1).file_url
+	if cible == "fond":
+		doc.image_fond = nouvelle
+	else:
+		fonds[cible] = dict(fonds[cible], image=nouvelle)
+		doc.fonds_faces = json.dumps(fonds, ensure_ascii=False)
+	doc.apercu_3d = None
+	doc.save()
+	recompose = False
+	try:
+		C.composer_et_attacher(design, cint(doc.variante_choisie))
+		recompose = True
+	except Exception:
+		frappe.log_error(title="Aquaworld IA : recomposition après blanc pur %s" % design, message=frappe.get_traceback())
+	return dict(charger(design), recompose=recompose,
+	            blanc_avant=round(C.part_blanc_pur(avant) * 100), blanc_apres=round(C.part_blanc_pur(apres) * 100))
+
+
+@frappe.whitelist()
+def adopter_fond(design: str, url: str, continu=None) -> dict:
+	"""Le fond choisi devient l'image de fond, et le plan se recompose (s'il peut l'être)."""
+	from aquaworld_ia.emballage.composition import composer_et_attacher
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	doc.image_fond = url
+	if continu is not None:
+		doc.fond_continu = cint(continu)
+	doc.apercu_3d = None
+	doc.save()
+	recompose = False
+	if geometrie.dimensions_manquantes(doc.type_boite or geometrie.ETUI, flt(doc.longueur_mm), flt(doc.hauteur_mm),
+	                                   flt(doc.profondeur_mm), flt(doc.get("repli_mm"))) == []:
+		try:
+			composer_et_attacher(design, cint(doc.variante_choisie))
+			recompose = True
+		except Exception:
+			frappe.log_error(title="Aquaworld IA : recomposition après fond %s" % design, message=frappe.get_traceback())
+	return dict(charger(design), recompose=recompose)
+
+
+@frappe.whitelist()
+def creer_tampons(design: str, texte: str, forme: str | None = None, style: str | None = None, couleurs=None,
+                  idee: str | None = None, nombre=3) -> dict:
+	"""Des tampons SVG dessinés par l'IA (demande utilisateur 06/10/2026 : « un tampon comme le poids ») :
+	`nombre` propositions vectorielles, aux couleurs données, chacune attachée à la fiche — rien n'est posé
+	tant que l'utilisateur n'en adopte pas une."""
+	from aquaworld_ia.emballage import logo_couleur as LC
+	from aquaworld_ia.emballage import tampon as T
+	from aquaworld_ia.ia.chat import chat_json
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	texte = (texte or "").strip()
+	if not texte:
+		frappe.throw(_("Écrivez le texte du tampon (ex. « POIDS NET » puis « 25 KG »)."))
+	liste = frappe.parse_json(couleurs) if isinstance(couleurs, str) and couleurs.startswith("[") else (couleurs or [])
+	if isinstance(liste, str):
+		liste = re.split(r"[\s,;]+", liste)
+	liste = [c for c in (LC.normaliser(x) for x in liste) if c][:4] or ["#1e3a8a"]
+	n = max(1, min(4, cint(nombre) or 3))
+	system, user = T.prompts(texte, forme, style, liste, idee or "", n)
+	tampons = T.preparer(chat_json(system, user, fonctionnalite="Tampon IA", doc=doc))
+	if not tampons:
+		frappe.throw(_("L'IA n'a rendu aucun tampon imprimable : réessayez (ou simplifiez le texte)."))
+	return {"tampons": [{"titre": t["titre"],
+	                     "url": save_file("%s-tampon.svg" % doc.name, t["svg"].encode("utf-8"), "Design Emballage", doc.name,
+	                                      is_private=1).file_url} for t in tampons]}
+
+
+@frappe.whitelist()
+def adopter_tampon(design: str, url: str, libelle: str, taille_mm=25) -> dict:
+	"""Le tampon choisi devient un PICTOGRAMME (catégorie « Tampon ») réutilisable par tous les designs, et
+	il est coché sur celui-ci : il se pose ensuite par une zone « Pictogrammes »."""
+	from aquaworld_ia.ia import fichiers
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	frappe.only_for(("System Manager", "Aquaworld IA", "Item Manager", "Stock Manager", "Sales Manager"))
+	libelle = (libelle or "").strip() or _("Tampon")
+	octets = fichiers.lire(url)
+	base = frappe.scrub(libelle)[:40] or "tampon"
+	code, n = base, 2
+	while frappe.db.exists("Aquaworld IA Pictogramme", code):
+		code = "%s_%d" % (base, n)
+		n += 1
+	picto = frappe.get_doc({"doctype": "Aquaworld IA Pictogramme", "code": code, "libelle": libelle, "categorie": "Tampon",
+	                        "taille_mm": flt(taille_mm) or 25, "actif": 1}).insert()
+	fichier = save_file("%s.svg" % code, octets, "Aquaworld IA Pictogramme", picto.name, is_private=0)
+	picto.db_set("image", fichier.file_url)
+	doc.append("pictogrammes", {"pictogramme": picto.name})
+	doc.save()
+	return dict(charger(design), tampon=picto.name)
 
 
 @frappe.whitelist()

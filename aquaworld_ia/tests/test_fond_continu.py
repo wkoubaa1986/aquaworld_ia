@@ -76,4 +76,7 @@ class TestCompositionContinue(unittest.TestCase):
 		self.assertNotIn("r_src", src)
 		self.assertIn("face_source(plan, face[\"code\"], copies)", src)
 		# zone photo ignorée sur une face qui a un visuel IA (le produit y est déjà)
-		self.assertIn('if photo_zone and face["code"] not in visuels:', src)
+		# Pas de zone « photo » sur une face qui montre déjà le produit : visuel IA posé, ou face composée par
+		# l'IA avec la photo (06/10/2026, `sans_photo`).
+		self.assertIn('if photo_zone and face["code"] not in sans_photo:', src)
+		self.assertIn('sans_photo = avec_visuel | {c for c, reg in reglages.items() if reg and reg.get("photo_incluse")}', src)

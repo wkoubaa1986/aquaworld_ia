@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <g>
+    <path d="M40 24 L160 24 Q176 24 176 40 L176 118 Q176 132 166 142 L100 188 L34 142 Q24 132 24 118 L24 40 Q24 24 40 24 Z" fill="none" stroke="#0264c3" stroke-width="6" />
+    <path d="M48 34 L152 34 Q166 34 166 48 L166 114 Q166 126 158 134 L100 174 L42 134 Q34 126 34 114 L34 48 Q34 34 48 34 Z" fill="none" stroke="#5badf0" stroke-width="3" />
+    <text x="100" y="78" text-anchor="middle" font-family="Helvetica" font-weight="bold" font-size="18" fill="#0264c3">POIDS NET</text>
+    <line x1="58" y1="92" x2="142" y2="92" stroke="#5badf0" stroke-width="3" />
+    <text x="100" y="132" text-anchor="middle" font-family="Helvetica" font-weight="bold" font-size="34" fill="#0264c3">25 KG</text>
+  </g>
+</svg>

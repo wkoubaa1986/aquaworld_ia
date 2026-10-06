@@ -78,7 +78,7 @@ def prompt_face_secondaire(style: dict, produit: str, face_code: str, palette=No
 
 
 def prompt_fond(style: dict | None, produit: str, palette=None, brief: str = "", famille: str | None = None,
-                continu: bool = True) -> str:
+                continu: bool = True, consigne: str = "") -> str:
 	"""Un FOND d'ambiance seul — ni produit, ni objet : la photo du produit et les textes sont
 	posés par-dessus en vectoriel. En mode continu, une seule image panoramique fait le tour de
 	l'emballage et se découpe face par face : elle doit se lire d'un seul tenant, sans
@@ -88,13 +88,55 @@ def prompt_fond(style: dict | None, produit: str, palette=None, brief: str = "",
 			forme(famille), produit)
 		+ _style(style or {}, palette)
 		+ (" Client brief: %s." % brief.strip().rstrip(".") if brief and brief.strip() else "")
+		# Ce que l'utilisateur demande pour CE fond (06/10/2026 : « est-ce que je peux contrôler ce que je génère ? ») :
+		# sa consigne prime sur les indications génériques qui suivent.
+		+ (" What the client explicitly wants in this background (follow it precisely, it takes precedence over the "
+		   "generic guidance below): %s." % consigne.strip().rstrip(".") if consigne and consigne.strip() else "")
 		+ (" Wide seamless horizontal panorama that wraps around the package and reads continuously from left to "
 		   "right, with NO centered focal point and no framing; gentle variation only, so any vertical slice looks good. "
 		   if continu else " Even, balanced composition with no focal point. ")
 		+ "Soft gradients, subtle textures, low detail, calm areas suitable for typography and for a product photo "
 		"placed on top later. If a reference image is given it is the brand logo: match its colors and spirit but DO "
-		"NOT draw or reproduce it. No product, no objects, no people. " + clause_interdiction()
+		"NOT draw or reproduce it. " + ("No product, no people. " if consigne and consigne.strip() else "No product, no objects, no people. ")
+		+ clause_interdiction()
 	)
+
+
+ROLES_COMPOSANTS = {
+	"fond": "the background artwork of this panel: keep it as the BASE of the image (same colors, waves, texture, light)",
+	"image_face": "the current artwork of this panel: keep it as the base and improve it",
+	"photo": "the product photo: integrate this exact product as the hero, faithfully (same shape, proportions, colors, "
+	         "materials), naturally lit and blended into the background — no hard edges, no rectangle, consistent water/light",
+	"logo": "the brand logo: match its colors and spirit, but do NOT draw or reproduce it",
+}
+
+
+def prompt_composition(face_libelle: str, produit: str, composants: list[str], consigne: str = "", palette=None,
+                       brief: str = "", famille: str | None = None) -> str:
+	"""Une FACE composée par l'IA à partir de composants choisis dans le studio (demande utilisateur 06/10/2026 :
+	« je sélectionne l'image de fond et un ou plusieurs composants et je demande à l'IA quelque chose de plus
+	uniforme »). Les images de référence sont nommées dans l'ordre d'envoi. Pur."""
+	roles = " ".join("Reference image %d = %s." % (i + 1, ROLES_COMPOSANTS[c]) for i, c in enumerate(composants)
+	                 if c in ROLES_COMPOSANTS)
+	return (
+		"Packaging artwork for the %s of a %s, product \"%s\". Combine the reference images into ONE seamless, uniform "
+		"artwork. %s " % (face_libelle, forme(famille), produit, roles)
+		+ ("What the client wants (follow it precisely, it takes precedence): %s. " % consigne.strip().rstrip(".")
+		   if consigne and consigne.strip() else "")
+		+ ("Color palette: %s. " % palette if palette else "")
+		+ ("Client brief: %s. " % brief.strip().rstrip(".") if brief and brief.strip() else "")
+		+ "Keep calm, low-detail areas at the top (logo and product name are added later) and at the bottom (text). "
+		+ clause_interdiction())
+
+
+def prompt_retouche_fond(consigne: str) -> str:
+	"""Retoucher le fond ACTUEL plutôt qu'en tirer un nouveau (demande utilisateur 06/10/2026 : « regénérer une
+	image de fond que je contrôle bien ») : l'image de référence est le fond, seule la consigne change. Pur."""
+	return (
+		"Edit the given packaging background artwork. Apply only this change: %s. Keep everything else as it is "
+		"(composition, colors, texture, lighting, style) unless the change asks otherwise. It must remain an abstract "
+		"background, with calm areas for typography and for a product photo placed on top later. No product, no people. "
+		% ((consigne or "").strip().rstrip(".") or "refine it slightly") + clause_interdiction())
 
 
 NOMS_FACES = {"avant": "front panel", "arriere": "back panel", "cote_gauche": "left side panel",

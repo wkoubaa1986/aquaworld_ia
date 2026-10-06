@@ -94,3 +94,28 @@ class TestDuplication(unittest.TestCase):
 	def test_les_resultats_ne_suivent_pas(self):
 		for champ in ("plan_a_plat", "apercu_plan", "apercu_3d", "journal", "statut"):
 			self.assertIn(champ, S.CHAMPS_NON_DUPLIQUES)
+
+
+class TestTextesDeLEtape2(unittest.TestCase):
+	"""06/10/2026 : « j'ai changé le texte et les caractéristiques, je n'arrive pas à les appliquer »."""
+
+	def doc(self, car, avert, contact):
+		import frappe
+		return frappe._dict(caracteristiques=car, avertissements=avert, contact=contact)
+
+	def test_tout_l_etape_2_part_a_l_impression(self):
+		from aquaworld_ia.emballage.studio import textes_de_l_etape_2
+		t = textes_de_l_etape_2(self.doc("Ligne 1\n{sans puce} Ligne 2", "", " Tel 98 "))
+		self.assertEqual(t["caracteristiques"], ["Ligne 1", "{sans puce} Ligne 2"])
+		self.assertEqual(t["avertissements"], [])                  # avertissements retirés = plus rien d'imprimé
+		self.assertEqual(t["contact"], "Tel 98")
+
+	def test_difference_signalee_sur_la_premiere_langue_seulement(self):
+		from aquaworld_ia.emballage.studio import textes_non_appliques
+		d = self.doc("Ligne 1", "", "Tel")
+		imprime = {"fr": {"caracteristiques": ["Ligne 1", "Ligne 3"], "avertissements": ["Au sec"], "contact": "Tel"},
+		           "en": {"caracteristiques": ["Line 1"], "avertissements": [], "contact": "Tel"}}
+		self.assertEqual(textes_non_appliques(d, imprime), ["fr"])
+		imprime["fr"] = {"caracteristiques": ["Ligne 1"], "avertissements": [], "contact": "Tel"}
+		self.assertEqual(textes_non_appliques(d, imprime), [])
+		self.assertEqual(textes_non_appliques(d, {}), [])

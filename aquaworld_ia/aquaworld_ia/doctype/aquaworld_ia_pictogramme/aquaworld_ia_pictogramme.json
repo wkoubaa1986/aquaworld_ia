@@ -37,7 +37,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Catégorie",
-   "options": "Réglementaire\nCertification\nQualité de l'eau\nAlimentaire\nGarantie\nManutention\nRecyclage\nSécurité\nAutre"
+   "options": "Réglementaire\nCertification\nQualité de l'eau\nAlimentaire\nGarantie\nManutention\nRecyclage\nSécurité\nAutre\nTampon"
   },
   {
    "fieldname": "cb_5",
@@ -79,7 +79,7 @@
  "issingle": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-09-25 19:00:00.000000",
+ "modified": "2026-10-06 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Aquaworld IA Pictogramme",

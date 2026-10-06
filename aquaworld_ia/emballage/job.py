@@ -72,6 +72,8 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 	from aquaworld_ia.emballage.composition import faces_copiees
 
 	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")), mep or None, bool(brut.get("cotes_identiques")))
+	if brut.get("photo_auto"):
+		zones = avec_photo_automatique(plan, zones, bool(brut.get("faces_identiques")))
 	copies = faces_copiees(plan, bool(brut.get("faces_identiques")), bool(brut.get("cotes_identiques")), mep or None)
 	# Une face qui DEVRAIT copier (option cochée) mais a sa propre mise en page : le studio le dit.
 	voulues = faces_copiees(plan, bool(brut.get("faces_identiques")), bool(brut.get("cotes_identiques")), None)
@@ -84,6 +86,26 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 	                   "personnalisee": bool(mep and f["code"] in mep),
 	                   "zones": [dict(z, libelle=geometrie.libelle_zone(z)) for z in zones[f["code"]]]}
 	                  for f in plan["faces"] if f["imprimable"]]}
+
+
+def avec_photo_automatique(plan: dict, zones: dict, faces_identiques: bool = False) -> dict:
+	"""La photo produit que la composition pose D'OFFICE (centre de la face avant, et du dos miroir)
+	devient une zone visible du plan, marquée `auto` : le studio la montre, et la déplacer ou
+	l'agrandir la change en zone « Photo produit » ordinaire. Pur."""
+	from aquaworld_ia.emballage.composition import hero_photo_rect
+
+	if any(z["zone"] == "photo" for liste in zones.values() for z in liste):
+		return zones
+	codes = {f["code"] for f in plan["faces"] if f["imprimable"]}
+	heros = ["avant"] + (["arriere"] if faces_identiques and "cote_droit" in codes else [])
+	out = dict(zones)
+	for code in heros:
+		f = geometrie.face(plan, code)
+		if f and f["imprimable"] and code in out:
+			x, y, w, h = hero_photo_rect(f)
+			out[code] = list(out[code]) + [{"zone": "photo", "x": round(x, 3), "y": round(y, 3), "w": round(w, 3),
+			                                "h": round(h, 3), "auto": 1}]
+	return out
 
 
 @frappe.whitelist()
@@ -135,9 +157,11 @@ def regenerer_variante(design: str, numero) -> dict:
 
 @frappe.whitelist()
 def choisir_variante(design: str, numero) -> dict:
+	"""Choisit la variante de face avant ; `numero` 0 la RETIRE (demande utilisateur 06/10/2026 : « comment
+	je peux la désélectionner ») : la face avant redevient fond + photo produit."""
 	doc = _doc(design)
 	v = next((x for x in doc.variantes if x.numero == cint(numero) and x.statut == "Prête"), None)
-	if not v:
+	if cint(numero) and not v:
 		frappe.throw(_("Cette variante n'est pas prête."))
 	frappe.db.set_value("Design Emballage", design, "variante_choisie", cint(numero), update_modified=False)
 	frappe.db.commit()
@@ -158,8 +182,32 @@ def lancer_faces(design: str) -> dict:
 
 
 @frappe.whitelist()
-def lancer_fond(design: str, continu=None) -> dict:
-	"""Un fond d'ambiance par IA (1 image). `continu` : le panorama qui fait le tour."""
+def apercu_prompt_fond(design: str, consigne: str | None = None, suivre_style=1, continu=None, mode: str = "nouveau") -> dict:
+	"""Le texte exact qui partira à l'IA pour le fond, avant de payer l'image."""
+	from aquaworld_ia.emballage import prompts
+	from aquaworld_ia.emballage.variantes import plan_du_design, prompt_fond_du_design
+
+	if mode == "retouche":
+		return {"prompt": prompts.prompt_retouche_fond(consigne or "")}
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("read")
+	if continu is not None:
+		doc.fond_continu = cint(continu)
+	try:
+		plan = plan_du_design(doc)
+	except Exception:
+		plan = {}
+	v = next((x for x in doc.variantes if x.numero == cint(doc.variante_choisie)), None)
+	return {"prompt": prompt_fond_du_design(doc, plan, consigne or "", bool(cint(suivre_style))),
+	        "style": v.titre if v else None, "palette": doc.palette or "", "brief": doc.brief_style or "",
+	        "logo": bool(doc.logo or doc.marque)}
+
+
+@frappe.whitelist()
+def lancer_fond(design: str, continu=None, consigne: str | None = None, suivre_style=1, avec_logo=1) -> dict:
+	"""Un fond d'ambiance par IA (1 image). `continu` : le panorama qui fait le tour ; `consigne` : ce que
+	l'utilisateur veut voir dans le fond ; `suivre_style` / `avec_logo` : ce que l'IA reçoit en plus."""
 	doc = _doc(design)
 	manque = geometrie.dimensions_manquantes(doc.type_boite or geometrie.ETUI, flt(doc.longueur_mm), flt(doc.hauteur_mm),
 	                                         flt(doc.profondeur_mm), flt(doc.get("repli_mm")))
@@ -172,7 +220,8 @@ def lancer_fond(design: str, continu=None) -> dict:
 	journal.verifier_plafond(couts.cout_variantes(1, qualite_image(), couts.tarifs_depuis_reglages(reglages())))
 	etat.demarrer(GENRE, design, tache="fond")
 	frappe.enqueue("aquaworld_ia.emballage.variantes.generer_fond", queue="long", timeout=900,
-	               job_id="aqia-emballage-%s" % design, deduplicate=True, design=design, utilisateur=frappe.session.user)
+	               job_id="aqia-emballage-%s" % design, deduplicate=True, design=design, utilisateur=frappe.session.user,
+	               consigne=(consigne or "").strip()[:600], suivre_style=cint(suivre_style), avec_logo=cint(avec_logo))
 	return etat.lire_etat(GENRE, design)
 
 

@@ -29,3 +29,22 @@ class TestPrompts(unittest.TestCase):
 
 	def test_palette_imposee_prime(self):
 		self.assertIn("#123456", P.prompt_variante(STYLE, "X", palette="#123456"))
+
+
+class TestConsigneDuFond(unittest.TestCase):
+	"""06/10/2026 : « lorsque je génère le fond, est-ce que je peux contrôler ce que je génère ? »"""
+
+	def test_la_consigne_part_a_l_ia_et_prime(self):
+		from aquaworld_ia.emballage.prompts import prompt_fond
+		p = prompt_fond({"titre": "Vagues minimalistes"}, "Sel", palette="#44a7ed, #0264c3", consigne="vagues bleues en bas, blanc en haut")
+		self.assertIn("vagues bleues en bas, blanc en haut", p)
+		self.assertIn("takes precedence", p)
+		self.assertNotIn("no objects", p)                      # la consigne peut demander des éléments (gouttes, cristaux)
+		self.assertIn("Vagues minimalistes", p)
+		self.assertIn("#44a7ed, #0264c3", p)
+
+	def test_sans_consigne_rien_ne_change(self):
+		from aquaworld_ia.emballage.prompts import prompt_fond
+		p = prompt_fond(None, "Sel")
+		self.assertNotIn("takes precedence", p)
+		self.assertIn("No product, no objects, no people", p)

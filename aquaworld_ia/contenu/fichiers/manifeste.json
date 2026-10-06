@@ -1,6 +1,14 @@
 [
  {
   "doctype": "Aquaworld IA Pictogramme",
+  "name": "poids_net_25_kg",
+  "champ": "image",
+  "url": "/files/poids_net_25_kgf25124.svg",
+  "fichier": "poids_net_25_kgf25124.svg",
+  "prive": false
+ },
+ {
+  "doctype": "Aquaworld IA Pictogramme",
   "name": "water quality association",
   "champ": "image",
   "url": "/private/files/wqa-logo-vectoriel-net.svg",

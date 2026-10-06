@@ -236,5 +236,19 @@
   "name": "water quality association",
   "obligatoire": 0,
   "taille_mm": 12.0
+ },
+ {
+  "actif": 1,
+  "categorie": "Tampon",
+  "code": "poids_net_25_kg",
+  "docstatus": 0,
+  "doctype": "Aquaworld IA Pictogramme",
+  "fichier": null,
+  "image": "/files/poids_net_25_kgf25124.svg",
+  "libelle": "POIDS NET 25 KG",
+  "modified": "2026-10-06 13:27:32.328000",
+  "name": "poids_net_25_kg",
+  "obligatoire": 0,
+  "taille_mm": 25.0
  }
 ]

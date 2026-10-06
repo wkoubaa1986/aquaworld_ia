@@ -99,6 +99,10 @@ ZONES_LIBELLES = {
 def libelle_zone(z: dict) -> str:
 	"""Le nom d'une zone dans le studio et l'aperçu ; un texte libre montre le début de son texte. Pur."""
 	base = ZONES_LIBELLES.get(z.get("zone"), z.get("zone") or "")
+	if z.get("auto"):
+		return "%s (automatique)" % base
+	if z.get("zone") == "code_barres" and z.get("code") in ("qr", "ean"):
+		return "QR code" if z["code"] == "qr" else "EAN-13"
 	if z.get("zone") == "texte_libre" and isinstance(z.get("texte"), str) and z["texte"].strip():
 		debut = z["texte"].strip().splitlines()[0].strip()
 		return "%s : %s" % (base, debut[:28] + ("…" if len(debut) > 28 else ""))
