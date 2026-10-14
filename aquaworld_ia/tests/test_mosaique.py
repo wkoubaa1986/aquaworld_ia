@@ -110,6 +110,29 @@ class TestRendu(unittest.TestCase):
 		self.assertTrue(M.normaliser(cfg)["cases"][0]["miroir"])
 		self.assertFalse(M.normaliser({"cases": [{"url": "x"}]})["cases"][0]["miroir"])
 
+	def test_taille_par_variante_et_meme_hauteur(self):
+		from PIL import Image
+
+		def largeur_posee(png, g, k):
+			out = Image.open(io.BytesIO(png)).convert("RGBA")
+			c = g["cases"][k]
+			b = out.crop((round(c["x"]), round(c["y"]), round(c["x"] + c["w"]), round(c["y"] + c["h_img"]) + 1)).getchannel("A").getbbox()
+			return (b[2] - b[0], b[3] - b[1]) if b else (0, 0)
+
+		etroit, large = Image.new("RGBA", (100, 300), (0, 0, 200, 255)), Image.new("RGBA", (150, 300), (0, 0, 200, 255))
+		cfg = {"cases": [{"url": "a"}, {"url": "b"}], "disposition": "rangee"}
+		g = M.plan(cfg, [100 / 300, 150 / 300], 600)
+		# même largeur (défaut) : les deux remplissent la largeur de leur case
+		png = M.composer(cfg, [etroit, large], largeur=600)
+		self.assertAlmostEqual(largeur_posee(png, g, 0)[0], largeur_posee(png, g, 1)[0], delta=2)
+		# même hauteur : les deux à la même hauteur
+		png = M.composer(dict(cfg, ajustement="hauteur"), [etroit, large], largeur=600)
+		self.assertAlmostEqual(largeur_posee(png, g, 0)[1], largeur_posee(png, g, 1)[1], delta=2)
+		# 80 % sur la 1re : 20 % plus petite
+		png = M.composer({"cases": [{"url": "a", "taille": 80}, {"url": "b"}], "disposition": "rangee"}, [etroit, large], largeur=600)
+		self.assertAlmostEqual(largeur_posee(png, g, 0)[0] / largeur_posee(png, g, 1)[0], 0.8, delta=0.03)
+		self.assertEqual(M.normaliser({"cases": [{"url": "a", "taille": 500}]})["cases"][0]["taille"], M.TAILLE_MAX)
+
 	def test_produit_detoure_rogne_le_blanc(self):
 		from PIL import Image
 

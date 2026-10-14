@@ -119,3 +119,21 @@ class TestTextesDeLEtape2(unittest.TestCase):
 		imprime["fr"] = {"caracteristiques": ["Ligne 1"], "avertissements": [], "contact": "Tel"}
 		self.assertEqual(textes_non_appliques(d, imprime), [])
 		self.assertEqual(textes_non_appliques(d, {}), [])
+
+
+class TestConsigneProportions(unittest.TestCase):
+	"""La référence « proportions » donne à l'IA une cible chiffrée (en toutes lettres, elle ne changeait rien)."""
+
+	def test_trop_haut_plus_court_et_plus_large(self):
+		c = S.consigne_proportions(2.18, 2.64)
+		self.assertIn("2.64", c)
+		self.assertIn("about 2.18", c)
+		self.assertIn("shorter and wider", c)
+
+	def test_trop_trapu_plus_haut_et_plus_etroit(self):
+		self.assertIn("taller and narrower", S.consigne_proportions(2.6, 2.0))
+
+	def test_ecart_faible_ou_mesure_absente_rien(self):
+		self.assertEqual(S.consigne_proportions(2.18, 2.22), "")
+		self.assertEqual(S.consigne_proportions(0, 2.6), "")
+		self.assertEqual(S.consigne_proportions(2.6, 0), "")

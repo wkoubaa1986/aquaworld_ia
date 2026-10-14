@@ -1190,9 +1190,65 @@ PROMPT_CORRECTION_ORIENTATION = (
 	"on a PURE WHITE background, soft even studio lighting, sharp focus, no shadow scene, no text, no logo.")
 
 
+PROMPT_REFERENCE_SILHOUETTE = (
+	" Image 3 (\"silhouette\") is a FLAT GRAY SILHOUETTE of another product, chosen by the user: it has no colors, no "
+	"materials and no details on purpose. Use it ONLY to match the overall proportions and outline the correction asks for "
+	"(height to width ratio, relative size of the head, the bowl, the bracket). Every color, material, transparency, part "
+	"and detail stays exactly that of image 2 (the product) — the result must still clearly be the product of image 2.")
+
+
+def silhouette_png(octets: bytes) -> bytes:
+	"""Une référence réduite à sa SILHOUETTE grise unie (14/10/2026) : demandée « pour les proportions », la photo de
+	l'image principale faisait recopier son produit entier (cuve transparente sur le porte-filtre noir et bleu) ; une
+	silhouette ne porte que le contour — ni couleur, ni matière, ni transparence, rien à recopier. PNG gris sur blanc."""
+	from PIL import Image
+
+	from aquaworld_ia.emballage.mosaique import produit_detoure
+
+	im = produit_detoure(octets, detourer=True)
+	masque = im.getchannel("A").point(lambda a: 255 if a > 40 else 0)
+	marge = max(20, round(max(im.size) * 0.08))
+	fond = Image.new("RGB", (im.width + 2 * marge, im.height + 2 * marge), (255, 255, 255))
+	fond.paste(Image.new("RGB", im.size, (150, 150, 150)), (marge, marge), masque)
+	buf = io.BytesIO()
+	fond.save(buf, format="PNG")
+	return buf.getvalue()
+
+
+def consigne_proportions(ratio_reference: float, ratio_produit: float) -> str:
+	"""La cible CHIFFRÉE des proportions, mesurée sur les deux images détourées (hauteur / largeur). PUR.
+	Essai réel du 14/10/2026 : avec « les proportions comme la référence » en toutes lettres, l'IA rendait le produit à
+	l'identique (2,64 → 2,64, silhouette à 2,18) ; avec un chiffre et un sens (« plus court et plus large »), 2,64 → 2,06.
+	Rien si l'écart est sous 5 % (l'IA ne sait pas faire plus fin)."""
+	if not ratio_reference or not ratio_produit or abs(ratio_produit / ratio_reference - 1) < 0.05:
+		return ""
+	sens = ("shorter and wider (mostly the bowl/body)" if ratio_produit > ratio_reference
+	        else "taller and narrower (mostly the bowl/body)")
+	return (" MEASURED TARGET: the product in image 1 is currently %.2f times as tall as it is wide (bracket included); "
+	        "the silhouette is %.2f. Make the product %s until it is about %.2f times as tall as wide, keeping its head, "
+	        "its bracket and every part, color and material." % (ratio_produit, ratio_reference, sens, ratio_reference))
+
+
+def _ratio_hauteur_largeur(octets: bytes) -> float:
+	from aquaworld_ia.emballage.mosaique import produit_detoure
+
+	try:
+		im = produit_detoure(octets, detourer=True, max_px=768)
+		return im.height / im.width if im.width else 0
+	except Exception:
+		return 0
+
+
+PROMPT_REFERENCE_CHOISIE = (
+	" Image 3 (\"reference\") was chosen by the user for this correction: use it ONLY for what the correction "
+	"refers to (a part, a color, a material, a shape), and copy nothing else from it — the rest of the product comes from "
+	"image 2 and the camera angle from image 1.")
+
+
 @frappe.whitelist()
 def corriger_orientation(design: str, proposition: str, original: str, correction: str, reference: str | None = None,
-                         reference_miroir=0, nombre=1) -> dict:
+                         reference_miroir=0, nombre=1, reference_choisie: str | None = None,
+                         reference_mode: str = "forme") -> dict:
 	"""Corriger une proposition « même orientation » (14/10/2026 : « à chaque correction, lui redonner les références »).
 	L'IA reçoit la proposition (son ANGLE fait foi, il est déjà le bon) et, à chaque fois, la photo d'ORIGINE de la
 	variante (son APPARENCE fait foi), plus la correction écrite. L'image principale n'est PAS renvoyée : essai du
@@ -1210,9 +1266,28 @@ def corriger_orientation(design: str, proposition: str, original: str, correctio
 	octets_prop = fichiers.lire(_image_lisible(doc, proposition))
 	octets_orig = fichiers.lire(_image_lisible(doc, original))
 	n = max(1, min(4, cint(nombre) or 1))
-	pngs = images.editer(PROMPT_CORRECTION_ORIENTATION % correction,
-	                     [("proposition", octets_prop), ("produit", octets_orig)],
+	prompt, refs = PROMPT_CORRECTION_ORIENTATION % correction, [("proposition", octets_prop), ("produit", octets_orig)]
+	fidelite = "high"
+	if reference_choisie:
+		# une image désignée par l'utilisateur pour CETTE correction (14/10/2026 : « corriger en faisant référence à une
+		# autre image ») : la tête d'une autre variante, la cuve de l'image principale… — pour ce que dit la correction
+		# seulement ; le reste vient toujours de l'image 1 (angle) et de l'image 2 (apparence).
+		octets_choisie = fichiers.lire(_image_lisible(doc, reference_choisie))
+		if reference_mode == "photo":
+			# une PIÈCE, une couleur, une matière à reprendre : il faut la photo (elle « fuit » un peu)
+			refs.append(("reference", octets_choisie))
+			prompt += PROMPT_REFERENCE_CHOISIE
+		else:
+			# des PROPORTIONS, une forme : la silhouette suffit, et elle ne peut rien faire recopier d'autre. Fidélité
+			# BASSE : en « high », l'IA collait à l'image d'entrée et ne changeait pas la forme (essai réel du 14/10,
+			# porte-filtre noir et bleu : identique) ; en « low », cuve raccourcie et élargie comme la silhouette, tête
+			# noire, corps bleu opaque et support gardés.
+			refs.append(("silhouette", silhouette_png(octets_choisie)))
+			prompt += PROMPT_REFERENCE_SILHOUETTE + consigne_proportions(_ratio_hauteur_largeur(octets_choisie),
+			                                                             _ratio_hauteur_largeur(octets_prop))
+			fidelite = "low"
+	pngs = images.editer(prompt, refs,
 	                     taille=taille_retouche("photo_produit", octets_prop), qualite=qualite_image(), n=n,
-	                     fonctionnalite="Emballage image", doc=doc, fidelite="high")
+	                     fonctionnalite="Emballage image", doc=doc, fidelite=fidelite)
 	candidats = [save_file("%s-photo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
 	return {"candidats": candidats}

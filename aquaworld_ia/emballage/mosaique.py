@@ -24,6 +24,10 @@ DISPOSITIONS = ("grille", "rangee", "colonne", "heros", "groupe")
 ESPACEMENTS = {"serre": 0.015, "normal": 0.035, "aere": 0.06}     # entre cases, fraction de la largeur
 CADRES = ("aucun", "carte", "trait")
 ALIGNEMENTS = ("pied", "centre")
+#: « même largeur » : chaque produit prend la largeur de sa case (le défaut, ce que faisait déjà le contain) ;
+#: « même hauteur » : tous les produits d'une rangée à la hauteur du plus contraint.
+AJUSTEMENTS = ("largeur", "hauteur")
+TAILLE_MIN, TAILLE_MAX = 50, 130
 LARGEUR = 2400          # px : ~300 dpi sur une zone photo de 200 mm
 MARGE = 0.03            # de la largeur
 CHEVAUCHEMENT = 0.18    # disposition « groupe » : part de la largeur moyenne d'un produit cachée par le voisin
@@ -63,7 +67,10 @@ def normaliser(config: dict | None) -> dict:
 
 	return {"disposition": choix("disposition", DISPOSITIONS, "grille"), "colonnes": max(0, int(c.get("colonnes") or 0)),
 	        "cases": [{"url": x["url"], "legende": str(x.get("legende") or "").strip(),
-	                   "miroir": x.get("miroir") not in (None, False, 0, "0", "")} for x in cases],
+	                   "miroir": x.get("miroir") not in (None, False, 0, "0", ""),
+	                   # retouche à la main de la taille d'UNE variante (14/10/2026 : « même largeur ») : un produit dont
+	                   # une pièce dépasse (support, clé) paraît plus petit une fois aligné sur son contour
+	                   "taille": max(TAILLE_MIN, min(TAILLE_MAX, int(float(x.get("taille") or 100))))} for x in cases],
 	        "titre": str(c.get("titre") or "").strip(), "pied": str(c.get("pied") or "").strip(),
 	        "entetes_colonnes": liste(c.get("entetes_colonnes")), "entetes_lignes": liste(c.get("entetes_lignes")),
 	        "fond": "blanc" if c.get("fond") == "blanc" else "transparent",
@@ -71,15 +78,19 @@ def normaliser(config: dict | None) -> dict:
 	        "police": str(c.get("police") or POLICE_DEFAUT),
 	        "espacement": choix("espacement", ESPACEMENTS, "normal"), "cadre": choix("cadre", CADRES, "aucun"),
 	        "alignement": choix("alignement", ALIGNEMENTS, "pied"),
+	        "ajustement": choix("ajustement", AJUSTEMENTS, "largeur"),
 	        "centrer_derniere": c.get("centrer_derniere", True) not in (False, 0, "0"),
 	        # un produit transparent (bol de porte-filtre) sur blanc perd ses parties claires au détourage : décochable
 	        "detourer": c.get("detourer", True) not in (False, 0, "0")}
 
 
-def _hauteur_image(larg, ratios):
+def _hauteur_image(larg, ratios, plafond=1.8):
 	"""La hauteur d'image commune d'une rangée de cases de largeur `larg` : la plus élancée tient en largeur,
-	bornée à 1,8 × la largeur (un tube très fin ne fait pas une case de 3 m). PUR."""
-	return min(max(larg / max(r, 0.05) for r in ratios) if ratios else larg, larg * 1.8)
+	bornée à `plafond` × la largeur (un tube très fin ne fait pas une case de 3 m). PUR.
+
+	⚠️ Un porte-filtre est ~2,2 fois plus haut que large : borné à 1,8, la rangée imposait la HAUTEUR et deux produits
+	de proportions voisines n'avaient plus la même largeur. En « même largeur », le plafond monte à 3,5."""
+	return min(max(larg / max(r, 0.05) for r in ratios) if ratios else larg, larg * plafond)
 
 
 def plan(config: dict, ratios: list[float], largeur: int = LARGEUR) -> dict:
@@ -149,7 +160,7 @@ def plan(config: dict, ratios: list[float], largeur: int = LARGEUR) -> dict:
 			y += round(t_entete * 1.7)
 		for i in range(lignes):
 			rang = list(range(i * colonnes, min(n, (i + 1) * colonnes)))
-			h_img = _hauteur_image(larg_case, [ratios[k] for k in rang])
+			h_img = _hauteur_image(larg_case, [ratios[k] for k in rang], 3.5 if cfg["ajustement"] == "largeur" else 1.8)
 			if a_entetes_lignes:
 				out["entetes_lignes"].append({"x": marge, "y": y + h_img / 2, "w": col_lignes, "h": t_entete,
 				                              "texte": cfg["entetes_lignes"][i] if i < len(cfg["entetes_lignes"]) else ""})
@@ -246,6 +257,15 @@ def composer(config: dict, images: list, largeur: int = LARGEUR) -> bytes:
 		y0 = e["y"] - h / 2
 		d.rounded_rectangle((e["x"], y0, e["x"] + e["w"], y0 + h), radius=round(h * 0.28), fill=couleur)
 		_texte_centre(d, e["x"] + e["w"] / 2, y0 + (h - T["entete"]) / 2 - T["entete"] * 0.1, e["texte"].upper(), police, "#ffffff")
+	# « même hauteur » : par rangée (même y), la hauteur que TOUS peuvent tenir dans leur case
+	hauteur_commune = {}
+	if cfg["ajustement"] == "hauteur" and g["disposition"] in ("grille", "rangee"):
+		for c in g["cases"]:
+			im = images[c["index"]]
+			pad = c.get("pad", 0)
+			h = min(c["h_img"] - 2 * pad, (c["w"] - 2 * pad) * im.height / max(1, im.width))
+			cle = round(c["y"])
+			hauteur_commune[cle] = min(hauteur_commune.get(cle, h), h)
 	for c in sorted(g["cases"], key=lambda c: c["z"]):      # « groupe » : les bords d'abord, le centre devant
 		im = images[c["index"]]
 		if cfg["cases"][c["index"]]["miroir"]:
@@ -262,11 +282,22 @@ def composer(config: dict, images: list, largeur: int = LARGEUR) -> bytes:
 				d.rounded_rectangle(boite, radius=rayon, outline=couleur, width=max(2, round(largeur * 0.0015)))
 		w_dispo, h_dispo = c["w"] - 2 * pad, c["h_img"] - 2 * pad
 		echelle = min(w_dispo / max(1, im.width), h_dispo / max(1, im.height))
+		if cfg["ajustement"] == "largeur" and g["disposition"] in ("grille", "rangee", "colonne"):
+			# même largeur : toute la largeur de la case, tant que la hauteur tient
+			echelle = w_dispo / max(1, im.width)
+			if im.height * echelle > h_dispo:
+				echelle = h_dispo / max(1, im.height)
+		if round(c["y"]) in hauteur_commune:
+			echelle = hauteur_commune[round(c["y"])] / max(1, im.height)
+		echelle *= cfg["cases"][c["index"]]["taille"] / 100       # au-delà de 100 %, le produit déborde un peu de sa case
 		w, h = max(1, round(im.width * echelle)), max(1, round(im.height * echelle))
 		pose = im.resize((w, h), Image.LANCZOS)
 		# au pied de la case (des produits debout sur la même ligne), ou au milieu ; toujours centré en largeur
 		y_pose = c["y"] + pad + (h_dispo - h if cfg["alignement"] == "pied" else (h_dispo - h) / 2)
-		planche.alpha_composite(pose, (round(c["x"] + pad + (w_dispo - w) / 2), round(y_pose)))
+		x_pose = round(c["x"] + pad + (w_dispo - w) / 2)
+		# un produit agrandi au-delà de sa case ne doit jamais sortir de la planche
+		x_pose, y_pose = max(0, min(x_pose, planche.width - w)), max(0, min(round(y_pose), planche.height - h))
+		planche.alpha_composite(pose, (x_pose, y_pose))
 		legende = cfg["cases"][c["index"]]["legende"] if g["disposition"] != "groupe" else ""
 		if legende:
 			_texte_centre(d, c["x"] + c["w"] / 2, c["legende_y"], legende, _police(cfg["police"], False, T["legende"]), couleur)

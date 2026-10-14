@@ -1571,7 +1571,7 @@ class StudioEmballage {
 		const config = () => {
 			const v = dlg.get_values(true) || {};
 			return { disposition: v.disposition, colonnes: cint(v.colonnes), espacement: v.espacement, cadre: v.cadre,
-				alignement: v.alignement, titre: v.titre || "", pied: v.pied || "", entetes_colonnes: lignes(v.entetes_colonnes),
+				alignement: v.alignement, ajustement: v.ajustement, titre: v.titre || "", pied: v.pied || "", entetes_colonnes: lignes(v.entetes_colonnes),
 				entetes_lignes: lignes(v.entetes_lignes), fond: v.fond, detourer: !!v.detourer, couleur: v.couleur || "#1f3a8a",
 				police: v.police || "Poppins", cases: etat.cases };
 		};
@@ -1600,6 +1600,7 @@ class StudioEmballage {
 				${etat.cases.map((c, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;border:1px solid #e5e7eb;border-radius:8px;padding:5px">
 					<img src="${esc(c.url)}" alt="" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:4px;${c.miroir ? "transform:scaleX(-1)" : ""}">
 					<input class="form-control input-xs" data-legende="${i}" value="${esc(c.legende || "")}" placeholder="${__("Légende (facultative)")}" style="flex:1;min-width:60px">
+					<input class="form-control input-xs" data-taille="${i}" type="number" min="50" max="130" step="5" value="${cint(c.taille) || 100}" style="width:58px;text-align:right" title="${__("Taille de cette variante (%) : à réduire ou agrandir si une pièce qui dépasse (support, clé) la fait paraître plus petite ou plus grande que les autres")}"><span class="small text-muted">%</span>
 					<button class="btn btn-xs ${c.miroir ? "btn-primary" : "btn-default"}" data-miroir="${i}" title="${__("Miroir : retourner le produit (entrée à gauche ↔ à droite), sans IA")}">⇋</button>
 					<button class="btn btn-xs btn-default" data-ia="${i}" title="${__("Améliorer cette photo par IA (plusieurs propositions)")}">✨</button>
 					<button class="btn btn-xs btn-default" data-monter="${i}" ${i ? "" : "disabled"} title="${__("Monter")}">↑</button>
@@ -1611,6 +1612,10 @@ class StudioEmballage {
 				<div style="font-weight:600;margin:10px 0 6px">${__("Aperçu")}</div>`);
 			$c.find("[data-legende]").on("change", (e) => { etat.cases[cint($(e.currentTarget).attr("data-legende"))].legende = e.currentTarget.value; apercu(); });
 			$c.find("[data-retirer]").on("click", (e) => { etat.cases.splice(cint($(e.currentTarget).attr("data-retirer")), 1); rendre_cases(); apercu(); });
+			$c.find("[data-taille]").on("change", (e) => {
+				etat.cases[cint($(e.currentTarget).attr("data-taille"))].taille = Math.max(50, Math.min(130, cint(e.currentTarget.value) || 100));
+				apercu();
+			});
 			const echanger = (i, j) => { const t = etat.cases[i]; etat.cases[i] = etat.cases[j]; etat.cases[j] = t; rendre_cases(); apercu(); };
 			$c.find("[data-monter]").on("click", (e) => { const i = cint($(e.currentTarget).attr("data-monter")); echanger(i, i - 1); });
 			$c.find("[data-descendre]").on("click", (e) => { const i = cint($(e.currentTarget).attr("data-descendre")); echanger(i, i + 1); });
@@ -1724,6 +1729,7 @@ class StudioEmballage {
 				args: { design: this.nom, url: c.url, reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1, consigne: consigne || "" } });
 			return (r.message || {}).candidats || [];
 		};
+		const base_de = (x) => (x.base && x.propositions.includes(x.base)) ? x.base : x.propositions[x.propositions.length - 1];
 		const resultats = (res, consigne) => {
 			const ref = etat.cases[0];
 			const d3 = new frappe.ui.Dialog({ title: __("Même orientation que la première"), size: "extra-large", fields: [{ fieldtype: "HTML", fieldname: "g" }],
@@ -1737,22 +1743,58 @@ class StudioEmballage {
 			const ligne = (x, k) => `<div style="padding:10px 0;border-bottom:1px solid #f0f0f0" data-ligne="${k}">
 				<div style="display:flex;gap:12px;align-items:flex-start;overflow-x:auto">
 					${vignette(x.c.url, __("Variante {0} — actuelle", [k + 2]), x.c.miroir)}
-					${x.propositions.map((u, j) => `<div style="flex:0 0 170px;text-align:center">${vignette(u, __("Proposition {0}", [j + 1]), false).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}
+					${x.propositions.map((u, j) => `<div style="flex:0 0 170px;text-align:center;cursor:pointer;border-radius:8px;${base_de(x) === u ? "outline:3px solid var(--primary);outline-offset:2px" : ""}"
+						data-base="${k}" data-url="${esc(u)}" title="${__("Cliquer pour corriger CETTE proposition")}">${vignette(u, __("Proposition {0}", [j + 1]) + (base_de(x) === u ? " ✏️" : ""), false).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}
 						<div style="margin-top:4px"><button class="btn btn-xs ${x.pris === u ? "btn-success" : "btn-primary"}" data-prendre="${k}" data-url="${esc(u)}" ${x.pris === u ? "disabled" : ""}>${x.pris === u ? __("Pris ✓") : __("Prendre")}</button></div></div>`).join("")}
 					${x.erreur ? `<div class="text-danger small" style="align-self:center">${esc(x.erreur)}</div>` : ""}
 					${x.en_cours ? `<div class="text-muted small" style="align-self:center">⏳ ${__("L'IA retravaille…")}</div>` : ""}
 				</div>
 				<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
-					<input class="form-control input-sm" data-correction="${k}" placeholder="${__("Correction : ex. « retirer la clé et le support », « la clé ne touche pas le porte-filtre »")}" style="flex:1 1 320px" ${x.en_cours ? "disabled" : ""}>
-					<button class="btn btn-xs btn-default" data-corriger="${k}" ${x.propositions.length && !x.en_cours ? "" : "disabled"} title="${__("L'IA reprend la DERNIÈRE proposition (son angle est gardé) et applique la correction, en revoyant à chaque fois la photo d'origine de la variante")}">✏️ ${__("Corriger la proposition")}</button>
+					<input class="form-control input-sm" data-correction="${k}" value="${esc(x.correction || "")}" placeholder="${__("Correction : ex. « retirer la clé et le support », « même tête que l'image de référence »")}" style="flex:1 1 320px" ${x.en_cours ? "disabled" : ""}>
+					${x.ref_choisie ? `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--primary);border-radius:6px;padding:2px 4px" title="${__("Image de référence envoyée à l'IA avec la correction")}">
+						<img src="${esc(x.ref_choisie)}" style="height:34px;width:34px;object-fit:contain;background:#fff"><span class="small">${__("réf.")}</span>
+						<select data-ref-mode="${k}" class="input-xs" style="font-size:11px;border:1px solid var(--border-color);border-radius:4px" title="${__("Ce que l'IA doit prendre de la référence")}">
+							<option value="forme" ${x.ref_mode !== "photo" ? "selected" : ""}>${__("ses proportions / sa forme")}</option>
+							<option value="photo" ${x.ref_mode === "photo" ? "selected" : ""}>${__("une pièce, une couleur, une matière")}</option></select>
+						<span data-sans-ref="${k}" style="cursor:pointer;color:var(--red-600)" title="${__("Retirer la référence")}">✕</span></span>` : ""}
+					<button class="btn btn-xs btn-default" data-choisir-ref="${k}" ${x.en_cours ? "disabled" : ""} title="${__("Choisir une image que l'IA doit regarder pour cette correction (une autre variante, l'image principale, une photo du design)")}">🖼 ${__("Image de référence")}</button>
+					<button class="btn btn-xs btn-default" data-corriger="${k}" ${x.propositions.length && !x.en_cours ? "" : "disabled"} title="${__("L'IA reprend la proposition SÉLECTIONNÉE (encadrée ; la dernière par défaut), garde son angle et applique la correction, en revoyant la photo d'origine de la variante — et l'image de référence si vous en avez choisi une")}">✏️ ${__("Corriger la proposition")}</button>
 					<button class="btn btn-xs btn-default" data-refaire="${k}" ${x.en_cours ? "disabled" : ""} title="${__("Nouvelle tentative depuis la photo d'origine, sous l'angle de la première, avec la correction")}">↻ ${__("Refaire")}</button>
 				</div></div>`;
 			const dessiner = () => {
 				const $g = d3.get_field("g").$wrapper;
 				$g.html(`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:6px;padding-bottom:10px;border-bottom:1px solid #e5e7eb">
 					${vignette(ref.url, __("Référence (1re variante)"), ref.miroir)}
-					<p class="small text-muted" style="align-self:center;flex:1">${__("Une erreur visuelle ? Écrivez la correction sous la variante : « Corriger » repart de la dernière proposition (son angle est gardé ; l'IA revoit à chaque fois la photo d'origine de la variante), « Refaire » repart de la photo d'origine sous l'angle de l'image principale. Chaque essai est une image facturée ; tout reste dans l'onglet Images.")}</p></div>
+					<p class="small text-muted" style="align-self:center;flex:1">${__("Une erreur visuelle ? Cliquez la proposition à corriger (encadrée ; la dernière par défaut), écrivez la correction, et au besoin « 🖼 Image de référence » pour montrer à l'IA une autre image (la tête d'une variante, la cuve de l'image principale…). « Corriger » garde l'angle de la proposition et revoit la photo d'origine ; « Refaire » repart de la photo d'origine sous l'angle de l'image principale. Chaque essai est une image facturée ; tout reste dans l'onglet Images.")}</p></div>
 					${res.map(ligne).join("")}`);
+				$g.find("[data-base]").on("click", (e) => {
+					if ($(e.target).closest("[data-prendre]").length) return;      // « Prendre » n'est pas une sélection
+					const x = res[cint($(e.currentTarget).attr("data-base"))];
+					x.correction = $g.find(`[data-correction="${$(e.currentTarget).attr("data-base")}"]`).val();
+					x.base = $(e.currentTarget).attr("data-url");
+					dessiner();
+				});
+				$g.find("[data-sans-ref]").on("click", (e) => { const x = res[cint($(e.currentTarget).attr("data-sans-ref"))]; x.ref_choisie = null; dessiner(); });
+				$g.find("[data-ref-mode]").on("change", (e) => { res[cint($(e.currentTarget).attr("data-ref-mode"))].ref_mode = e.currentTarget.value; });
+				$g.find("[data-choisir-ref]").on("click", (e) => {
+					const k = cint($(e.currentTarget).attr("data-choisir-ref")), x = res[k];
+					x.correction = $g.find(`[data-correction="${k}"]`).val();
+					// toutes les images de la fenêtre, puis les photos du design
+					const choix = [{ url: ref.url, titre: __("Image principale (1re variante)") }];
+					res.forEach((y, i) => {
+						choix.push({ url: (y.c_origine || y.c).url, titre: __("Variante {0} — origine", [i + 2]) });
+						y.propositions.forEach((u, j) => choix.push({ url: u, titre: __("Variante {0} — proposition {1}", [i + 2, j + 1]) + (y.pris === u ? " ✓" : "") }));
+					});
+					(this.data.images || []).filter((im) => /^Photo/.test(im.genre || "")).forEach((im) => choix.push({ url: im.file_url, titre: im.genre }));
+					const vus = new Set(), uniques = choix.filter((c) => !vus.has(c.url) && vus.add(c.url));
+					const dr = new frappe.ui.Dialog({ title: __("Image de référence pour la correction de la variante {0}", [k + 2]), size: "large",
+						fields: [{ fieldtype: "HTML", fieldname: "g" }] });
+					dr.get_field("g").$wrapper.html(`<p class="small text-muted">${__("Ensuite, choisissez ce que l'IA doit en prendre : « ses proportions / sa forme » (l'IA ne reçoit qu'une silhouette grise : elle ne peut rien recopier d'autre) ou « une pièce, une couleur, une matière » (la photo, qui peut déteindre un peu). L'angle reste celui de la proposition, le reste celui de la photo d'origine.")}</p>
+						<div class="se-galerie">${uniques.map((c) => `<div class="se-carte" data-ref-url="${esc(c.url)}" style="cursor:pointer">
+							<img src="${esc(c.url)}" style="aspect-ratio:1/1;object-fit:contain;background:#fff"><div class="leg">${esc(c.titre)}</div></div>`).join("")}</div>`);
+					dr.get_field("g").$wrapper.find("[data-ref-url]").on("click", (e2) => { x.ref_choisie = $(e2.currentTarget).attr("data-ref-url"); dr.hide(); dessiner(); });
+					dr.show();
+				});
 				$g.find("[data-prendre]").on("click", (e) => {
 					const x = res[cint($(e.currentTarget).attr("data-prendre"))];
 					x.pris = $(e.currentTarget).attr("data-url");
@@ -1761,6 +1803,7 @@ class StudioEmballage {
 				});
 				const lancer = async (k, mode) => {
 					const x = res[k], correction = ($g.find(`[data-correction="${k}"]`).val() || "").trim();
+					x.correction = correction;
 					if (mode === "corriger" && !correction) { frappe.show_alert({ message: __("Écrivez d'abord la correction à apporter."), indicator: "orange" }); return; }
 					x.en_cours = true; x.erreur = null; dessiner();
 					try {
@@ -1770,14 +1813,16 @@ class StudioEmballage {
 							// celui de la proposition (renvoyer l'image principale lui faisait recopier son produit)
 							const ref = etat.cases[0];
 							const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.corriger_orientation",
-								args: { design: this.nom, proposition: x.propositions[x.propositions.length - 1], original: (x.c_origine || x.c).url,
-								        reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1,
+								args: { design: this.nom, proposition: base_de(x), original: (x.c_origine || x.c).url,
+								        reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1, reference_choisie: x.ref_choisie || "",
+								        reference_mode: x.ref_mode || "forme",
 								        correction: [consigne, correction].filter(Boolean).join(". ") } });
 							cands = (r.message || {}).candidats || [];
 						} else {
 							cands = await appel_orienter(x.c_origine || x.c, [consigne, correction].filter(Boolean).join(". "));
 						}
 						x.propositions = x.propositions.concat(cands);
+						x.base = null;            // la nouvelle proposition devient la base par défaut
 					} catch (e) { x.erreur = this._msg(e); }
 					x.en_cours = false; dessiner();
 				};
@@ -1815,6 +1860,10 @@ class StudioEmballage {
 				  options: [{ value: "aucun", label: __("Aucun") }, { value: "carte", label: __("Carte (fond clair arrondi)") }, { value: "trait", label: __("Trait") }] },
 				{ fieldtype: "Select", fieldname: "alignement", label: __("Alignement des produits"), default: cfg.alignement || "pied", onchange: sur_changement,
 				  options: [{ value: "pied", label: __("Au pied (debout sur la même ligne)") }, { value: "centre", label: __("Au milieu") }] },
+				{ fieldtype: "Select", fieldname: "ajustement", label: __("Taille des produits"), default: cfg.ajustement || "largeur", onchange: sur_changement,
+				  description: __("Chaque photo est d'abord rognée au contour du produit. Une variante à part ? Réglez son % dans la liste."),
+				  options: [{ value: "largeur", label: __("Même largeur") }, { value: "hauteur", label: __("Même hauteur") }],
+				  depends_on: "eval:['grille','rangee'].includes(doc.disposition)" },
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Data", fieldname: "titre", label: __("Titre"), default: cfg.titre || "", onchange: sur_changement },
 				{ fieldtype: "Small Text", fieldname: "entetes_colonnes", label: __("En-têtes de colonnes (un par ligne)"), default: (cfg.entetes_colonnes || []).join("\n"), depends_on: AVEC_ENTETES, onchange: sur_changement },
