@@ -1598,13 +1598,15 @@ class StudioEmballage {
 			const $c = dlg.get_field("cases").$wrapper;
 			$c.html(`<div style="font-weight:600;margin-bottom:6px">${__("Variantes ({0})", [etat.cases.length])}</div>
 				${etat.cases.map((c, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;border:1px solid #e5e7eb;border-radius:8px;padding:5px">
-					<img src="${esc(c.url)}" alt="" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:4px">
+					<img src="${esc(c.url)}" alt="" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:4px;${c.miroir ? "transform:scaleX(-1)" : ""}">
 					<input class="form-control input-xs" data-legende="${i}" value="${esc(c.legende || "")}" placeholder="${__("Légende (facultative)")}" style="flex:1;min-width:60px">
+					<button class="btn btn-xs ${c.miroir ? "btn-primary" : "btn-default"}" data-miroir="${i}" title="${__("Miroir : retourner le produit (entrée à gauche ↔ à droite), sans IA")}">⇋</button>
 					<button class="btn btn-xs btn-default" data-ia="${i}" title="${__("Améliorer cette photo par IA (plusieurs propositions)")}">✨</button>
 					<button class="btn btn-xs btn-default" data-monter="${i}" ${i ? "" : "disabled"} title="${__("Monter")}">↑</button>
 					<button class="btn btn-xs btn-default" data-descendre="${i}" ${i < etat.cases.length - 1 ? "" : "disabled"} title="${__("Descendre")}">↓</button>
 					<button class="btn btn-xs btn-default" data-retirer="${i}" title="${__("Retirer")}">✕</button></div>`).join("")}
 				<button class="btn btn-sm btn-default" data-role="ajouter">＋ ${__("Ajouter des variantes")}</button>
+				${etat.cases.length >= 2 ? `<button class="btn btn-sm btn-default" data-role="orienter" title="${__("L'IA redessine chaque variante sous le même angle que la première (miroir compris). Vous choisissez ensuite, variante par variante.")}">🧭 ${__("Même orientation que la 1re (IA)")}</button>` : ""}
 				<p class="small text-muted" style="margin-top:6px">${__("Grille : les cases se remplissent ligne par ligne, dans cet ordre. Héros : la première est la grande.")}</p>
 				<div style="font-weight:600;margin:10px 0 6px">${__("Aperçu")}</div>`);
 			$c.find("[data-legende]").on("change", (e) => { etat.cases[cint($(e.currentTarget).attr("data-legende"))].legende = e.currentTarget.value; apercu(); });
@@ -1613,6 +1615,8 @@ class StudioEmballage {
 			$c.find("[data-monter]").on("click", (e) => { const i = cint($(e.currentTarget).attr("data-monter")); echanger(i, i - 1); });
 			$c.find("[data-descendre]").on("click", (e) => { const i = cint($(e.currentTarget).attr("data-descendre")); echanger(i, i + 1); });
 			$c.find("[data-ia]").on("click", (e) => ameliorer(cint($(e.currentTarget).attr("data-ia"))));
+			$c.find("[data-miroir]").on("click", (e) => { const c = etat.cases[cint($(e.currentTarget).attr("data-miroir"))]; c.miroir = !c.miroir; rendre_cases(); apercu(); });
+			$c.find('[data-role="orienter"]').on("click", () => orienter());
 			$c.find('[data-role="ajouter"]').on("click", () => ajouter());
 		};
 		const ajouter = async () => {
@@ -1688,6 +1692,39 @@ class StudioEmballage {
 					d2.show();
 				} });
 			d1.show();
+		};
+		// Toutes les variantes sous l'angle de la première : une proposition par variante, comparée à l'actuelle ;
+		// « Prendre » remplace la photo de la case (et retire son miroir : la nouvelle image est déjà orientée).
+		const orienter = () => {
+			const ref = etat.cases[0], autres = etat.cases.slice(1), est = this.data.estimation || {};
+			frappe.confirm(__("L'IA va redessiner {0} variante(s) sous le même angle que la première{1}. Une image facturée par variante (≈ {2} $ chacune), environ une minute. L'IA redessine : contrôlez chaque détail.",
+				[autres.length, ref.miroir ? " " + __("(retournée)") : "", (est.cout || 0).toFixed(2)]), async () => {
+				frappe.dom.freeze(__("L'IA oriente les variantes comme la première…"));
+				const res = await Promise.all(autres.map((c) => frappe.call({ method: "aquaworld_ia.emballage.studio.orienter_variante",
+					args: { design: this.nom, url: c.url, reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1 } })
+					.then((r) => ({ c, candidats: (r.message || {}).candidats || [] }), (e) => ({ c, erreur: this._msg(e) }))));
+				frappe.dom.unfreeze();
+				const d3 = new frappe.ui.Dialog({ title: __("Même orientation que la première"), size: "extra-large", fields: [{ fieldtype: "HTML", fieldname: "g" }],
+					primary_action_label: __("Tout prendre"),
+					primary_action: () => { res.forEach((x) => { if (x.candidats && x.candidats[0]) { x.c.url = x.candidats[0]; x.c.miroir = false; } }); d3.hide(); rendre_cases(); apercu(); } });
+				const vignette = (u, titre, miroir) => `<div style="flex:1 1 150px;text-align:center;min-width:0"><div class="small text-muted">${titre}</div>
+					<img src="${esc(u)}" style="max-width:100%;max-height:180px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;${miroir ? "transform:scaleX(-1)" : ""}"></div>`;
+				d3.get_field("g").$wrapper.html(`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e5e7eb">
+					${vignette(ref.url, __("Référence (1re variante)"), ref.miroir)}<div style="flex:3"></div></div>
+					${res.map((x, k) => `<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:10px">
+						${vignette(x.c.url, __("Variante {0} — actuelle", [k + 2]), x.c.miroir)}
+						${x.erreur ? `<div class="text-danger small" style="flex:2">${esc(x.erreur)}</div>`
+							: x.candidats.map((u) => `${vignette(u, __("Proposition"), false)}<div style="align-self:center"><button class="btn btn-xs btn-primary" data-prendre="${k}" data-url="${esc(u)}">${__("Prendre")}</button></div>`).join("")}
+					</div>`).join("")}
+					<p class="small text-muted">${__("Les propositions restent dans l'onglet Images du design.")}</p>`);
+				d3.get_field("g").$wrapper.find("[data-prendre]").on("click", (e) => {
+					const x = res[cint($(e.currentTarget).attr("data-prendre"))];
+					x.c.url = $(e.currentTarget).attr("data-url"); x.c.miroir = false;
+					$(e.currentTarget).text(__("Pris ✓")).prop("disabled", true);
+					rendre_cases(); apercu();
+				});
+				d3.show();
+			});
 		};
 		const creer = async (adopter) => {
 			if (etat.cases.length < 2) { frappe.msgprint(__("Choisissez au moins deux variantes du produit.")); return; }

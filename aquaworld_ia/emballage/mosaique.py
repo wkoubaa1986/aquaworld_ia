@@ -6,7 +6,7 @@ MODÈLE B, « Gamme disponible · 1 porte-filtre par boîte » en pied ; ou une 
 
 Une configuration (JSON, gardée sur le design dans `mosaique` pour la reprendre) :
     {"disposition": "grille" | "rangee" | "colonne", "colonnes": 0 (auto) | n,
-     "cases": [{"url": "...", "legende": "..."}],
+     "cases": [{"url": "...", "legende": "...", "miroir": false}],
      "titre": "...", "pied": "...", "entetes_colonnes": ["...", ...], "entetes_lignes": ["...", ...],
      "fond": "transparent" | "blanc", "couleur": "#1f3a8a", "police": "Poppins"}
 Les produits sont détourés (fond blanc → transparent) et posés au PIED de leur case, à la même échelle d'une case à
@@ -62,7 +62,8 @@ def normaliser(config: dict | None) -> dict:
 		return c.get(cle) if c.get(cle) in valeurs else defaut
 
 	return {"disposition": choix("disposition", DISPOSITIONS, "grille"), "colonnes": max(0, int(c.get("colonnes") or 0)),
-	        "cases": [{"url": x["url"], "legende": str(x.get("legende") or "").strip()} for x in cases],
+	        "cases": [{"url": x["url"], "legende": str(x.get("legende") or "").strip(),
+	                   "miroir": x.get("miroir") not in (None, False, 0, "0", "")} for x in cases],
 	        "titre": str(c.get("titre") or "").strip(), "pied": str(c.get("pied") or "").strip(),
 	        "entetes_colonnes": liste(c.get("entetes_colonnes")), "entetes_lignes": liste(c.get("entetes_lignes")),
 	        "fond": "blanc" if c.get("fond") == "blanc" else "transparent",
@@ -247,6 +248,10 @@ def composer(config: dict, images: list, largeur: int = LARGEUR) -> bytes:
 		_texte_centre(d, e["x"] + e["w"] / 2, y0 + (h - T["entete"]) / 2 - T["entete"] * 0.1, e["texte"].upper(), police, "#ffffff")
 	for c in sorted(g["cases"], key=lambda c: c["z"]):      # « groupe » : les bords d'abord, le centre devant
 		im = images[c["index"]]
+		if cfg["cases"][c["index"]]["miroir"]:
+			# même orientation que les autres sans IA : le produit retourné (entrée à gauche ↔ à droite)
+			from PIL import ImageOps
+			im = ImageOps.mirror(im)
 		pad = c.get("pad", 0)
 		if cfg["cadre"] != "aucun":
 			boite = (round(c["x"]), round(c["y"]), round(c["x"] + c["w"]), round(c["y"] + c["h_img"]))

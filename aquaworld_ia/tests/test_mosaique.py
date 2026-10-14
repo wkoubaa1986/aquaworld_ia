@@ -94,6 +94,22 @@ class TestRendu(unittest.TestCase):
 		self.assertEqual((im.mode, im.width), ("RGBA", 800))
 		self.assertEqual(im.getpixel((2, 2))[3], 0)     # coin transparent
 
+	def test_miroir_retourne_le_produit(self):
+		from PIL import Image
+
+		im = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+		im.paste((200, 0, 0, 255), (0, 0, 30, 100))          # bande rouge à GAUCHE
+		cfg = {"cases": [{"url": "/files/a.png", "miroir": True}], "fond": "blanc", "disposition": "rangee"}
+		out = Image.open(io.BytesIO(M.composer(cfg, [im], largeur=400))).convert("RGBA")
+		g = M.plan(cfg, [1.0], 400)["cases"][0]
+		milieu_y = round(g["y"] + g["h_img"] - 5)
+		gauche = out.getpixel((round(g["x"] + 5), milieu_y))
+		droite = out.getpixel((round(g["x"] + g["w"] - 5), milieu_y))
+		self.assertGreater(droite[0] - droite[1], 100)        # la bande est passée à DROITE
+		self.assertLess(gauche[0] - gauche[1], 50)
+		self.assertTrue(M.normaliser(cfg)["cases"][0]["miroir"])
+		self.assertFalse(M.normaliser({"cases": [{"url": "x"}]})["cases"][0]["miroir"])
+
 	def test_produit_detoure_rogne_le_blanc(self):
 		from PIL import Image
 

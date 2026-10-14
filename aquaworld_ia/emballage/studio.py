@@ -1136,3 +1136,40 @@ def photos_autres_articles(recherche: str, design: str | None = None, limite: in
 		if len(out) >= int(limite or 12):
 			break
 	return out
+
+
+PROMPT_ORIENTATION = (
+	"Two reference images. Image 1 (\"produit\") is THE product to show: keep it EXACTLY as it is (shape, proportions, "
+	"colors, transparency, materials, fittings, labels, text on it) — no redesign, no added or removed parts. Image 2 "
+	"(\"orientation\") is ONLY a reference for the point of view: redraw the product of image 1 seen from exactly the same "
+	"camera angle and orientation as the product of image 2 — same side facing the camera, inlet/outlet ports, bracket and "
+	"handles pointing the same direction, same tilt — with the same framing and soft even studio lighting. Never copy the "
+	"product, colors or parts of image 2. Clean cut-out on a PURE WHITE background, no shadow scene, no text, no logo.")
+
+
+@frappe.whitelist()
+def orienter_variante(design: str, url: str, reference: str, reference_miroir=0, nombre=1) -> dict:
+	"""Une variante de la mosaïque redessinée sous le MÊME angle que la référence (14/10/2026 : « que tous les modèles
+	soient orientés de la même façon »). La référence ne sert qu'au point de vue ; `reference_miroir` : elle est
+	retournée dans la mosaïque, c'est donc l'orientation retournée qu'on vise. Propositions attachées au design
+	(« Photo IA »), rien n'est remplacé avant le choix."""
+	from aquaworld_ia.ia import fichiers, images
+	from aquaworld_ia.ia.client import qualite_image
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	source, ref = _image_lisible(doc, url), _image_lisible(doc, reference)
+	octets, octets_ref = fichiers.lire(source), fichiers.lire(ref)
+	if cint(reference_miroir):
+		from PIL import Image, ImageOps
+
+		buf = io.BytesIO()
+		ImageOps.mirror(Image.open(io.BytesIO(octets_ref)).convert("RGBA")).save(buf, format="PNG")
+		octets_ref = buf.getvalue()
+	n = max(1, min(4, cint(nombre) or 1))
+	pngs = images.editer(PROMPT_ORIENTATION, [("produit", octets), ("orientation", octets_ref)],
+	                     taille=taille_retouche("photo_produit", octets), qualite=qualite_image(), n=n,
+	                     fonctionnalite="Emballage image", doc=doc, fidelite="high")
+	candidats = [save_file("%s-photo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
+	return {"candidats": candidats, "source": source}
