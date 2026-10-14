@@ -1144,7 +1144,8 @@ PROMPT_ORIENTATION = (
 	"(\"orientation\") is ONLY a reference for the point of view: redraw the product of image 1 seen from exactly the same "
 	"camera angle and orientation as the product of image 2 — same side facing the camera, inlet/outlet ports, bracket and "
 	"handles pointing the same direction, same tilt — with the same framing and soft even studio lighting. Never copy the "
-	"product, colors or parts of image 2. Clean cut-out on a PURE WHITE background, no shadow scene, no text, no logo.")
+	"product, colors, transparency or parts of image 2: they all come from image 1. Clean cut-out on a PURE WHITE "
+	"background, no shadow scene, no text, no logo.")
 
 
 @frappe.whitelist()
@@ -1178,3 +1179,40 @@ def orienter_variante(design: str, url: str, reference: str, reference_miroir=0,
 	                     fonctionnalite="Emballage image", doc=doc, fidelite="high")
 	candidats = [save_file("%s-photo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
 	return {"candidats": candidats, "source": source}
+
+
+PROMPT_CORRECTION_ORIENTATION = (
+	"Two reference images. Image 1 (\"proposition\") is the current rendering: its camera angle and orientation are "
+	"CORRECT and must be kept exactly (same side facing the camera, ports, bracket and handles pointing the same way, same "
+	"tilt, same framing). Image 2 (\"produit\") is the original photo of the product: the ground truth for its look — "
+	"shape, proportions, colors, transparency, materials, fittings, labels and text. Redraw image 1 applying ONLY this "
+	"correction: %s; and remove any difference of look with image 2, without changing the angle of image 1. Clean cut-out "
+	"on a PURE WHITE background, soft even studio lighting, sharp focus, no shadow scene, no text, no logo.")
+
+
+@frappe.whitelist()
+def corriger_orientation(design: str, proposition: str, original: str, correction: str, reference: str | None = None,
+                         reference_miroir=0, nombre=1) -> dict:
+	"""Corriger une proposition « même orientation » (14/10/2026 : « à chaque correction, lui redonner les références »).
+	L'IA reçoit la proposition (son ANGLE fait foi, il est déjà le bon) et, à chaque fois, la photo d'ORIGINE de la
+	variante (son APPARENCE fait foi), plus la correction écrite. L'image principale n'est PAS renvoyée : essai du
+	14/10, donnée en photo, l'IA a recopié sa cuve transparente sur le porte-filtre bleu opaque ; donnée au trait, l'angle
+	n'était plus suivi. `reference` est accepté pour compatibilité, non utilisé. Propositions attachées au design."""
+	from aquaworld_ia.ia import fichiers, images
+	from aquaworld_ia.ia.client import qualite_image
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	correction = (correction or "").strip().rstrip(".")
+	if not correction:
+		frappe.throw(_("Écrivez la correction à apporter."))
+	octets_prop = fichiers.lire(_image_lisible(doc, proposition))
+	octets_orig = fichiers.lire(_image_lisible(doc, original))
+	n = max(1, min(4, cint(nombre) or 1))
+	pngs = images.editer(PROMPT_CORRECTION_ORIENTATION % correction,
+	                     [("proposition", octets_prop), ("produit", octets_orig)],
+	                     taille=taille_retouche("photo_produit", octets_prop), qualite=qualite_image(), n=n,
+	                     fonctionnalite="Emballage image", doc=doc, fidelite="high")
+	candidats = [save_file("%s-photo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]
+	return {"candidats": candidats}

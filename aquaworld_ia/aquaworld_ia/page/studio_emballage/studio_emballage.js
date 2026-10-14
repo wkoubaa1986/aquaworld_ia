@@ -1744,14 +1744,14 @@ class StudioEmballage {
 				</div>
 				<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
 					<input class="form-control input-sm" data-correction="${k}" placeholder="${__("Correction : ex. « retirer la clé et le support », « la clé ne touche pas le porte-filtre »")}" style="flex:1 1 320px" ${x.en_cours ? "disabled" : ""}>
-					<button class="btn btn-xs btn-default" data-corriger="${k}" ${x.propositions.length && !x.en_cours ? "" : "disabled"} title="${__("L'IA reprend la DERNIÈRE proposition (son orientation est gardée) et n'applique que la correction")}">✏️ ${__("Corriger la proposition")}</button>
+					<button class="btn btn-xs btn-default" data-corriger="${k}" ${x.propositions.length && !x.en_cours ? "" : "disabled"} title="${__("L'IA reprend la DERNIÈRE proposition (son angle est gardé) et applique la correction, en revoyant à chaque fois la photo d'origine de la variante")}">✏️ ${__("Corriger la proposition")}</button>
 					<button class="btn btn-xs btn-default" data-refaire="${k}" ${x.en_cours ? "disabled" : ""} title="${__("Nouvelle tentative depuis la photo d'origine, sous l'angle de la première, avec la correction")}">↻ ${__("Refaire")}</button>
 				</div></div>`;
 			const dessiner = () => {
 				const $g = d3.get_field("g").$wrapper;
 				$g.html(`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:6px;padding-bottom:10px;border-bottom:1px solid #e5e7eb">
 					${vignette(ref.url, __("Référence (1re variante)"), ref.miroir)}
-					<p class="small text-muted" style="align-self:center;flex:1">${__("Une erreur visuelle ? Écrivez la correction sous la variante : « Corriger » repart de la dernière proposition, « Refaire » de la photo d'origine. Chaque essai est une image facturée ; tout reste dans l'onglet Images.")}</p></div>
+					<p class="small text-muted" style="align-self:center;flex:1">${__("Une erreur visuelle ? Écrivez la correction sous la variante : « Corriger » repart de la dernière proposition (son angle est gardé ; l'IA revoit à chaque fois la photo d'origine de la variante), « Refaire » repart de la photo d'origine sous l'angle de l'image principale. Chaque essai est une image facturée ; tout reste dans l'onglet Images.")}</p></div>
 					${res.map(ligne).join("")}`);
 				$g.find("[data-prendre]").on("click", (e) => {
 					const x = res[cint($(e.currentTarget).attr("data-prendre"))];
@@ -1766,8 +1766,13 @@ class StudioEmballage {
 					try {
 						let cands;
 						if (mode === "corriger") {
-							const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_image",
-								args: { design: this.nom, champ: "photo_produit", instruction: correction, nombre: 1, source_url: x.propositions[x.propositions.length - 1] } });
+							// à chaque correction, l'IA revoit la photo d'ORIGINE de la variante (son apparence) ; l'angle est
+							// celui de la proposition (renvoyer l'image principale lui faisait recopier son produit)
+							const ref = etat.cases[0];
+							const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.corriger_orientation",
+								args: { design: this.nom, proposition: x.propositions[x.propositions.length - 1], original: (x.c_origine || x.c).url,
+								        reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1,
+								        correction: [consigne, correction].filter(Boolean).join(". ") } });
 							cands = (r.message || {}).candidats || [];
 						} else {
 							cands = await appel_orienter(x.c_origine || x.c, [consigne, correction].filter(Boolean).join(". "));
