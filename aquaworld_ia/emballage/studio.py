@@ -1148,7 +1148,7 @@ PROMPT_ORIENTATION = (
 
 
 @frappe.whitelist()
-def orienter_variante(design: str, url: str, reference: str, reference_miroir=0, nombre=1) -> dict:
+def orienter_variante(design: str, url: str, reference: str, reference_miroir=0, nombre=1, consigne: str | None = None) -> dict:
 	"""Une variante de la mosaïque redessinée sous le MÊME angle que la référence (14/10/2026 : « que tous les modèles
 	soient orientés de la même façon »). La référence ne sert qu'au point de vue ; `reference_miroir` : elle est
 	retournée dans la mosaïque, c'est donc l'orientation retournée qu'on vise. Propositions attachées au design
@@ -1168,7 +1168,12 @@ def orienter_variante(design: str, url: str, reference: str, reference_miroir=0,
 		ImageOps.mirror(Image.open(io.BytesIO(octets_ref)).convert("RGBA")).save(buf, format="PNG")
 		octets_ref = buf.getvalue()
 	n = max(1, min(4, cint(nombre) or 1))
-	pngs = images.editer(PROMPT_ORIENTATION, [("produit", octets), ("orientation", octets_ref)],
+	prompt = PROMPT_ORIENTATION
+	consigne = (consigne or "").strip().rstrip(".")
+	if consigne:
+		# une correction après une erreur visuelle (« sans la clé ni le support ») : en plus, jamais à la place
+		prompt += " Additionally, apply this change requested by the user: %s." % consigne
+	pngs = images.editer(prompt, [("produit", octets), ("orientation", octets_ref)],
 	                     taille=taille_retouche("photo_produit", octets), qualite=qualite_image(), n=n,
 	                     fonctionnalite="Emballage image", doc=doc, fidelite="high")
 	candidats = [save_file("%s-photo-ia.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url for png in pngs]

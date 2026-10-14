@@ -1695,36 +1695,94 @@ class StudioEmballage {
 		};
 		// Toutes les variantes sous l'angle de la première : une proposition par variante, comparée à l'actuelle ;
 		// « Prendre » remplace la photo de la case (et retire son miroir : la nouvelle image est déjà orientée).
+		// Itérer (demande 14/10/2026 : « une erreur visuelle → réitérer ») : sous chaque variante, une correction
+		// appliquée à la DERNIÈRE proposition (l'orientation est gardée) ou une nouvelle tentative depuis l'originale.
 		const orienter = () => {
 			const ref = etat.cases[0], autres = etat.cases.slice(1), est = this.data.estimation || {};
-			frappe.confirm(__("L'IA va redessiner {0} variante(s) sous le même angle que la première{1}. Une image facturée par variante (≈ {2} $ chacune), environ une minute. L'IA redessine : contrôlez chaque détail.",
-				[autres.length, ref.miroir ? " " + __("(retournée)") : "", (est.cout || 0).toFixed(2)]), async () => {
-				frappe.dom.freeze(__("L'IA oriente les variantes comme la première…"));
-				const res = await Promise.all(autres.map((c) => frappe.call({ method: "aquaworld_ia.emballage.studio.orienter_variante",
-					args: { design: this.nom, url: c.url, reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1 } })
-					.then((r) => ({ c, candidats: (r.message || {}).candidats || [] }), (e) => ({ c, erreur: this._msg(e) }))));
-				frappe.dom.unfreeze();
-				const d3 = new frappe.ui.Dialog({ title: __("Même orientation que la première"), size: "extra-large", fields: [{ fieldtype: "HTML", fieldname: "g" }],
-					primary_action_label: __("Tout prendre"),
-					primary_action: () => { res.forEach((x) => { if (x.candidats && x.candidats[0]) { x.c.url = x.candidats[0]; x.c.miroir = false; } }); d3.hide(); rendre_cases(); apercu(); } });
-				const vignette = (u, titre, miroir) => `<div style="flex:1 1 150px;text-align:center;min-width:0"><div class="small text-muted">${titre}</div>
-					<img src="${esc(u)}" style="max-width:100%;max-height:180px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;${miroir ? "transform:scaleX(-1)" : ""}"></div>`;
-				d3.get_field("g").$wrapper.html(`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e5e7eb">
-					${vignette(ref.url, __("Référence (1re variante)"), ref.miroir)}<div style="flex:3"></div></div>
-					${res.map((x, k) => `<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:10px">
-						${vignette(x.c.url, __("Variante {0} — actuelle", [k + 2]), x.c.miroir)}
-						${x.erreur ? `<div class="text-danger small" style="flex:2">${esc(x.erreur)}</div>`
-							: x.candidats.map((u) => `${vignette(u, __("Proposition"), false)}<div style="align-self:center"><button class="btn btn-xs btn-primary" data-prendre="${k}" data-url="${esc(u)}">${__("Prendre")}</button></div>`).join("")}
-					</div>`).join("")}
-					<p class="small text-muted">${__("Les propositions restent dans l'onglet Images du design.")}</p>`);
-				d3.get_field("g").$wrapper.find("[data-prendre]").on("click", (e) => {
+			const lancement = new frappe.ui.Dialog({ title: __("🧭 Même orientation que la première"),
+				fields: [
+					{ fieldtype: "HTML", options: `<p>${__("L'IA va redessiner {0} variante(s) sous le même angle que la première{1}. Une image facturée par variante (≈ {2} $ chacune), environ une minute. L'IA redessine : contrôlez chaque détail.",
+						[autres.length, ref.miroir ? " " + __("(retournée)") : "", (est.cout || 0).toFixed(2)])}</p>` },
+					{ fieldtype: "Small Text", fieldname: "consigne", label: __("Consigne en plus, pour toutes les variantes (facultative)"),
+					  description: __("ex. « sans la clé ni le support mural », « cuve bien transparente », « même hauteur de tête »") },
+				],
+				primary_action_label: __("Lancer"),
+				primary_action: async (v) => {
+					lancement.hide();
+					const consigne = (v.consigne || "").trim();
+					frappe.dom.freeze(__("L'IA oriente les variantes comme la première…"));
+					const res = await Promise.all(autres.map((c) => appel_orienter(c, consigne)
+						.then((cands) => ({ c, propositions: cands }), (e) => ({ c, propositions: [], erreur: this._msg(e) }))));
+					frappe.dom.unfreeze();
+					resultats(res, consigne);
+				} });
+			lancement.show();
+		};
+		const appel_orienter = async (c, consigne) => {
+			const ref = etat.cases[0];
+			const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.orienter_variante",
+				args: { design: this.nom, url: c.url, reference: ref.url, reference_miroir: ref.miroir ? 1 : 0, nombre: 1, consigne: consigne || "" } });
+			return (r.message || {}).candidats || [];
+		};
+		const resultats = (res, consigne) => {
+			const ref = etat.cases[0];
+			const d3 = new frappe.ui.Dialog({ title: __("Même orientation que la première"), size: "extra-large", fields: [{ fieldtype: "HTML", fieldname: "g" }],
+				primary_action_label: __("Tout prendre (dernières propositions)"),
+				primary_action: () => {
+					res.forEach((x) => { const u = x.propositions[x.propositions.length - 1]; if (u && !x.pris) { x.c.url = u; x.c.miroir = false; } });
+					d3.hide(); rendre_cases(); apercu();
+				} });
+			const vignette = (u, titre, miroir) => `<div style="flex:0 0 170px;text-align:center"><div class="small text-muted">${titre}</div>
+				<img src="${esc(u)}" style="max-width:170px;max-height:180px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;${miroir ? "transform:scaleX(-1)" : ""}"></div>`;
+			const ligne = (x, k) => `<div style="padding:10px 0;border-bottom:1px solid #f0f0f0" data-ligne="${k}">
+				<div style="display:flex;gap:12px;align-items:flex-start;overflow-x:auto">
+					${vignette(x.c.url, __("Variante {0} — actuelle", [k + 2]), x.c.miroir)}
+					${x.propositions.map((u, j) => `<div style="flex:0 0 170px;text-align:center">${vignette(u, __("Proposition {0}", [j + 1]), false).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}
+						<div style="margin-top:4px"><button class="btn btn-xs ${x.pris === u ? "btn-success" : "btn-primary"}" data-prendre="${k}" data-url="${esc(u)}" ${x.pris === u ? "disabled" : ""}>${x.pris === u ? __("Pris ✓") : __("Prendre")}</button></div></div>`).join("")}
+					${x.erreur ? `<div class="text-danger small" style="align-self:center">${esc(x.erreur)}</div>` : ""}
+					${x.en_cours ? `<div class="text-muted small" style="align-self:center">⏳ ${__("L'IA retravaille…")}</div>` : ""}
+				</div>
+				<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">
+					<input class="form-control input-sm" data-correction="${k}" placeholder="${__("Correction : ex. « retirer la clé et le support », « la clé ne touche pas le porte-filtre »")}" style="flex:1 1 320px" ${x.en_cours ? "disabled" : ""}>
+					<button class="btn btn-xs btn-default" data-corriger="${k}" ${x.propositions.length && !x.en_cours ? "" : "disabled"} title="${__("L'IA reprend la DERNIÈRE proposition (son orientation est gardée) et n'applique que la correction")}">✏️ ${__("Corriger la proposition")}</button>
+					<button class="btn btn-xs btn-default" data-refaire="${k}" ${x.en_cours ? "disabled" : ""} title="${__("Nouvelle tentative depuis la photo d'origine, sous l'angle de la première, avec la correction")}">↻ ${__("Refaire")}</button>
+				</div></div>`;
+			const dessiner = () => {
+				const $g = d3.get_field("g").$wrapper;
+				$g.html(`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:6px;padding-bottom:10px;border-bottom:1px solid #e5e7eb">
+					${vignette(ref.url, __("Référence (1re variante)"), ref.miroir)}
+					<p class="small text-muted" style="align-self:center;flex:1">${__("Une erreur visuelle ? Écrivez la correction sous la variante : « Corriger » repart de la dernière proposition, « Refaire » de la photo d'origine. Chaque essai est une image facturée ; tout reste dans l'onglet Images.")}</p></div>
+					${res.map(ligne).join("")}`);
+				$g.find("[data-prendre]").on("click", (e) => {
 					const x = res[cint($(e.currentTarget).attr("data-prendre"))];
-					x.c.url = $(e.currentTarget).attr("data-url"); x.c.miroir = false;
-					$(e.currentTarget).text(__("Pris ✓")).prop("disabled", true);
-					rendre_cases(); apercu();
+					x.pris = $(e.currentTarget).attr("data-url");
+					x.c.url = x.pris; x.c.miroir = false;
+					dessiner(); rendre_cases(); apercu();
 				});
-				d3.show();
-			});
+				const lancer = async (k, mode) => {
+					const x = res[k], correction = ($g.find(`[data-correction="${k}"]`).val() || "").trim();
+					if (mode === "corriger" && !correction) { frappe.show_alert({ message: __("Écrivez d'abord la correction à apporter."), indicator: "orange" }); return; }
+					x.en_cours = true; x.erreur = null; dessiner();
+					try {
+						let cands;
+						if (mode === "corriger") {
+							const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_image",
+								args: { design: this.nom, champ: "photo_produit", instruction: correction, nombre: 1, source_url: x.propositions[x.propositions.length - 1] } });
+							cands = (r.message || {}).candidats || [];
+						} else {
+							cands = await appel_orienter(x.c_origine || x.c, [consigne, correction].filter(Boolean).join(". "));
+						}
+						x.propositions = x.propositions.concat(cands);
+					} catch (e) { x.erreur = this._msg(e); }
+					x.en_cours = false; dessiner();
+				};
+				$g.find("[data-corriger]").on("click", (e) => lancer(cint($(e.currentTarget).attr("data-corriger")), "corriger"));
+				$g.find("[data-refaire]").on("click", (e) => lancer(cint($(e.currentTarget).attr("data-refaire")), "refaire"));
+				$g.find("[data-correction]").on("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); lancer(cint($(e.currentTarget).attr("data-correction")), "corriger"); } });
+			};
+			// « Refaire » repart de la photo d'ORIGINE, même après un « Prendre »
+			res.forEach((x) => { x.c_origine = { url: x.c.url, miroir: x.c.miroir }; });
+			d3.show(); dessiner();
 		};
 		const creer = async (adopter) => {
 			if (etat.cases.length < 2) { frappe.msgprint(__("Choisissez au moins deux variantes du produit.")); return; }
