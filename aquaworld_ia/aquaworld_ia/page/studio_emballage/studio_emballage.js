@@ -167,6 +167,7 @@ class StudioEmballage {
 				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_ia" title="${__("Changer les couleurs, épurer, moderniser — par IA, avant de le poser")}">✨ ${__("Retoucher par IA")}</button>` : ""}
 				${champ === "logo" && (d.logo || d.marque) ? `<button class="btn btn-xs btn-default" data-action="logo_couleur" title="${__("Le logo en UNE couleur choisie dans une palette, exacte et sans IA, en SVG ou PNG")}">🎨 ${__("Couleur & SVG")}</button>` : ""}
 				${champ === "photo_produit" && d.photo_produit ? `<button class="btn btn-xs btn-default" data-action="photo_ia" title="${__("Détourer sur blanc pur, éclairage studio, retirer les accessoires — par IA, plusieurs propositions")}">✨ ${__("Améliorer par IA")}</button>` : ""}
+				${champ === "photo_produit" ? `<button class="btn btn-xs btn-default" data-action="mosaique" title="${__("Plusieurs variantes du produit en une seule photo : grille avec en-têtes, rangée, colonne, héros, groupe")}">🧩 ${__("Mosaïque")}</button>` : ""}
 				${StudioEmballage.BIBLIO[champ] ? `<button class="btn btn-xs btn-default" data-bibliotheque="${champ}" title="${__("Reprendre un fond, un motif, une variante de logo ou une photo gardés en bibliothèque")}">📚 ${__("Bibliothèque")}</button>` : ""}
 				${StudioEmballage.BIBLIO[champ] && d[champ] ? `<button class="btn btn-xs btn-default" data-garder="${champ}" title="${__("Garder ce fichier en bibliothèque, sous un nom, pour un autre design")}">💾 ${__("Garder")}</button>` : ""}
 			</div>`;
@@ -1032,6 +1033,8 @@ class StudioEmballage {
 				this.atelier_couleur();
 			} else if (nom === "photo_ia") {
 				this.atelier_image("photo_produit");
+			} else if (nom === "mosaique") {
+				this.atelier_mosaique();
 			} else if (nom === "fond") {
 				this.atelier_fond();
 			} else if (nom === "integrer") {
@@ -1549,6 +1552,193 @@ class StudioEmballage {
 				} catch (e) { frappe.msgprint(this._msg(e)); }
 			} });
 		dlg.show();
+	}
+
+	// Mosaïque de variantes (demande 14/10/2026 : « choisir plusieurs variantes du produit et créer une photo avec une
+	// mosaïque des produits améliorés choisis », comme la planche TRANSPARENT / OPAQUE BLEU × MODÈLE A / B, « ou une
+	// autre disposition »). Les cases viennent des photos du design, de la bibliothèque ou d'un téléversement, chacune
+	// améliorable par IA ; l'aperçu se refait au fil des réglages (serveur, 900 px) ; rien ne change avant « Utiliser ».
+	atelier_mosaique() {
+		const esc = (v) => this._esc(v), d = this.d;
+		let cfg = {};
+		try { cfg = JSON.parse(d.mosaique || "{}") || {}; } catch (e) { cfg = {}; }
+		const etat = { cases: (cfg.cases || []).map((c) => Object.assign({}, c)) };
+		if (!etat.cases.length && d.photo_produit) etat.cases.push({ url: d.photo_produit, legende: "" });
+		const POLICES = ["Poppins", "Montserrat", "Roboto", "OpenSans", "Lato", "NotoSans", "Oswald", "EBGaramond", "NotoSerif"];
+		const AVEC_ENTETES = "eval:['grille','rangee','colonne'].includes(doc.disposition)";
+		let dlg = null, jeton = 0;
+		const lignes = (t) => String(t || "").split("\n").map((x) => x.trim());
+		const config = () => {
+			const v = dlg.get_values(true) || {};
+			return { disposition: v.disposition, colonnes: cint(v.colonnes), espacement: v.espacement, cadre: v.cadre,
+				alignement: v.alignement, titre: v.titre || "", pied: v.pied || "", entetes_colonnes: lignes(v.entetes_colonnes),
+				entetes_lignes: lignes(v.entetes_lignes), fond: v.fond, detourer: !!v.detourer, couleur: v.couleur || "#1f3a8a",
+				police: v.police || "Poppins", cases: etat.cases };
+		};
+		const apercu = frappe.utils.debounce(async () => {
+			if (!dlg) return;
+			const $a = dlg.get_field("apercu").$wrapper;
+			if (!etat.cases.length) { $a.html(`<div class="se-vide">${__("Ajoutez des variantes du produit (au moins deux).")}</div>`); return; }
+			const moi = ++jeton;
+			$a.css("opacity", 0.55);
+			try {
+				const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.mosaique_apercu", args: { design: this.nom, config: JSON.stringify(config()) } });
+				if (moi !== jeton) return;
+				const img = (r.message || {}).image;
+				$a.html(img ? `<div style="text-align:center;background:repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 16px 16px;border-radius:8px;padding:10px">
+					<img src="${img}" style="max-width:100%;max-height:440px"></div>
+					<p class="small text-muted" style="margin-top:6px">${__("Aperçu réduit ; la mosaïque finale fait 2 400 px de large. Le damier = transparent.")}</p>` : "");
+			} catch (e) {
+				if (moi === jeton) $a.html(`<div class="se-vide">${esc(this._msg(e))}</div>`);
+			} finally {
+				if (moi === jeton) $a.css("opacity", 1);
+			}
+		}, 450);
+		const rendre_cases = () => {
+			const $c = dlg.get_field("cases").$wrapper;
+			$c.html(`<div style="font-weight:600;margin-bottom:6px">${__("Variantes ({0})", [etat.cases.length])}</div>
+				${etat.cases.map((c, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;border:1px solid #e5e7eb;border-radius:8px;padding:5px">
+					<img src="${esc(c.url)}" alt="" style="width:54px;height:54px;object-fit:contain;background:#fff;border-radius:4px">
+					<input class="form-control input-xs" data-legende="${i}" value="${esc(c.legende || "")}" placeholder="${__("Légende (facultative)")}" style="flex:1;min-width:60px">
+					<button class="btn btn-xs btn-default" data-ia="${i}" title="${__("Améliorer cette photo par IA (plusieurs propositions)")}">✨</button>
+					<button class="btn btn-xs btn-default" data-monter="${i}" ${i ? "" : "disabled"} title="${__("Monter")}">↑</button>
+					<button class="btn btn-xs btn-default" data-descendre="${i}" ${i < etat.cases.length - 1 ? "" : "disabled"} title="${__("Descendre")}">↓</button>
+					<button class="btn btn-xs btn-default" data-retirer="${i}" title="${__("Retirer")}">✕</button></div>`).join("")}
+				<button class="btn btn-sm btn-default" data-role="ajouter">＋ ${__("Ajouter des variantes")}</button>
+				<p class="small text-muted" style="margin-top:6px">${__("Grille : les cases se remplissent ligne par ligne, dans cet ordre. Héros : la première est la grande.")}</p>
+				<div style="font-weight:600;margin:10px 0 6px">${__("Aperçu")}</div>`);
+			$c.find("[data-legende]").on("change", (e) => { etat.cases[cint($(e.currentTarget).attr("data-legende"))].legende = e.currentTarget.value; apercu(); });
+			$c.find("[data-retirer]").on("click", (e) => { etat.cases.splice(cint($(e.currentTarget).attr("data-retirer")), 1); rendre_cases(); apercu(); });
+			const echanger = (i, j) => { const t = etat.cases[i]; etat.cases[i] = etat.cases[j]; etat.cases[j] = t; rendre_cases(); apercu(); };
+			$c.find("[data-monter]").on("click", (e) => { const i = cint($(e.currentTarget).attr("data-monter")); echanger(i, i - 1); });
+			$c.find("[data-descendre]").on("click", (e) => { const i = cint($(e.currentTarget).attr("data-descendre")); echanger(i, i + 1); });
+			$c.find("[data-ia]").on("click", (e) => ameliorer(cint($(e.currentTarget).attr("data-ia"))));
+			$c.find('[data-role="ajouter"]').on("click", () => ajouter());
+		};
+		const ajouter = async () => {
+			const biblio = (await frappe.call({ method: "aquaworld_ia.emballage.studio.bibliotheque_liste", args: { champ: "photo_produit", marque: d.marque } })).message || [];
+			// les photos du design (pas le logo ni le fond : un « Téléversé » peut être l'un ou l'autre)
+			const photos = (this.data.images || []).filter((im) => /^(Photo|Téléversé)/.test(im.genre || "") && !/\.svg$/i.test(im.file_url || "")
+				&& !["logo", "image_fond"].includes(im.usage) && im.file_url !== d.logo && im.file_url !== d.image_fond);
+			const choix = new Set();
+			const carte = (url, titre) => `<div class="se-carte" data-url="${esc(url)}" style="cursor:pointer">
+				<img src="${esc(url)}" alt="" style="aspect-ratio:1/1;object-fit:contain;background:#fff"><div class="leg">${esc(titre)}</div></div>`;
+			const pk = new frappe.ui.Dialog({ title: __("Ajouter des variantes"), size: "large", fields: [{ fieldtype: "HTML", fieldname: "g" }],
+				primary_action_label: __("Ajouter la sélection"),
+				primary_action: () => { choix.forEach((u) => etat.cases.push({ url: u, legende: "" })); pk.hide(); rendre_cases(); apercu(); },
+				secondary_action_label: __("Téléverser une photo"),
+				secondary_action: () => {
+					pk.hide();
+					new frappe.ui.FileUploader({ doctype: "Design Emballage", docname: this.nom, folder: "Home/Attachments",
+						restrictions: { allowed_file_types: ["image/*"] },
+						on_success: (f) => { etat.cases.push({ url: f.file_url, legende: "" }); rendre_cases(); apercu(); } });
+				} });
+			const $g = pk.get_field("g").$wrapper;
+			$g.html(`<p class="small text-muted">${__("Cliquez les photos à ajouter (plusieurs possibles), puis « Ajouter la sélection ».")}</p>
+				<h6>${__("Photos de ce design")}</h6>
+				<div class="se-galerie">${photos.map((im) => carte(im.file_url, im.genre)).join("") || `<div class="text-muted small">${__("Aucune.")}</div>`}</div>
+				<h6 style="margin-top:12px">${__("Bibliothèque (photos du produit)")}</h6>
+				<div class="se-galerie">${biblio.map((l) => carte(l.image, l.nom)).join("") || `<div class="text-muted small">${__("Rien en bibliothèque.")}</div>`}</div>
+				<h6 style="margin-top:12px">${__("Autres articles")}</h6>
+				<input class="form-control input-sm" data-role="cherche-article" placeholder="${__("Code ou nom d'un article (ex. P-F-S-10, porte-filtre bleu)…")}" style="max-width:420px">
+				<div data-role="res-articles" style="margin-top:8px"></div>`);
+			// délégué : les cartes des autres articles arrivent après la recherche
+			$g.on("click", "[data-url]", (e) => {
+				const u = $(e.currentTarget).attr("data-url");
+				if (choix.has(u)) choix.delete(u); else choix.add(u);
+				$(e.currentTarget).css({ outline: choix.has(u) ? "3px solid var(--primary)" : "", "outline-offset": "-3px" });
+				pk.set_primary_action(choix.size ? __("Ajouter la sélection ({0})", [choix.size]) : __("Ajouter la sélection"), pk.primary_action);
+			});
+			const chercher = frappe.utils.debounce(async (texte) => {
+				const $r = $g.find('[data-role="res-articles"]');
+				if ((texte || "").trim().length < 2) { $r.empty(); return; }
+				$r.html(`<div class="text-muted small">${__("Recherche…")}</div>`);
+				const res = (await frappe.call({ method: "aquaworld_ia.emballage.studio.photos_autres_articles", args: { recherche: texte, design: this.nom } })).message || [];
+				$r.html(res.length ? res.map((a) => `<div style="margin-bottom:10px"><div class="small"><b>${esc(a.article)}</b> · ${esc(a.nom)}</div>
+					<div class="se-galerie">${a.photos.map((p) => carte(p.url, p.source)).join("")}</div></div>`).join("")
+					: `<div class="text-muted small">${__("Aucun article avec photo pour « {0} ».", [esc(texte)])}</div>`);
+				$r.find("[data-url]").each((_i, el) => { if (choix.has($(el).attr("data-url"))) $(el).css({ outline: "3px solid var(--primary)", "outline-offset": "-3px" }); });
+			}, 350);
+			$g.find('[data-role="cherche-article"]').on("input", (e) => chercher(e.currentTarget.value));
+			pk.show();
+		};
+		const ameliorer = (i) => {
+			const c = etat.cases[i], est = this.data.estimation || {};
+			const d1 = new frappe.ui.Dialog({ title: __("Améliorer cette variante par IA"), fields: [
+				{ fieldtype: "HTML", options: `<img src="${esc(c.url)}" style="max-height:120px;max-width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px">` },
+				{ fieldtype: "Small Text", fieldname: "instruction", label: __("Que changer ?"), reqd: 1,
+				  default: __("Détourer sur fond blanc pur, éclairage studio doux, vue de face, net") },
+				{ fieldtype: "Select", fieldname: "nombre", label: __("Propositions"), default: "2", options: "1\n2\n3\n4",
+				  description: __("Une image facturée par proposition (≈ {0} $ chacune). L'IA redessine : contrôlez chaque détail.", [(est.cout || 0).toFixed(2)]) }],
+				primary_action_label: __("Générer"),
+				primary_action: async (v) => {
+					let r;
+					try {
+						r = await frappe.call({ method: "aquaworld_ia.emballage.studio.retoucher_image", freeze: true, freeze_message: __("L'IA retravaille la photo…"),
+							args: { design: this.nom, champ: "photo_produit", instruction: v.instruction, nombre: v.nombre, source_url: c.url } });
+					} catch (e) { frappe.msgprint(this._msg(e)); return; }
+					d1.hide();
+					const cands = (r.message || {}).candidats || [];
+					const d2 = new frappe.ui.Dialog({ title: __("Propositions pour cette variante"), size: "large", fields: [{ fieldtype: "HTML", fieldname: "g" }] });
+					d2.get_field("g").$wrapper.html(`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">${[c.url].concat(cands).map((u, k) => `
+						<div style="flex:1 1 180px;text-align:center;min-width:0"><div class="small text-muted">${k ? __("Proposition {0}", [k]) : __("Actuelle")}</div>
+						<img src="${esc(u)}" style="max-width:100%;max-height:220px;background:#fff;border:1px solid #e5e7eb;border-radius:6px">
+						${k ? `<div style="margin-top:6px"><button class="btn btn-xs btn-primary" data-prendre="${esc(u)}">${__("Prendre celle-ci")}</button></div>` : ""}</div>`).join("")}</div>`);
+					d2.get_field("g").$wrapper.find("[data-prendre]").on("click", (e) => { c.url = $(e.currentTarget).attr("data-prendre"); d2.hide(); rendre_cases(); apercu(); });
+					d2.show();
+				} });
+			d1.show();
+		};
+		const creer = async (adopter) => {
+			if (etat.cases.length < 2) { frappe.msgprint(__("Choisissez au moins deux variantes du produit.")); return; }
+			try {
+				const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.mosaique_creer", freeze: true, freeze_message: __("Composition de la mosaïque…"),
+					args: { design: this.nom, config: JSON.stringify(config()), adopter } });
+				dlg.hide(); this.data = r.message; this.d = this.data.doc; this._lire_mep(); this.rendre();
+				frappe.show_alert({ message: adopter ? __("Mosaïque posée comme photo du produit : recomposez le plan.") : __("Mosaïque enregistrée dans l'onglet Images."), indicator: "green" }, 7);
+			} catch (e) { frappe.msgprint(this._msg(e)); }
+		};
+		const sur_changement = () => apercu();
+		dlg = new frappe.ui.Dialog({ title: __("🧩 Mosaïque de variantes du produit"), size: "extra-large",
+			fields: [
+				{ fieldtype: "HTML", fieldname: "cases" },
+				{ fieldtype: "HTML", fieldname: "apercu" },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Select", fieldname: "disposition", label: __("Disposition"), default: cfg.disposition || "grille", onchange: sur_changement,
+				  options: [{ value: "grille", label: __("Grille — en-têtes de colonnes et de lignes") }, { value: "rangee", label: __("Rangée") },
+				            { value: "colonne", label: __("Colonne") }, { value: "heros", label: __("Héros + variantes") },
+				            { value: "groupe", label: __("Groupe — produits rapprochés") }] },
+				{ fieldtype: "Int", fieldname: "colonnes", label: __("Colonnes (0 = automatique)"), default: cfg.colonnes || 0, depends_on: "eval:doc.disposition=='grille'", onchange: sur_changement },
+				{ fieldtype: "Select", fieldname: "espacement", label: __("Espacement"), default: cfg.espacement || "normal", onchange: sur_changement,
+				  options: [{ value: "serre", label: __("Serré") }, { value: "normal", label: __("Normal") }, { value: "aere", label: __("Aéré") }] },
+				{ fieldtype: "Select", fieldname: "cadre", label: __("Cadre de chaque variante"), default: cfg.cadre || "aucun", onchange: sur_changement,
+				  options: [{ value: "aucun", label: __("Aucun") }, { value: "carte", label: __("Carte (fond clair arrondi)") }, { value: "trait", label: __("Trait") }] },
+				{ fieldtype: "Select", fieldname: "alignement", label: __("Alignement des produits"), default: cfg.alignement || "pied", onchange: sur_changement,
+				  options: [{ value: "pied", label: __("Au pied (debout sur la même ligne)") }, { value: "centre", label: __("Au milieu") }] },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Data", fieldname: "titre", label: __("Titre"), default: cfg.titre || "", onchange: sur_changement },
+				{ fieldtype: "Small Text", fieldname: "entetes_colonnes", label: __("En-têtes de colonnes (un par ligne)"), default: (cfg.entetes_colonnes || []).join("\n"), depends_on: AVEC_ENTETES, onchange: sur_changement },
+				{ fieldtype: "Small Text", fieldname: "entetes_lignes", label: __("En-têtes de lignes, en pastilles (un par ligne)"), default: (cfg.entetes_lignes || []).join("\n"), depends_on: AVEC_ENTETES, onchange: sur_changement },
+				{ fieldtype: "Data", fieldname: "pied", label: __("Pied"), default: cfg.pied || "", onchange: sur_changement },
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "Select", fieldname: "fond", label: __("Fond"), default: cfg.fond || "transparent", onchange: sur_changement,
+				  options: [{ value: "transparent", label: __("Transparent") }, { value: "blanc", label: __("Blanc") }] },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Check", fieldname: "detourer", label: __("Détourer les produits"), default: cfg.detourer === false ? 0 : 1, onchange: sur_changement,
+				  description: __("Décochez pour un produit transparent sur fond blanc : ses parties claires disparaissent au détourage.") },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Color", fieldname: "couleur", label: __("Couleur du texte"), default: cfg.couleur || "#1f3a8a", onchange: sur_changement },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Select", fieldname: "police", label: __("Police"), options: POLICES, default: cfg.police || "Poppins", onchange: sur_changement },
+			],
+			primary_action_label: __("Utiliser comme photo du produit"),
+			primary_action: () => creer(1),
+			secondary_action_label: __("Enregistrer dans les images"),
+			secondary_action: () => creer(0),
+		});
+		dlg.show();
+		rendre_cases();
+		apercu();
 	}
 
 	bibliotheque(champ, on_choisir) {

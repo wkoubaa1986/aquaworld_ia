@@ -180,7 +180,7 @@ def ajouter_police(nom: str, regulier: str, gras: str | None = None, italique: s
 
 GENRES_IMAGE = (
 	("-logo-ia", "Logo IA"), ("-logo-couleur", "Logo couleur"), ("-logo", "Logo"), ("-tampon", "Tampon IA"),
-	("-face-", "Face composée IA"), ("-photo-ia", "Photo IA"), ("-photo", "Photo"), ("-fond", "Fond IA"),
+	("-face-", "Face composée IA"), ("-photo-ia", "Photo IA"), ("-photo", "Photo"), ("-mosaique", "Photo mosaïque"), ("-fond", "Fond IA"),
 	("-apercu-3d", "Aperçu 3D"),
 )
 
@@ -501,7 +501,7 @@ def taille_retouche(champ: str, octets: bytes | None) -> str:
 
 
 @frappe.whitelist()
-def retoucher_image(design: str, champ: str, instruction: str, nombre=1) -> dict:
+def retoucher_image(design: str, champ: str, instruction: str, nombre=1, source_url: str | None = None) -> dict:
 	"""L'atelier IA d'une image du design — logo, ou photo produit (demande utilisateur 24/09/2026 :
 	« améliorer avec l'IA la photo du produit ») : détourage sur blanc pur, éclairage studio, retrait
 	des accessoires… `nombre` propositions (1 à 4) attachées à la fiche, rien n'est posé tant que
@@ -514,6 +514,9 @@ def retoucher_image(design: str, champ: str, instruction: str, nombre=1) -> dict
 	doc = frappe.get_doc("Design Emballage", design)
 	doc.check_permission("write")
 	source = url_logo(doc) if champ == "logo" else url_photo(doc) if champ == "photo_produit" else None
+	if source_url and champ == "photo_produit":
+		# une variante de la mosaïque (14/10/2026) : la même retouche, sur l'image choisie
+		source = _image_lisible(doc, source_url)
 	if champ not in PROMPTS_RETOUCHE:
 		frappe.throw(_("Pas d'atelier IA pour ce champ."))
 	if not source:
@@ -997,3 +1000,139 @@ def liste(recherche: str | None = None, limite: int = 20) -> list:
 	return frappe.get_list("Design Emballage", filters=filtres,
 	                       fields=["name", "nom_produit", "article", "statut", "modified", "apercu_plan", "type_boite"],
 	                       order_by="modified desc", limit_page_length=int(limite))
+
+
+# ─── mosaïque de variantes (14/10/2026) ─────────────────────────────────────
+
+def _image_lisible(doc, url: str) -> str:
+	"""Une image que ce design peut lire : attachée à lui, en bibliothèque, ou publique. Refuse le reste."""
+	if not url:
+		frappe.throw(_("Image manquante."))
+	if url.startswith("/files/"):
+		return url
+	# Frappe dédoublonne les fichiers : une même `file_url` a une fiche File par design qui la partage (une copie de
+	# design, une photo prise en bibliothèque) — il suffit que L'UNE d'elles soit à ce design ou à la bibliothèque.
+	if frappe.db.exists("File", {"file_url": url, "attached_to_doctype": "Design Emballage", "attached_to_name": doc.name}) \
+			or frappe.db.exists("File", {"file_url": url, "attached_to_doctype": "Ressource Emballage"}):
+		return url
+	# la photo d'un AUTRE produit (14/10/2026 : « ramener les photos d'autres produits ») : image ou pièce jointe d'un
+	# article, photo d'un autre design — si l'utilisateur peut lire cet article / ce design
+	for doctype in ("Item", "Design Emballage"):
+		if frappe.db.exists("File", {"file_url": url, "attached_to_doctype": doctype}) and frappe.has_permission(doctype, "read"):
+			return url
+	if frappe.db.exists("Item", {"image": url}) and frappe.has_permission("Item", "read"):
+		return url
+	frappe.throw(_("Cette image n'appartient ni à ce design ni à la bibliothèque."))
+
+
+def _mosaique_images(doc, cfg: dict, max_px: int | None):
+	"""Les images détourées des cases ; en aperçu (`max_px`), gardées 10 min en cache (un réglage changé ne relit pas
+	quatre photos de 4 Mo)."""
+	import base64
+	import io as _io
+
+	from PIL import Image
+
+	from aquaworld_ia.emballage import mosaique as M
+	from aquaworld_ia.ia import fichiers
+
+	out = []
+	for c in cfg["cases"]:
+		url = _image_lisible(doc, c["url"])
+		cle = "aqia:mosaique:%s:%s:%s" % (url, int(cfg["detourer"]), max_px or 0)
+		en_cache = frappe.cache().get_value(cle) if max_px else None
+		if en_cache:
+			out.append(Image.open(_io.BytesIO(base64.b64decode(en_cache))).convert("RGBA"))
+			continue
+		im = M.produit_detoure(fichiers.lire(url), detourer=cfg["detourer"], max_px=max_px)
+		if max_px:
+			buf = _io.BytesIO()
+			im.save(buf, format="PNG")
+			frappe.cache().set_value(cle, base64.b64encode(buf.getvalue()).decode(), expires_in_sec=600)
+		out.append(im)
+	return out
+
+
+@frappe.whitelist()
+def mosaique_apercu(design: str, config) -> dict:
+	"""L'aperçu de la mosaïque (900 px de large, data URI) — rien n'est enregistré."""
+	import base64
+
+	from aquaworld_ia.emballage import mosaique as M
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("read")
+	cfg = M.normaliser(json.loads(config) if isinstance(config, str) else config)
+	if not cfg["cases"]:
+		return {"image": None}
+	png = M.composer(cfg, _mosaique_images(doc, cfg, max_px=700), largeur=900)
+	return {"image": "data:image/png;base64," + base64.b64encode(png).decode()}
+
+
+@frappe.whitelist()
+def mosaique_creer(design: str, config, adopter=1) -> dict:
+	"""La mosaïque en pleine définition (2 400 px), attachée au design (onglet Images) ; ses réglages gardés sur la
+	fiche ; `adopter` : elle devient la photo du produit."""
+	from aquaworld_ia.emballage import mosaique as M
+	from frappe.utils.file_manager import save_file
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("write")
+	cfg = M.normaliser(json.loads(config) if isinstance(config, str) else config)
+	if len(cfg["cases"]) < 2:
+		frappe.throw(_("Choisissez au moins deux variantes du produit."))
+	png = M.composer(cfg, _mosaique_images(doc, cfg, max_px=None))
+	url = save_file("%s-mosaique.png" % doc.name, png, "Design Emballage", doc.name, is_private=1).file_url
+	valeurs = {"mosaique": json.dumps(cfg, ensure_ascii=False)}
+	if cint(adopter):
+		valeurs["photo_produit"] = url
+	doc.update(valeurs)
+	doc.save()
+	frappe.db.commit()
+	out = charger(design)
+	out["mosaique_url"] = url
+	return out
+
+
+EXTENSIONS_IMAGE = ("png", "jpg", "jpeg", "webp")
+
+
+@frappe.whitelist()
+def photos_autres_articles(recherche: str, design: str | None = None, limite: int = 12) -> list:
+	"""Les photos d'autres produits, pour une mosaïque (14/10/2026) : par article trouvé (code ou nom), son image ERPNext,
+	ses pièces jointes images, et les photos de ses designs d'emballage (photo produit, photos IA).
+	[{article, nom, photos: [{url, source}]}] — seulement les articles qui ont au moins une photo."""
+	frappe.has_permission("Item", "read", throw=True)
+	recherche = (recherche or "").strip()
+	if len(recherche) < 2:
+		return []
+	q = "%%%s%%" % recherche
+	articles = frappe.get_all("Item", or_filters={"item_code": ["like", q], "item_name": ["like", q]},
+	                          fields=["name", "item_name", "image"], limit_page_length=int(limite or 12) * 3)
+	est_image = lambda u: (u or "").rsplit(".", 1)[-1].lower() in EXTENSIONS_IMAGE
+	out = []
+	for a in articles:
+		photos, vus = [], set()
+
+		def ajouter(url, source):
+			if url and est_image(url) and url not in vus:
+				vus.add(url)
+				photos.append({"url": url, "source": source})
+
+		ajouter(a.image, _("Article"))
+		for f in frappe.get_all("File", filters={"attached_to_doctype": "Item", "attached_to_name": a.name, "is_folder": 0},
+		                        fields=["file_url"], order_by="creation desc", limit_page_length=8):
+			ajouter(f.file_url, _("Pièce jointe"))
+		for dz in frappe.get_all("Design Emballage", filters={"article": a.name, "name": ["!=", design or ""]},
+		                         fields=["name", "photo_produit"], limit_page_length=5):
+			ajouter(dz.photo_produit, dz.name)
+			for f in frappe.get_all("File", filters={"attached_to_doctype": "Design Emballage", "attached_to_name": dz.name, "is_folder": 0},
+			                        fields=["file_name", "file_url"], order_by="creation desc", limit_page_length=40):
+				genre = genre_image(f.file_name, dz.name) or ""
+				if genre.startswith("Photo"):
+					ajouter(f.file_url, "%s · %s" % (dz.name, genre))
+		if photos:
+			out.append({"article": a.name, "nom": a.item_name or a.name, "photos": photos[:12]})
+		if len(out) >= int(limite or 12):
+			break
+	return out

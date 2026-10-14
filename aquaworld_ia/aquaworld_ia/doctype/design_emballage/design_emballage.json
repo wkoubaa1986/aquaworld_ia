@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_copy": 1,
  "allow_rename": 0,
  "autoname": "EMB-.YYYY.-.####",
  "creation": "2026-09-22 14:00:00.000000",
@@ -11,6 +12,7 @@
   "marque",
   "logo",
   "photo_produit",
+  "mosaique",
   "cb_10",
   "statut",
   "variante_choisie",
@@ -106,6 +108,13 @@
    "label": "Photo produit"
   },
   {
+   "description": "Réglages de la dernière mosaïque de variantes (studio : 🧩 Mosaïque), pour la reprendre.",
+   "fieldname": "mosaique",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Mosaïque (réglages)"
+  },
+  {
    "fieldname": "cb_10",
    "fieldtype": "Column Break"
   },
@@ -145,28 +154,28 @@
    "reqd": 1
   },
   {
+   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1.",
    "fieldname": "longueur_mm",
    "fieldtype": "Float",
-   "label": "Largeur de la face avant (mm)",
-   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
+   "label": "Largeur de la face avant (mm)"
   },
   {
+   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1.",
    "fieldname": "hauteur_mm",
    "fieldtype": "Float",
-   "label": "Hauteur (mm)",
-   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
+   "label": "Hauteur (mm)"
   },
   {
+   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1.",
    "fieldname": "profondeur_mm",
    "fieldtype": "Float",
-   "label": "Profondeur / soufflet / côtés (mm)",
-   "description": "Requis pour composer ou générer ; le studio les saisit à l'étape 1."
+   "label": "Profondeur / soufflet / côtés (mm)"
   },
   {
+   "description": "Sacs à gueule ouverte agrafés : le repli qui se rabat et reçoit les agrafes, compris dans la hauteur totale. Aucun texte ni logo n'y est posé.",
    "fieldname": "repli_mm",
    "fieldtype": "Float",
-   "label": "Hauteur du repli supérieur (mm)",
-   "description": "Sacs à gueule ouverte agrafés : le repli qui se rabat et reçoit les agrafes, compris dans la hauteur totale. Aucun texte ni logo n'y est posé."
+   "label": "Hauteur du repli supérieur (mm)"
   },
   {
    "fieldname": "cb_11",
@@ -212,16 +221,16 @@
    "label": "Caractéristiques (une par ligne)"
   },
   {
+   "description": "Vide : Noto Sans. Une ligne peut choisir la sienne. L'arabe garde sa police.",
    "fieldname": "police_caracteristiques",
    "fieldtype": "Data",
-   "label": "Police des caractéristiques",
-   "description": "Vide : Noto Sans. Une ligne peut choisir la sienne. L'arabe garde sa police."
+   "label": "Police des caractéristiques"
   },
   {
+   "description": "Vide : 8,5 pt. Taille maximale : le bloc est réduit s'il ne tient pas dans sa zone.",
    "fieldname": "taille_caracteristiques",
    "fieldtype": "Float",
-   "label": "Taille des caractéristiques (pt)",
-   "description": "Vide : 8,5 pt. Taille maximale : le bloc est réduit s'il ne tient pas dans sa zone."
+   "label": "Taille des caractéristiques (pt)"
   },
   {
    "fieldname": "avertissements",
@@ -250,10 +259,10 @@
    "options": "Design Emballage Pictogramme"
   },
   {
+   "description": "Posés en transparence sur le fond ; les pictogrammes monochromes prennent la couleur du texte de la face, les certifications en couleurs restent telles quelles. Le code-barres et le QR gardent leur cartouche (scan).",
    "fieldname": "pictos_sans_cartouche",
    "fieldtype": "Check",
-   "label": "Pictogrammes sans cartouche blanc",
-   "description": "Posés en transparence sur le fond ; les pictogrammes monochromes prennent la couleur du texte de la face, les certifications en couleurs restent telles quelles. Le code-barres et le QR gardent leur cartouche (scan)."
+   "label": "Pictogrammes sans cartouche blanc"
   },
   {
    "default": "EAN-13",
@@ -336,10 +345,10 @@
    "label": "Face arrière identique à la face avant"
   },
   {
+   "description": "Le côté gauche est la copie du côté droit, mise en page dessinée comprise. Avec le dos identique à l'avant, l'EAN et les avertissements sont dupliqués sur les deux côtés.",
    "fieldname": "cotes_identiques",
    "fieldtype": "Check",
-   "label": "Côtés identiques (gauche = droit)",
-   "description": "Le côté gauche est la copie du côté droit, mise en page dessinée comprise. Avec le dos identique à l'avant, l'EAN et les avertissements sont dupliqués sur les deux côtés."
+   "label": "Côtés identiques (gauche = droit)"
   },
   {
    "description": "Ambiance, couleurs, cible, références.",
@@ -424,7 +433,7 @@
  "issingle": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-10-06 18:00:00.000000",
+ "modified": "2026-10-14 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Design Emballage",
@@ -480,22 +489,21 @@
    "write": 1
   },
   {
-   "role": "Aquaworld IA",
-   "read": 1,
-   "write": 1,
    "create": 1,
    "delete": 1,
-   "print": 1,
    "email": 1,
    "export": 1,
+   "print": 1,
+   "read": 1,
    "report": 1,
-   "share": 1
+   "role": "Aquaworld IA",
+   "share": 1,
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
  "title_field": "nom_produit",
- "track_changes": 1,
- "allow_copy": 1
+ "track_changes": 1
 }
