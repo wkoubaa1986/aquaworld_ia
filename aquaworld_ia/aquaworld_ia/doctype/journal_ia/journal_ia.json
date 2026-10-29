@@ -48,7 +48,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Fonctionnalité",
-   "options": "Manuel\nEmballage texte\nEmballage image\nEmballage faces\nMockup 3D\nEmballage fond\nLogo IA\nManuel illustration\nManuel lecture\nManuel mise en page\nTampon IA",
+   "options": "Manuel\nEmballage texte\nEmballage image\nEmballage faces\nMockup 3D\nEmballage fond\nLogo IA\nManuel illustration\nManuel lecture\nManuel mise en page\nTampon IA\nEnquête écarts stock",
    "read_only": 1
   },
   {
