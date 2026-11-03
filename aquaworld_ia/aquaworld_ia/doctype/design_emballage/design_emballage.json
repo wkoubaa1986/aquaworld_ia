@@ -62,12 +62,17 @@
   "galerie_html",
   "variantes",
   "sb_r_sultats_16",
+  "ameliorer_images_pdf",
+  "rapport_resolution",
   "plan_a_plat",
   "apercu_plan",
   "cb_13",
   "apercu_3d",
   "sb_journal_17",
-  "journal"
+  "journal",
+  "textes_valides",
+  "empreinte_plan",
+  "empreinte_3d"
  ],
  "fields": [
   {
@@ -125,7 +130,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Statut",
-   "options": "Brouillon\nTextes prêts\nVariantes en cours\nVariantes prêtes\nPlan prêt\nÉchec",
+   "options": "Brouillon\nTextes prêts\nVariantes en cours\nVariantes prêtes\nPlan prêt\nÉchec\nÀ recomposer",
    "read_only": 1
   },
   {
@@ -290,7 +295,7 @@
   {
    "fieldname": "sb_textes_pr_par_s_par_l_ia_13",
    "fieldtype": "Section Break",
-   "label": "Textes préparés par l'IA"
+   "label": "Textes imprimés"
   },
   {
    "fieldname": "textes_ia_html",
@@ -427,6 +432,43 @@
    "fieldtype": "Long Text",
    "label": "Journal",
    "read_only": 1
+  },
+  {
+   "fieldname": "textes_valides",
+   "fieldtype": "JSON",
+   "label": "Textes imprimés validés",
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 0
+  },
+  {
+   "fieldname": "empreinte_plan",
+   "fieldtype": "Data",
+   "label": "Empreinte du PDF",
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "empreinte_3d",
+   "fieldtype": "Data",
+   "label": "Empreinte de la simulation",
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "ameliorer_images_pdf",
+   "fieldtype": "Check",
+   "label": "Préparer toutes les images du PDF à 300 ppp",
+   "default": "0"
+  },
+  {
+   "fieldname": "rapport_resolution",
+   "fieldtype": "Long Text",
+   "label": "Bilan résolution du PDF",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "index_web_pages_for_search": 1,

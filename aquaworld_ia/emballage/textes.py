@@ -12,7 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-from aquaworld_ia.emballage import mise_en_forme
+from aquaworld_ia.emballage import contenus, mise_en_forme
 from aquaworld_ia.ia import journal
 from aquaworld_ia.ia.chat import chat_json
 from aquaworld_ia.ia.client import reglages
@@ -130,6 +130,8 @@ def preparer(design: str) -> dict:
 	doc = frappe.get_doc("Design Emballage", design)
 	doc.check_permission("write")
 	journal.verifier_plafond()
+	# Préparer une proposition ne remplace jamais les textes actuellement imprimés.
+	contenus.poser(doc, contenus.imprimes(doc))
 	nb = max(1, min(cint(doc.nb_variantes) or 3, cint(getattr(reglages(), "variantes_max", 4)) or 4))
 	langues_infos = _langues_du_design(doc)
 	# L'IA reçoit le texte SANS les préfixes de mise en forme (elle les traduirait ou les perdrait) ;
@@ -175,7 +177,7 @@ def enregistrer_textes(design: str, textes) -> dict:
 	textes = frappe.parse_json(textes) if isinstance(textes, str) else textes
 	codes = list((textes or {}).keys())
 	propres, _styles = normaliser_preparation({"textes": textes}, codes, 0)
-	doc.textes_ia = json.dumps(propres, ensure_ascii=False)
+	contenus.poser(doc, propres)
 	doc.save(ignore_permissions=True)
 	return propres
 
@@ -184,6 +186,6 @@ def enregistrer_textes(design: str, textes) -> dict:
 def rendu_textes(design: str) -> str:
 	doc = frappe.get_doc("Design Emballage", design)
 	doc.check_permission("read")
-	textes = frappe.parse_json(doc.textes_ia) if doc.textes_ia else {}
+	textes = contenus.imprimes(doc)
 	langues = {l["code"]: l for l in _langues_du_design(doc)}
 	return html_textes(textes or {}, langues)

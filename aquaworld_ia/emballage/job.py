@@ -163,7 +163,8 @@ def choisir_variante(design: str, numero) -> dict:
 	v = next((x for x in doc.variantes if x.numero == cint(numero) and x.statut == "Prête"), None)
 	if cint(numero) and not v:
 		frappe.throw(_("Cette variante n'est pas prête."))
-	frappe.db.set_value("Design Emballage", design, "variante_choisie", cint(numero), update_modified=False)
+	doc.variante_choisie = cint(numero)
+	doc.save()
 	frappe.db.commit()
 	return {"variante_choisie": cint(numero)}
 
@@ -227,9 +228,11 @@ def lancer_fond(design: str, continu=None, consigne: str | None = None, suivre_s
 
 @frappe.whitelist()
 def lancer_mockup(design: str) -> dict:
+	from aquaworld_ia.emballage import exports
+
 	doc = _doc(design)
-	if not doc.plan_a_plat:
-		frappe.throw(_("Composez d'abord le plan à plat (bouton 3)."))
+	if exports.etat(doc)["pdf"] != "a_jour":
+		frappe.throw(_("Actualisez le PDF avant de générer la simulation IA."))
 	_verifier_libre(design)
 	journal.verifier_plafond(couts.cout_variantes(1, qualite_image(), couts.tarifs_depuis_reglages(reglages())))
 	etat.demarrer(GENRE, design, tache="mockup")

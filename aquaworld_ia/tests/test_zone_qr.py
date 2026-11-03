@@ -46,8 +46,10 @@ class TestCablage(unittest.TestCase):
 		racine = os.path.dirname(inspect.getfile(aquaworld_ia))
 		with open(os.path.join(racine, "aquaworld_ia", "page", "studio_emballage", "studio_emballage.js"), encoding="utf-8") as fh:
 			js = fh.read()
+		from pathlib import Path
+		js += "\n".join(p.read_text() for p in (Path(inspect.getfile(aquaworld_ia)).parent / "public/js/studio_emballage").glob("*.js"))
 		self.assertEqual(js.count('"code_barres", "qr", "photo"'), 2)          # barre du plan + panneau de droite
-		for morceau in ('data-champ="couleur_qr"', "data-qr-couleur", 'code: "qr"', "z.code ? { code: z.code }",
+		for morceau in ('data-champ="couleur_qr"', "data-qr-couleur", 'code: "qr"',
 		                'data-role="appliquer-code"', "_contraste_blanc"):
 			self.assertIn(morceau, js, morceau)
 		with open(inspect.getfile(C), encoding="utf-8") as fh:

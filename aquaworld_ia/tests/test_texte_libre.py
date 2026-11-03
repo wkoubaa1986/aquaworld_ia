@@ -110,6 +110,8 @@ class TestCablageStudio(unittest.TestCase):
 		base = os.path.join(os.path.dirname(inspect.getfile(aquaworld_ia)), "aquaworld_ia", "page", "studio_emballage")
 		with open(os.path.join(base, "studio_emballage.js"), encoding="utf-8") as fh:
 			js = fh.read()
+		from pathlib import Path
+		js += "\n".join(p.read_text() for p in (Path(inspect.getfile(aquaworld_ia)).parent / "public/js/studio_emballage").glob("*.js"))
 		self.assertEqual(js.count('"texte_libre", "pictos"'), 2)        # barre du plan + panneau de droite
 		for morceau in ('data-prop="police"', 'data-prop="taille"', 'data-prop="italique"', 'data-prop="align"',
 		                'data-prop="texte_libre"', "z.typo = ty", "_panneau_texte"):

@@ -90,15 +90,206 @@ Noto. Relecture humaine recommandée pour les avertissements de sécurité et le
 Pour un Article, avec les dimensions de la boîte (largeur de face avant, hauteur, profondeur),
 le logo de marque et la photo produit :
 
-1. **Préparer textes et styles** — l'IA reformule les caractéristiques saisies (sans en inventer),
-   les traduit dans les langues demandées et propose N directions graphiques. Les textes se
-   relisent et se corrigent avant toute image.
-2. **Générer les variantes** — une image gpt-image-1 par style (face avant uniquement), photo
-   produit et logo en référence. Galerie, choix, régénération.
-3. **Composer le plan à plat** — PDF imprimeur à l'échelle (mm), page 1 artwork (visuel de la
-   variante sur l'avant, aplat + bandeau sur les autres faces, logo vectoriel, textes par langue,
-   EAN-13 / QR vectoriels, pictogrammes, calque « Découpe et plis »), page 2 fiche technique.
-   Options : faces secondaires par IA (5 images), aperçu 3D (1 image, illustration).
+1. **Produit et format** — article, forme et dimensions.
+2. **Contenus** — logo, photo, textes imprimés, langues et pictogrammes. L’IA peut proposer
+   des textes ; ils ne remplacent les textes imprimés qu’après « Appliquer à l’impression ».
+3. **Mise en page** — placement sur le plan, couleur et image de fond. La création de variantes
+   et de faces par IA reste disponible dans une section facultative.
+4. **Vérifier et exporter** — PDF imprimeur à l’échelle (mm), avec artwork, calque de découpe
+   et fiche technique. Aucun texte IA, variante ni fond personnalisé n’est nécessaire.
+   La simulation IA se lance seulement à partir d’un PDF à jour.
+
+Le centre propose **Édition**, **Aperçu imprimé** et **3D**. La **Médiathèque** réunit les fichiers du
+design, les ressources partagées et les propositions IA. Sous chaque image, **Modifier** donne
+accès à la retouche, à la vectorisation couleur, à la mosaïque et à la bibliothèque selon l’usage.
+
+**Logos différents par face ou par zone** : dans Édition, épingler une face, sélectionner sa
+zone Logo (ou Ajouter → Logo), puis **Choisir un autre logo** dans les propriétés. Le sélecteur
+propose les images du design, la bibliothèque et l’import PNG/JPEG/SVG. Le choix s’applique à
+cette zone ; le logo commun du design reste inchangé. Plusieurs zones Logo peuvent coexister
+sur une face. Une face personnalisée conserve ses propres éléments même si elle copiait l’avant.
+
+**Retoucher le logo d’une zone par IA** : sélectionner le logo puis **Retoucher ce logo par IA**
+au-dessus du plan, ou **Retoucher par IA** dans ses propriétés. L’atelier montre le logo réellement
+utilisé par cette zone, la face ciblée et le coût estimé ; une proposition est demandée par défaut.
+Comparer puis **Utiliser pour ce logo**, ou vectoriser la proposition en SVG couleur avant de
+l’adopter. La cible reste la même pendant les essais et la vectorisation. Le logo commun, les
+autres zones et les faces miroir gardent leur ancien visuel ; position, dimensions, rotation et
+zoom sont conservés. Le centrage mesuré sur l’ancien fichier est retiré. Si le design a changé
+entre-temps, l’adoption est refusée : les propositions restent disponibles dans la médiathèque.
+Les tests simulent la réponse IA ; ils n’effectuent aucune génération payante.
+
+**Couleurs et pipette** : dans Mise en page → Palette, **＋ Couleur / pipette** permet de
+prélever une couleur sur le logo, la photo, le fond ou une image de la médiathèque. Le sélecteur
+propose aussi une saisie HEX, un choix de couleur libre et la pipette écran si le navigateur la
+prend en charge. Les ajouts conservent les couleurs déjà saisies et évitent les doublons.
+Dans la retouche IA d’un logo (y compris par zone) ou d’une photo, **Pipette / image** remplit
+la **Couleur demandée à l’IA** ; les pastilles reprennent la palette du design. On peut préciser
+l’élément à recolorer et demander d’utiliser aussi la palette pour les autres couleurs modifiées.
+Ces choix sont transmis au prompt et conservés lors d’un nouvel essai. Une sélection pour l’IA
+ne modifie ni la palette ni le logo avant adoption. L’IA peut varier légèrement la teinte :
+la recoloration uniforme sans IA reste le moyen d’obtenir un code couleur exact.
+
+**Position et rotation** : sélectionner une zone Logo ou Photo, puis utiliser les champs X/Y,
+largeur/hauteur et **Rotation (°)** dans le panneau de propriétés. **↶ 90° / ↷ 90°** échangent le
+cadre de largeur et hauteur, l’ajustent à la face et conservent son centre autant que possible.
+Un angle libre tourne le visuel à l’intérieur du cadre choisi, sans déborder. L’aperçu montre
+l’image tournée ; le PDF applique le même angle horaire et conserve les logos SVG vectoriels.
+Les contrôles de position sont disposés sur deux colonnes, y compris sur un panneau étroit.
+
+**Zoom dans le cadre** : cliquer une zone Logo ou Photo puis déplacer **Zoom du visuel**
+(25–400 %). L’image change de taille immédiatement, le cadre garde sa position et ses dimensions.
+Le débordement est coupé aux bords, y compris après rotation. Relâcher le curseur enregistre le
+réglage ; **Ajuster (100 %)** retrouve l’image entière. Le PDF et ses textures 3D reprennent ce
+cadrage, en conservant les tracés des logos SVG. Les images héritées de l’article ou de la marque
+sont également visibles dans l’éditeur.
+
+**Déplacer le contenu dans son cadre** : sélectionner une zone puis utiliser **Contenu dans
+le cadre** : flèches par pas de 1 mm, décalages horizontal et vertical puis **Appliquer**, ou
+cocher **Glisser le contenu à la souris** et glisser sur la zone. **Alt + glisser** permet aussi
+ce déplacement sans activer le mode. Le cadre garde sa position et sa taille ; les valeurs
+positives vont à droite et en bas, même après rotation. **Réinitialiser** remet les deux décalages
+à zéro sans changer le zoom. Logos, photos, textes, pictogrammes, tampons et codes suivent ce
+réglage dans le plan, le PDF et les textures 3D ; les débordements sont coupés au cadre.
+
+**Glissement et sauvegardes** : la barre au-dessus du plan indique **Déplacer : Le cadre / Le
+contenu** et partage ce choix avec la case du panneau de droite. La zone saisie devient la
+sélection active et passe devant les zones superposées. Un petit mouvement involontaire reste
+un clic ; **Échap** ou une perte de focus annule le glissement. Le pointeur est capturé jusqu’au
+relâchement, y compris sur écran tactile. Les sauvegardes prennent un instantané des réglages ;
+les réponses intermédiaires ne redessinent plus le plan, et la dernière attend la fin d’un geste.
+Les saisies de position non encore appliquées sont conservées pendant ce rafraîchissement.
+
+**Centrage du logo visible** : dans les réglages d’une zone Logo, **Centrer le logo visible**
+mesure localement les contours de l’écriture et du symbole, en ignorant les marges transparentes
+ou le fond blanc. Le centre de ces contours est placé au milieu de la facette ; dimensions,
+rotation et zoom sont conservés, et le décalage manuel est remis à zéro. **Centrage du fichier entier** désactive la correction. Le
+réglage suit la zone dans le PDF et la 3D, sans modifier le fichier ni facturer d’IA. Un fond
+opaque coloré fait partie du logo visible ; il n’est pas retiré par cette détection. La correction
+ne s’applique qu’au fichier mesuré, et est retirée lorsqu’un autre logo est choisi pour la zone.
+
+**Certifications différentes par zone** : sélectionner la facette puis son contenant
+Pictogrammes, et cliquer **Choisir les pictogrammes de cette zone** au-dessus du plan, ou
+**Modifier le contenu** à droite. Le sélecteur affiche les images de la liste **Contenus** :
+cocher uniquement celles à imprimer ici, puis **Appliquer à cette zone**. **Tout décocher**
+laisse cette zone vide ; **Suivre Contenus** reprend la liste générale, hors tampons. Une
+sélection propre ne change pas les autres zones de la face. Une facette qui recopie encore
+la face modifiée la suit : personnaliser sa propre zone pour lui donner une sélection différente.
+Le dialogue indique les facettes liées. **Gérer la liste dans Contenus** permet d’y ajouter
+d’autres pictogrammes ou images de certification. Les anciens designs gardent leur rendu.
+
+**Couleur et SVG d’une certification ou d’un tampon** : sélectionner sa zone, puis **Couleur & SVG**
+sous la vignette du pictogramme à droite. Choisir une couleur HEX, la palette ou **Pipette / image**,
+conserver les parties blanches si nécessaire, puis **Prévisualiser** et **Appliquer à cette zone**.
+Le résultat est téléchargeable en SVG. La couleur suit les **faces identiques liées**, que l’on
+modifie la face source ou sa copie. **Original** rétablit le dessin d’origine sur ces mêmes faces.
+Les autres zones et les facettes volontairement indépendantes gardent leur dessin.
+Un vrai SVG conserve ses courbes et son texte, sans appel IA. Les SVG avec masques ou filtres
+doivent d’abord être exportés avec leurs effets décomposés pour éviter de changer la silhouette.
+Pour une source PNG/JPEG, **Vectoriser en couleurs** produit des tracés SVG avec 8 à 128 couleurs :
+les petits détails restent à comparer à l’original, sans promesse de récupérer une résolution absente.
+La variante est un fichier privé attaché au design, partagé par l’aperçu, le PDF et ses textures 3D ;
+elle suit également la duplication du design. Pour créer un nouveau badge, **Contenus →
+Pictogrammes et certifications → Tampon IA** propose déjà des SVG à partir du texte, de la forme
+et des couleurs choisis. Pour reproduire une certification existante, importer son visuel d’origine.
+
+**Rotation individuelle** : sélectionner la zone Pictogrammes. Sous chaque pictogramme,
+certification ou tampon, saisir **Angle (°)** puis **Appliquer** (ou Entrée), ou utiliser
+**−90°**, **+90°** et **0°**. Les angles positifs tournent dans le sens horaire autour du centre
+du symbole ; son dessin s’ajuste à son emplacement pour rester dans la zone. Chaque angle est
+propre à ce symbole dans cette zone, avec le même rendu sur le plan, le PDF et les textures 3D.
+La rotation conserve les couleurs, la sélection, la disposition et le décalage du contenu.
+Les autres zones conservent leur orientation. Les faces liées par **Face arrière identique**
+ou **Côtés identiques** reprennent l’angle, même si on le change depuis la face copiée.
+Les facettes déjà personnalisées restent indépendantes ; **Revenir à la maquette automatique**
+sur la copie rétablit le lien avec la face source.
+
+**Panneau de droite** : les propriétés sont repliables, avec une section ouverte à la fois.
+Chaque pictogramme a aussi son volet pour la rotation et la couleur. La section, le pictogramme
+ouvert et le défilement sont conservés pendant les sauvegardes et les changements de sélection
+dans la session. Quand les trois colonnes sont côte à côte, chacune défile indépendamment :
+la molette ou la barre de défilement de gauche et de droite parcourt les réglages sans déplacer
+le composant affiché au centre. Le plan garde sa taille normale et sa propre barre de défilement.
+La page entière reste fixe pendant le travail : descendre dans le plan ne masque pas les panneaux.
+Les positions sont conservées lors des mises à jour du même design. Sur petit écran, la page
+retrouve son défilement normal, sans bloquer les panneaux empilés. Ce défilement normal est aussi
+rétabli dès que l’on quitte le studio.
+
+**Disposition des pictogrammes** : dans les propriétés d’une zone Pictogrammes, choisir
+**↔ Horizontal** pour une rangée ou **↕ Vertical** pour une colonne. Le même choix existe dans
+le sélecteur de certifications, validé par **Appliquer à cette zone**. Les symboles gardent leur angle
+et leur taille s’ajuste pour tenir dans le cadre ; le cadre, la sélection et le décalage du contenu
+sont conservés. Le réglage est propre à chaque zone et repris dans le PDF et ses textures 3D.
+Pour déplacer la rangée ou la colonne, utiliser **Contenu dans le cadre**. Sans réglage, les
+anciens designs conservent leur disposition horizontale.
+
+**Contenus visibles pendant l’édition** : toutes les facettes affichent leurs logos, photos,
+pictogrammes, tampons, QR et EAN, même sans sélectionner une face. Les symboles utilisent
+le même placement et les mêmes images que le PDF, avec une seule copie de chaque image dans la
+réponse du studio. Un QR placé explicitement remplace le QR automatique du dos. Le menu **Ajouter**
+montre un aperçu du choix avant de le placer, y compris pour les textes et les tampons. Chaque
+ajout ouvre ses réglages et un bouton **Modifier le contenu** mène à sa saisie. Les zones vides
+affichent **À renseigner** sur le plan et proposent **Renseigner le contenu** ; ces repères ne
+s’impriment jamais. L’édition d’un texte par langue conserve les autres champs et traductions.
+La photo automatique reste derrière les autres
+éléments ; sélectionner une face donne accès aux cadres de déplacement et de redimensionnement.
+
+**Textes visibles pendant l’édition** : chaque facette affiche le nom réel du produit,
+l’accroche, les caractéristiques, avertissements, contacts et textes libres enregistrés. Le HTML
+de mise en forme est partagé avec le PDF (polices, tailles, couleurs, langues et préfixes par
+ligne) ; le texte saisi est échappé, jamais interprété comme du HTML. Les repères centraux de la
+face contenant des éléments s’effacent pour dégager le contenu. Le navigateur ajuste le texte au cadre ;
+**Aperçu imprimé** reste la référence pour les coupures de ligne et la réduction finale des textes.
+
+**3D du design composé** : l’onglet **3D** propose deux possibilités :
+
+- **Maquette interactive gratuite** : pour les étuis à rabats, les six faces du PDF actuel sont
+  posées sur une boîte aux dimensions du design. Glisser à la souris ou au doigt pour tourner,
+  utiliser les vues avant/arrière/côtés/dessus/dessous et le zoom. **Créer/Actualiser la maquette 3D**
+  compose d’abord le PDF si nécessaire. Les textures restent dans la session, sans fichier ajouté
+  ni appel IA ; elles sont renouvelées après un changement du design. Les autres formes gardent
+  l’accès au rendu IA ; leur géométrie interactive n’est pas encore prise en charge.
+- **Rendu réaliste par IA** : **Générer l’aperçu 3D** affiche le coût estimé d’une image et prend
+  comme références les faces du PDF à jour, avec les logos et leur rotation. Ce résultat est une
+  illustration. L’IA ne démarre que lorsque l’utilisateur clique sur le bouton de génération.
+
+Les traits du calque « Découpe et plis » sont masqués dans les textures interactives et les
+références IA, sans modifier le PDF imprimeur. Les textures sont plafonnées en résolution.
+
+Les saisies sont regroupées et enregistrées dans l’ordre, sur leur design d’origine. Exporter
+ou ouvrir un atelier attend les saisies en cours. L’état de sauvegarde apparaît dans l’en-tête,
+avec une relance en cas d’échec. Les catalogues ne sont plus reconstruits à chaque sauvegarde.
+
+**Textes et exports** : `textes_valides` contient les textes imprimés par langue ; les trois
+champs de saisie de la fiche reflètent la première langue. `textes_ia` contient les propositions.
+Les anciens designs conservent leurs textes imprimés lors de l’ouverture ; les traductions des
+langues décochées restent disponibles. Une empreinte des entrées du design rend explicite
+l’état « PDF à créer / à jour / à régénérer ». Les anciens PDF sans empreinte sont à régénérer
+une fois, et restent téléchargeables. L’empreinte suit le design, pas les modifications externes
+aux fichiers, aux fiches Article/Marque ou aux catalogues partagés : recomposer après ces changements.
+L’empreinte inclut aussi la version du moteur : une correction de rendu indique les anciens
+PDF et simulations comme étant à régénérer. Les bitmaps carrés gardent les mêmes proportions,
+zoom et décalage que dans le studio. Pour les SVG imbriqués (certifications avec un logo dans
+un cercle, par exemple), CairoSVG conserve le placement interne, la découpe et les chemins
+vectoriels ; le centrage sur l’encre et la recoloration utilisent la même conversion.
+Cette conversion nécessite `CairoSVG~=2.9.1` (dépendance Python de l’application) et `libcairo2`
+sur le serveur. Installer les dépendances actualisées lors du déploiement.
+
+**Organisation du code** :
+
+- `emballage/studio.py` : lecture groupée, sauvegarde, bibliothèque et compatibilité des routes.
+- `emballage/contenus.py` : version imprimée et synchronisation de la saisie.
+- `emballage/exports.py` : vérifications et empreintes PDF/simulation.
+- `emballage/atelier_images.py`, `vectorisation.py`, `ressources.py` : transformations et accès aux images.
+- `public/js/studio_emballage/` : état/sauvegarde, édition du plan, médias, éditeur de lignes.
+  Frappe assemble ces composants avec ses inclusions de Page ; les anciennes routes serveur restent valides.
+
+Pour mettre à jour un site existant, appliquer le schéma avant d’utiliser les nouveaux scripts :
+
+```sh
+bench --site <site> reload-doc aquaworld_ia doctype design_emballage
+bench --site <site> clear-cache
+```
 
 **Mise en forme des caractéristiques** (studio, étape 2) : un éditeur ligne par ligne — gras, italique,
 puce, taille en points et police par ligne, plus une police et une taille pour tout le bloc. Chaque
@@ -123,6 +314,62 @@ gpt-image-1 plafonne à 1536 px (≈ 300 dpi jusqu'à 13 cm) ; textes, logo, cod
 vectoriels et restent nets. Les pictogrammes livrés dans `public/pictos/` sont des dessins
 génériques **à faire valider** avant impression.
 
+**Vectorisation couleur dans le studio** : étape 2 → « Modifier » sous la photo
+produit ou le logo → « SVG couleur · gratuit ». Choisir un profil (logo, illustration, photo), 8 à 128 couleurs et, si besoin,
+le retrait du fond blanc. Comparer l’original au résultat avant « Utiliser ce SVG », ou télécharger
+le fichier. Chaque résultat reste dans la médiathèque ; la source n’est pas écrasée. Recomposer
+ensuite le plan à l’étape 4 : les courbes restent vectorielles dans le PDF imprimeur.
+
+L’atelier permet aussi de choisir une image de la galerie sans l’adopter. « SVG couleur » dans
+la médiathèque ouvre directement la source choisie. Pour une image difficile à tracer,
+« Préparer par IA… » ouvre la retouche existante avec une consigne d’illustration en aplats,
+une seule proposition par défaut et le coût estimé avant génération. Chaque proposition IA
+dispose ensuite de « Vectoriser en SVG couleur » : la conversion reste gratuite, seule la
+préparation IA est facturée. Vérifier les détails du produit avant adoption.
+
+Le traitement est local avec VTracer, sans appel ni coût IA. Entrées PNG/JPEG/WebP, maximum 20 Mo
+et 25 mégapixels, tracé limité à 1 600 px au plus long côté. Les SVG existants n’ont pas besoin de
+ce traitement ; « Recolorer le logo » reste disponible dans ses outils. Une photo vectorisée
+devient une illustration : les reflets et dégradés sont simplifiés, les transparences partielles
+sont seuillées. Pour un rendu photographique, conserver le PNG/JPEG haute résolution.
+
+## Résolution des images et export groupé
+
+Dans **Contenus → Modifier l’image → Améliorer la résolution**, choisir ×2 ou ×4 :
+**Photo · IA locale** utilise FSRCNN sur CPU, gratuitement, sans envoyer de photo à une API ;
+**agrandissement fidèle** utilise Lanczos, adapté aux logos et certifications. Comparer les deux
+images avec le zoom puis cliquer **Utiliser cette image**. L’original reste en médiathèque.
+Transparence, proportions et centrage du logo sont conservés. Une source ou un design modifié
+pendant le traitement empêche l’adoption d’une proposition périmée.
+
+À l’étape **Vérifier et exporter**, cocher **Préparer toutes les images à 300 ppp**, puis créer
+ou actualiser le PDF. Ce choix est mémorisé sur le design. Un worker prépare le PDF courant,
+mesure chaque image à sa taille imprimée (zoom et rotation compris), puis agrandit fidèlement
+les images insuffisantes, jusqu’à ×4. Cela couvre fonds, photos, logos bitmap et images contenues
+dans des SVG, y compris toutes leurs copies. Les textes, tracés SVG, codes, placements et
+calques restent vectoriels/inchangés. Les fichiers sources du design ne sont pas remplacés.
+Le **Bilan résolution** conserve les vignettes, dimensions et ppp avant/après et signale les
+sources toujours insuffisantes ; il est marqué ancien si le design a changé depuis l’export.
+
+Limites : 40 millions de pixels par image et 120 millions de pixels traités par PDF ; réduction
+automatique du facteur et signalement si nécessaire. Le lot utilise le mode fidèle, sans
+redessiner les certifications. L’IA pour une photo se compare dans son outil avant adoption.
+Augmenter les pixels ne garantit pas de retrouver les détails perdus, ni une conformité PDF/X,
+CMJN ou aux exigences particulières de l’imprimeur.
+
+Installation : modèles FSRCNN ×2/×4 inclus avec leur licence Apache 2.0 dans
+`emballage/modeles_resolution` ; `opencv-contrib-python-headless` remplace la distribution
+OpenCV simple dans les deux apps du bench qui l’utilisent (ne pas installer les deux en même
+temps). Après déploiement : installer les dépendances, `bench --site <site> migrate`, vider le
+cache et redémarrer les workers. Aucun téléchargement de modèle à l’exécution.
+
+Prévoir aussi la taille des fichiers d’impression : les PDF agrandis peuvent dépasser
+10 Mo. Frappe contrôle la limite à deux endroits. Pour autoriser 100 Mo, renseigner
+**System Settings → Max File Size (MB)** à `100` et exécuter
+`bench --site <site> set-config --parse max_file_size 104857600` (nombre entier en octets). La limite concerne
+les fichiers du site, pas seulement les PDF. Les nouvelles requêtes et nouveaux jobs
+reprennent cette configuration ; relancer un export qui avait échoué avant le réglage.
+
 ## Transfert dev → prod des documents de travail
 
 Les manuels et designs ne sont pas des fixtures. `transfert.exporter_travail(chemin, noms=None)` écrit un zip
@@ -143,6 +390,7 @@ compteurs de série (`aligner_series`). Ex. :
 ```
 bench --site <site> install-app aquaworld_ia
 bench --site <site> run-tests --app aquaworld_ia      # fonctions pures, sans appel IA
+node --test aquaworld_ia/tests/test_studio_emballage.js  # depuis le dossier de l’app
 ```
 
 Aucun DocType en fixtures : langues et pictogrammes sont semés (idempotents) par

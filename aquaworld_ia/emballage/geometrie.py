@@ -436,12 +436,12 @@ def apercu_svg(plan: dict, largeur_px: int = 640, zones: dict | None = None, com
 		if compact:
 			continue
 		if f["imprimable"] or f["w"] * f["h"] > 0.02 * W * Hf:
-			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#334155' "
+			parts.append("<text data-face-label='%s' x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#334155' "
 			             "font-family='sans-serif' pointer-events='none'>%s</text>" % (
-				f["x"] + f["w"] / 2, f["y"] + f["h"] / 2, max(2.5, min(f["w"], f["h"]) / 6), f["libelle"]))
-			parts.append("<text x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#64748b' "
+				f["code"], f["x"] + f["w"] / 2, f["y"] + f["h"] / 2, max(2.5, min(f["w"], f["h"]) / 6), f["libelle"]))
+			parts.append("<text data-face-label='%s' x='%.2f' y='%.2f' font-size='%.2f' text-anchor='middle' fill='#64748b' "
 			             "font-family='sans-serif' pointer-events='none'>%.0f × %.0f mm</text>" % (
-				f["x"] + f["w"] / 2, f["y"] + f["h"] / 2 + max(2.5, min(f["w"], f["h"]) / 6) * 1.2,
+				f["code"], f["x"] + f["w"] / 2, f["y"] + f["h"] / 2 + max(2.5, min(f["w"], f["h"]) / 6) * 1.2,
 				max(2.0, min(f["w"], f["h"]) / 8), f["w"], f["h"]))
 	for rz in plan.get("reserves") or []:
 		# Repli agrafé : hachuré et bordé d'ocre, pour qu'on n'y pose ni texte ni logo. Segments

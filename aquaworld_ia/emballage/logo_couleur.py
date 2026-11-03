@@ -50,17 +50,37 @@ def recolorer_svg(svg: bytes, couleur: str, garder_blanc: bool = True) -> bytes:
 	remplissage explicite hérite du noir : la couleur est posée sur la racine. Pur."""
 	texte = svg.decode("utf-8", "replace")
 
-	def remplacer(m):
-		prefixe, val = m.group(1), m.group(2)
+	def encre(val):
 		v = val.strip().lower()
 		if not v or v in _PAS_UNE_ENCRE or v.startswith("url("):
-			return m.group(0)
+			return val
+		alpha = re.fullmatch(r"rgba\((.*),\s*([\d.]+%?)\s*\)", v)
+		if alpha:
+			if garder_blanc and (rgb := C._rgb("rgb(%s)" % alpha[1])) and min(rgb) >= 235:
+				return val
+			return "rgba(%d,%d,%d,%s)" % (*[int(couleur[i:i+2], 16) for i in (1, 3, 5)], alpha[2])
 		rgb = C._rgb(v)
 		if garder_blanc and rgb is not None and min(rgb) >= 235:
-			return m.group(0)
-		return prefixe + couleur
+			return val
+		return couleur + v[7:] if re.fullmatch(r"#[0-9a-f]{8}", v) else couleur
 
-	texte = re.sub(r"((?:fill|stroke|stop-color)\s*[=:]\s*[\"']?\s*)([^\"';)>}]+)", remplacer, texte)
+	# Séparer attributs et déclarations CSS : rgb(...) doit être consommé EN ENTIER,
+	# sans toucher aux opacités, aux identifiants, au texte ou à la géométrie.
+	props = r"(?:fill|stroke|stop-color|color)"
+	texte = re.sub(r"(\s" + props + r"\s*=\s*)([\"'])(.*?)\2",
+		lambda m: m[1] + m[2] + encre(m[3]) + m[2], texte, flags=re.I | re.S)
+
+	def css(s):
+		def remplacer(m):
+			v = m[2]
+			priorite = re.search(r"\s*!important\s*$", v, re.I)
+			return m[1] + encre(v[:priorite.start()] if priorite else v) + (priorite[0] if priorite else "")
+		return re.sub(r"((?:^|[;{])\s*" + props + r"\s*:\s*)([^;}]+)", remplacer, s, flags=re.I)
+
+	texte = re.sub(r"(\sstyle\s*=\s*)([\"'])(.*?)\2",
+		lambda m: m[1] + m[2] + css(m[3]) + m[2], texte, flags=re.I | re.S)
+	texte = re.sub(r"(<style\b[^>]*>)(.*?)(</style\s*>)",
+		lambda m: m[1] + css(m[2]) + m[3], texte, flags=re.I | re.S)
 	racine = re.search(r"<svg\b[^>]*>", texte, re.IGNORECASE)
 	if racine and not re.search(r"\sfill\s*=", racine.group(0)):
 		texte = texte[:racine.end() - 1].rstrip("/") + ' fill="%s"' % couleur + texte[racine.end() - 1:]
@@ -71,10 +91,10 @@ def rasteriser_svg(svg: bytes, cote: int = COTE_TRACE) -> bytes:
 	"""Un SVG (avec image embarquée, typiquement) -> PNG à fond transparent, `cote` px au plus long."""
 	import pymupdf
 
-	doc = pymupdf.open(stream=svg, filetype="svg")
-	page = doc[0]
-	zoom = cote / max(page.rect.width, page.rect.height, 1)
-	return page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=True).tobytes("png")
+	with C.svg_vers_pdf(svg) as doc:
+		page = doc[0]
+		zoom = cote / max(page.rect.width, page.rect.height, 1)
+		return page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=True).tobytes("png")
 
 
 def _rgba(octets: bytes):

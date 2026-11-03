@@ -1,4 +1,4 @@
-// Design Emballage : le flux en trois boutons (textes → variantes → plan à plat), la galerie
+// Design Emballage : édition et export manuels, propositions IA facultatives, galerie
 // des variantes, l'aperçu du plan recalculé à chaque dimension, le suivi des jobs.
 frappe.ui.form.on("Design Emballage", {
 	setup(frm) {
@@ -47,19 +47,19 @@ frappe.ui.form.on("Design Emballage", {
 		// l'original, et des images restées rattachées à l'original seul.
 		if (!frm.is_new()) frm.add_custom_button(__("⧉ Dupliquer"), () => aqia_emb_dupliquer(frm));
 
-		frm.add_custom_button(__("1. Préparer textes et styles"), () => {
+		frm.add_custom_button(__("Proposer textes et styles par IA"), () => {
 			frappe.call({ method: "aquaworld_ia.emballage.textes.preparer", args: { design: frm.doc.name }, freeze: true,
 				freeze_message: __("L'IA rédige les textes et propose des styles…") })
-				.then(() => { frappe.show_alert({ message: __("Textes et styles prêts : relisez-les, puis générez les variantes."), indicator: "green" }); frm.reload_doc(); });
+				.then(() => { frappe.show_alert({ message: __("Propositions prêtes : relisez-les avant de les appliquer à l’impression."), indicator: "green" }); frm.reload_doc().then(() => aqia_emb_dialogue_textes(frm, true)); });
 		}, grp);
 
-		const b2 = frm.add_custom_button(__("2. Générer les variantes"), () => aqia_emb_dialogue_variantes(frm), grp);
-		if (!textes_ok) b2.addClass("disabled").attr("title", __("Préparez d'abord les textes (bouton 1)."));
+		const b2 = frm.add_custom_button(__("Générer les variantes IA"), () => aqia_emb_dialogue_variantes(frm), grp);
+		if (!textes_ok) b2.addClass("disabled").attr("title", __("Préparez les propositions de styles IA."));
 
-		const b3 = frm.add_custom_button(__("3. Composer le plan à plat"), () => {
-			if (!frm.doc.variante_choisie) { frappe.msgprint(__("Choisissez une variante dans la galerie.")); return; }
+		frm.add_custom_button(__("Créer ou actualiser le PDF"), async () => {
+			if (frm.is_dirty()) await frm.save();
 			frappe.call({ method: "aquaworld_ia.emballage.composition.composer_et_attacher",
-				args: { design: frm.doc.name, variante: frm.doc.variante_choisie }, freeze: true, freeze_message: __("Composition du plan à l'échelle…") })
+				args: { design: frm.doc.name, variante: frm.doc.variante_choisie || 0 }, freeze: true, freeze_message: __("Composition du plan à l'échelle…") })
 				.then((r) => {
 					const m = r.message || {};
 					frappe.msgprint({ title: __("Plan à plat prêt"), indicator: "green",
@@ -67,9 +67,9 @@ frappe.ui.form.on("Design Emballage", {
 					frm.reload_doc();
 				});
 		}, grp);
-		if (!variantes_pretes) b3.addClass("disabled");
 
-		if (textes_ok) frm.add_custom_button(__("Modifier les textes"), () => aqia_emb_dialogue_textes(frm), grp);
+		frm.add_custom_button(__("Modifier les textes imprimés"), () => aqia_emb_dialogue_textes(frm), grp);
+		if (textes_ok) frm.add_custom_button(__("Relire les propositions IA"), () => aqia_emb_dialogue_textes(frm, true), grp);
 		if (frm.doc.variante_choisie && variantes_pretes) {
 			frm.add_custom_button(__("Faces secondaires par IA (5 images)"), () => {
 				frappe.confirm(__("Générer les 5 autres faces dans le style de la variante choisie ? (5 images facturées)"), () => {
@@ -90,10 +90,11 @@ frappe.ui.form.on("Design Emballage", {
 			if (e.bloque || s === "Variantes en cours") aqia_emb_suivre(frm);
 		});
 		frm.dashboard.set_headline({
-			"Brouillon": __("Renseignez dimensions, contenus et style, puis « 1. Préparer textes et styles »."),
-			"Textes prêts": __("Relisez les textes (« Modifier les textes »), puis « 2. Générer les variantes »."),
+			"Brouillon": __("Renseignez les dimensions et le contenu, puis créez le PDF. L’IA est facultative."),
+			"Textes prêts": __("Les propositions IA attendent votre relecture ; les textes imprimés restent ceux validés."),
 			"Variantes en cours": __("Génération des variantes en cours…"),
-			"Variantes prêtes": __("Choisissez une variante dans la galerie, puis « 3. Composer le plan à plat »."),
+			"Variantes prêtes": __("Des variantes IA sont disponibles. Choisissez-en une si vous souhaitez l’utiliser."),
+			"À recomposer": __("Le contenu a changé : actualisez le PDF avant impression."),
 			"Plan prêt": __("Plan à plat prêt. Options : faces secondaires par IA, aperçu 3D."),
 			"Échec": __("Dernière étape en échec : voir le journal et les erreurs des variantes."),
 		}[s] || "");
@@ -114,7 +115,7 @@ function aqia_emb_types(frm) {
 function aqia_emb_contenu(frm) {
 	const d = frm.doc;
 	let textes = null;
-	try { textes = d.textes_ia ? JSON.parse(d.textes_ia) : null; } catch (e) { textes = null; }
+	try { textes = (d.textes_valides || d.textes_ia) ? JSON.parse(d.textes_valides || d.textes_ia) : null; } catch (e) { textes = null; }
 	const premiere = textes ? textes[Object.keys(textes)[0]] || {} : {};
 	return {
 		logo: !!(d.logo || d.marque),
@@ -223,9 +224,11 @@ function aqia_emb_textes(frm) {
 	frappe.call({ method: "aquaworld_ia.emballage.textes.rendu_textes", args: { design: frm.doc.name } }).then((r) => w.html(r.message || ""));
 }
 
-function aqia_emb_dialogue_textes(frm) {
-	let textes = {};
-	try { textes = JSON.parse(frm.doc.textes_ia || "{}"); } catch (e) { textes = {}; }
+async function aqia_emb_dialogue_textes(frm, proposition = false) {
+	if (frm.is_dirty()) await frm.save();
+	const r = await frappe.call({ method: "aquaworld_ia.emballage.studio.charger", args: { design: frm.doc.name, catalogues: 0 } });
+	let textes = r.message.textes_imprimes || {};
+	if (proposition) { try { textes = JSON.parse(frm.doc.textes_ia || "{}"); } catch (e) { textes = {}; } }
 	const codes = Object.keys(textes);
 	const fields = [];
 	codes.forEach((c) => {
@@ -236,7 +239,7 @@ function aqia_emb_dialogue_textes(frm) {
 		fields.push({ fieldtype: "Small Text", fieldname: `ave_${c}`, label: __("Avertissements (un par ligne)"), default: (t.avertissements || []).join("\n") });
 		fields.push({ fieldtype: "Small Text", fieldname: `con_${c}`, label: __("Contact"), default: t.contact });
 	});
-	const d = new frappe.ui.Dialog({ title: __("Textes imprimés"), size: "large", fields, primary_action_label: __("Enregistrer"),
+	const d = new frappe.ui.Dialog({ title: proposition ? __("Propositions IA") : __("Textes imprimés"), size: "large", fields, primary_action_label: proposition ? __("Appliquer à l’impression") : __("Enregistrer"),
 		primary_action(v) {
 			const sortie = {};
 			codes.forEach((c) => { sortie[c] = { accroche: v[`acc_${c}`] || "", caracteristiques: (v[`car_${c}`] || "").split("\n").filter(Boolean),

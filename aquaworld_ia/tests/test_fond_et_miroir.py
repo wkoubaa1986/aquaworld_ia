@@ -60,9 +60,9 @@ class TestFondEtPhotoHero(unittest.TestCase):
 		self.assertIn("recadrer(image_fond", src)
 		self.assertIn('visuels["arriere"] = visuel_avant', src)
 
-	def test_on_compose_sans_variante_si_un_fond_est_choisi(self):
+	def test_on_compose_sans_variante_ni_fond_obligatoire(self):
 		src = inspect.getsource(C.composer_et_attacher)
-		self.assertIn('doc.get("couleur_fond") or doc.get("image_fond")', src)
+		self.assertNotIn('if not (doc.get("couleur_fond")', src)
 		self.assertIn("v = None", src)
 
 

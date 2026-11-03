@@ -14,6 +14,7 @@ import base64
 import io
 import re
 import json
+import math
 
 import frappe
 from frappe import _
@@ -176,6 +177,58 @@ def typo_zone(zone: dict, familles: set | None = None) -> dict:
 CLES_ZONE_CONSERVEES = ("style", "logo", "pictos", "typo", "texte", "code")
 
 
+def rotation_zone(zone: dict) -> float:
+	"""Angle horaire du visuel dans son cadre, en degrés ; le cadre reste borné à la face."""
+	if zone.get("zone") not in ("logo", "photo"):
+		return 0.0
+	try:
+		angle = float(zone.get("rotation") or 0)
+		return round(angle % 360, 3) if math.isfinite(angle) else 0.0
+	except (TypeError, ValueError):
+		return 0.0
+
+
+def zoom_zone(zone: dict) -> float:
+	"""Grossissement du visuel, indépendant de la taille du cadre (1 = ajusté)."""
+	if zone.get("zone") not in ("logo", "photo"):
+		return 1.0
+	try:
+		zoom = float(zone.get("zoom_image", 1))
+		return round(max(0.25, min(4.0, zoom)), 3) if math.isfinite(zoom) else 1.0
+	except (TypeError, ValueError):
+		return 1.0
+
+
+def decalage_zone(zone: dict) -> dict:
+	"""Déplacement en mm dans les axes de la feuille, indépendant du cadre et de la rotation."""
+	d = zone.get("decalage_contenu")
+	d = d if isinstance(d, dict) else {}
+	out = {}
+	for axe, taille in (("x", "w"), ("y", "h")):
+		try:
+			v, limite = float(d.get(axe) or 0), max(0, float(zone.get(taille) or 0))
+			out[axe] = round(max(-limite, min(limite, v)), 3) if math.isfinite(v) and math.isfinite(limite) else 0.0
+		except (TypeError, ValueError):
+			out[axe] = 0.0
+	return out
+
+
+def centre_zone(zone: dict, source: str | None = None) -> dict | None:
+	"""Centre visible normalisé, valable uniquement pour le logo qui a été mesuré."""
+	c = zone.get("centre_visuel")
+	if zone.get("zone") != "logo" or not isinstance(c, dict) or not isinstance(c.get("source"), str):
+		return None
+	if not c["source"] or (source is not None and c["source"] != source):
+		return None
+	try:
+		x, y = float(c["x"]), float(c["y"])
+	except (KeyError, TypeError, ValueError):
+		return None
+	if not all(math.isfinite(v) and 0 <= v <= 1 for v in (x, y)):
+		return None
+	return {"x": round(x, 6), "y": round(y, 6), "source": c["source"]}
+
+
 def borner_zone(zone: dict, face: dict) -> dict:
 	"""Une zone dessinée à la main reste DANS la partie utile de la face (jamais dans le fond
 	perdu, chez le voisin, ni dans une bande réservée comme le repli agrafé d'un sac) et garde
@@ -189,6 +242,24 @@ def borner_zone(zone: dict, face: dict) -> dict:
 	for cle in CLES_ZONE_CONSERVEES:
 		if zone.get(cle):
 			out[cle] = zone[cle]
+	if zone.get("zone") == "pictos" and zone.get("pictos_mode") == "selection":
+		out["pictos_mode"] = "selection"
+		out["pictos"] = selection_pictos(zone)
+	if zone.get("zone") == "pictos" and zone.get("pictos_disposition") == "vertical":
+		out["pictos_disposition"] = "vertical"
+	from aquaworld_ia.emballage.pictos_images import variantes
+	if variantes(zone):
+		out["pictos_images"] = variantes(zone)
+	if rotations_pictos(zone):
+		out["pictos_rotations"] = rotations_pictos(zone)
+	if rotation_zone(zone):
+		out["rotation"] = rotation_zone(zone)
+	if zoom_zone(zone) != 1:
+		out["zoom_image"] = zoom_zone(zone)
+	if centre_zone(zone):
+		out["centre_visuel"] = centre_zone(zone)
+	if zone.get("decalage_contenu") is not None:
+		out["decalage_contenu"] = decalage_zone({**zone, "w": w, "h": h})
 	return out
 
 
@@ -382,9 +453,18 @@ def bandeau(png: bytes, fraction: float = 0.28) -> bytes:
 
 
 def svg_vers_pdf(svg: bytes):
+	from aquaworld_ia.emballage.svg_impression import vers_pdf
+
+	return vers_pdf(svg)
+
+
+def image_vers_pdf(octets: bytes):
 	import pymupdf
 
-	return pymupdf.open("pdf", pymupdf.open("svg", svg).convert_to_pdf())
+	if est_svg(octets):
+		return svg_vers_pdf(octets)
+	with pymupdf.open(stream=octets) as image:
+		return pymupdf.open("pdf", image.convert_to_pdf())
 
 
 def carre_centre(rect) -> tuple:
@@ -395,17 +475,67 @@ def carre_centre(rect) -> tuple:
 	return (x, y, x + cote, y + cote)
 
 
-def poser_svg(page, rect, svg: bytes) -> None:
+def poser_svg(page, rect, svg: bytes, garder_proportions: bool = True, rotation: float = 0) -> None:
 	import pymupdf
 
-	src = svg_vers_pdf(svg)
-	page.show_pdf_page(pymupdf.Rect(*rect), src, 0, keep_proportion=True)
+	with svg_vers_pdf(svg) as src:
+		page.show_pdf_page(pymupdf.Rect(*rect), src, 0, keep_proportion=garder_proportions, rotate=-rotation)
 
 
-def poser_image(page, rect, octets: bytes, garder_proportions: bool = True) -> None:
+def poser_image(page, rect, octets: bytes, garder_proportions: bool = True, rotation: float = 0, zoom: float = 1,
+                centre: dict | None = None, decalage: dict | None = None) -> None:
 	import pymupdf
 
-	page.insert_image(pymupdf.Rect(*rect), stream=octets, keep_proportion=garder_proportions)
+	if centre:
+		# Une translation du contenu, puis une découpe au cadre. Le centre mesuré suit la
+		# rotation et le zoom ; les tracés SVG restent des tracés dans le PDF intermédiaire.
+		with image_vers_pdf(octets) as src, pymupdf.open() as cadre:
+			r, original = pymupdf.Rect(*rect), src[0].rect
+			angle = math.radians(rotation)
+			c, s = math.cos(angle), math.sin(angle)
+			facteur = min(r.width / (original.width * abs(c) + original.height * abs(s)),
+			              r.height / (original.width * abs(s) + original.height * abs(c))) * zoom
+			x = (centre["x"] - .5) * original.width * facteur
+			y = (centre["y"] - .5) * original.height * facteur
+			dx, dy = c*x - s*y, s*x + c*y
+			dx -= MM((decalage or {}).get("x", 0))
+			dy -= MM((decalage or {}).get("y", 0))
+			mx, my = r.width * (1-zoom) / 2, r.height * (1-zoom) / 2
+			p = cadre.new_page(width=r.width, height=r.height)
+			p.show_pdf_page(pymupdf.Rect(mx-dx, my-dy, r.width-mx-dx, r.height-my-dy), src, 0, rotate=-rotation)
+			page.show_pdf_page(r, cadre, 0)
+		return
+	if zoom != 1 or (decalage and any(decalage.values())):
+		# La page intermédiaire découpe le débordement au cadre, même après rotation.
+		# show_pdf_page conserve les tracés des SVG, sans les transformer en pixels.
+		r = pymupdf.Rect(*rect)
+		with pymupdf.open() as cadre:
+			p = cadre.new_page(width=r.width, height=r.height)
+			dx, dy = r.width * (1 - zoom) / 2, r.height * (1 - zoom) / 2
+			tx, ty = MM((decalage or {}).get("x", 0)), MM((decalage or {}).get("y", 0))
+			poser_image(p, (dx+tx, dy+ty, r.width-dx+tx, r.height-dy+ty), octets,
+			            garder_proportions=garder_proportions, rotation=rotation)
+			page.show_pdf_page(r, cadre, 0)
+		return
+	if est_svg(octets):
+		poser_svg(page, rect, octets, garder_proportions=garder_proportions, rotation=rotation)
+		return
+	if rotation:
+		# show_pdf_page accepte les angles libres ; insert_image se limite aux quarts de tour.
+		with image_vers_pdf(octets) as src:
+			page.show_pdf_page(pymupdf.Rect(*rect), src, 0, keep_proportion=garder_proportions, rotate=-rotation)
+		return
+	r = pymupdf.Rect(*rect)
+	if garder_proportions:
+		# MuPDF 1.28 étire les bitmaps carrés malgré keep_proportion=True.
+		# Calculer explicitement le même « contain » centré que l'aperçu navigateur.
+		from PIL import Image
+		with Image.open(io.BytesIO(octets)) as image:
+			w, h = image.size
+		facteur = min(r.width/w, r.height/h)
+		dx, dy = (r.width-w*facteur)/2, (r.height-h*facteur)/2
+		r = pymupdf.Rect(r.x0+dx, r.y0+dy, r.x1-dx, r.y1-dy)
+	page.insert_image(r, stream=octets, keep_proportion=False)
 
 
 def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
@@ -707,16 +837,19 @@ def svg_sans_fond_blanc(svg: bytes) -> bytes:
 	return texte.encode("utf-8")
 
 
-def poser_logo(page, rect, logo: bytes) -> None:
-	debut = logo[:300].lstrip().lower()
-	if debut.startswith(b"<svg") or (debut.startswith(b"<?xml") and b"<svg" in logo[:2000].lower()):
-		poser_svg(page, rect, svg_sans_fond_blanc(logo))
-	else:
-		try:
-			logo = fond_blanc_en_transparence(logo)
-		except Exception:
-			pass
-		poser_image(page, rect, logo)
+def preparer_logo(logo: bytes) -> bytes:
+	"""Même traitement du fond blanc pour l'éditeur et l'impression."""
+	if est_svg(logo):
+		return svg_sans_fond_blanc(logo)
+	try:
+		return fond_blanc_en_transparence(logo)
+	except Exception:
+		return logo
+
+
+def poser_logo(page, rect, logo: bytes, rotation: float = 0, zoom: float = 1, centre: dict | None = None,
+               decalage: dict | None = None) -> None:
+	poser_image(page, rect, preparer_logo(logo), rotation=rotation, zoom=zoom, centre=centre, decalage=decalage)
 
 
 def _rect_pt(x, y, w, h):
@@ -754,11 +887,11 @@ def html_bloc(lignes: list[str], *, taille_pt: float, rtl: bool, famille: str, c
 		en_gras = gras or bool(st.get("gras"))
 		puce = st["puce"] if "puce" in st else puces
 		style = ("font-family:'%s';font-size:%.1fpt;color:%s;direction:%s;%sfont-weight:%d;font-style:%s;line-height:1.25"
-		         % (fam, taille, couleur, "rtl" if rtl else "ltr", alignement_css(align, rtl),
+		         % (fam.replace("\\", "\\\\").replace("'", "\\'"), taille, couleur, "rtl" if rtl else "ltr", alignement_css(align, rtl),
 		            700 if en_gras else 400, "italic" if (st.get("italique") or italique) else "normal"))
 		# Un intertitre (ou, dans une liste à puces, une ligne grasse sans puce) : un peu d'air au-dessus.
 		marge = "0.5em 0 0.2em 0" if (titre or (en_gras and not puce and puces)) else "0 0 0.3em 0"
-		out.append("<p style=\"%s;margin:%s\">%s%s</p>" % (style, marge, (PUCE + " ") if puce else "", html.escape(texte)))
+		out.append("<p style=\"%s;margin:%s\">%s%s</p>" % (html.escape(style, quote=False).replace('"', "&quot;"), marge, (PUCE + " ") if puce else "", html.escape(texte)))
 	return "".join(out)
 
 
@@ -843,6 +976,118 @@ def taille_pictos(w_mm: float, h_mm: float, n: int) -> float:
 	return round(max(0.0, min(float(h_mm), (float(w_mm) - PICTOS_ECART_MM * (n - 1)) / n)), 3)
 
 
+def selection_pictos(zone: dict) -> list | None:
+	"""None suit Contenus ; une sélection explicite vide n'imprime aucun pictogramme.
+
+	Les anciennes listes vides signifiaient « tous » : conserver ce rendu tant que
+	l'utilisateur ne choisit pas explicitement le nouveau mode sélection.
+	"""
+	choix = zone.get("pictos")
+	if isinstance(choix, list) and choix:
+		return list(dict.fromkeys(c for c in choix if isinstance(c, str) and c))
+	return [] if zone.get("pictos_mode") == "selection" else None
+
+
+def rotations_pictos(zone: dict) -> dict:
+	"""Angles horaires par code dans cette zone, indépendants des images du catalogue."""
+	valeurs = zone.get("pictos_rotations")
+	if zone.get("zone") != "pictos" or not isinstance(valeurs, dict):
+		return {}
+	out = {}
+	for code, valeur in valeurs.items():
+		if not isinstance(code, str) or not code or type(valeur) not in (int, float, str):
+			continue
+		try:
+			angle = float(valeur)
+			if math.isfinite(angle):
+				angle = round(angle % 360, 3) % 360
+				if angle:
+					out[code] = angle
+		except (ValueError, OverflowError):
+			pass
+	return out
+
+
+def elements_symboles(zone: dict, face: str, *, pictos_svg=(), images_pictos=None, tampons=(), sans_cartouche=False,
+                       couleur="#111827", ean=None, qr=None, qr_place=False) -> list[dict]:
+	"""Symboles à poser (rectangles en mm), communs au plan interactif et au PDF."""
+	x, y, w, h = (zone[k] for k in ("x", "y", "w", "h"))
+	out = []
+
+	def ajouter(image, rect, code, logo=False, fond=None):
+		out.append({"image": image, "rect": rect, "code": code, "logo": logo, "fond": fond})
+
+	if zone["zone"] == "pictos":
+		choisis = selection_pictos(zone)
+		liste = [(c, s) for c, s in pictos_svg if (c in choisis if choisis is not None else c not in tampons)]
+		vertical = zone.get("pictos_disposition") == "vertical"
+		# Une colonne ajuste ses symboles à la largeur ET à la hauteur disponible.
+		# L'orientation de chacun reste indépendante de la disposition de la rangée.
+		taille = taille_pictos(h, w, len(liste)) if vertical else taille_pictos(w, h, len(liste))
+		if taille <= 0:
+			return []
+		marge = min(25.4 / 72, taille / 4)  # retrait de 1 pt, également dans les petites zones
+		from aquaworld_ia.emballage.pictos_images import variantes
+		variantes_zone = variantes(zone)
+		angles = rotations_pictos(zone)
+		for code, image in liste:
+			fond = None
+			personnalisee = (images_pictos or {}).get(variantes_zone.get(code))
+			if personnalisee:
+				image = personnalisee
+			elif code not in tampons and sans_cartouche:
+				if est_svg(image):
+					image = recolorer_svg_monochrome(image, couleur)
+				else:
+					fond = [x, y, taille, taille]
+			ajouter(image, [x + marge, y + marge, taille - 2*marge, taille - 2*marge], code, not bool(personnalisee), fond)
+			if code in angles:
+				out[-1]["rotation"] = angles[code]
+			if vertical:
+				y += taille + PICTOS_ECART_MM
+			else:
+				x += taille + PICTOS_ECART_MM
+	elif zone["zone"] == "code_barres":
+		porte = zone.get("code")
+		if porte == "qr":
+			if qr:
+				c = min(w, h)
+				r = [x + (w-c)/2, y + (h-c)/2, c, c]
+				ajouter(qr, r, "qr", fond=r)
+			return out
+		qr_ici = None if (qr_place or porte == "ean") else qr
+		if ean:
+			r = [x, y, w, h]
+			ajouter(ean, r, "ean", fond=r)
+		elif qr_ici:
+			c = min(w, h)
+			r = [x + w-c, y + h-c, c, c]
+			ajouter(qr_ici, r, "qr", fond=r)
+		if ean and qr_ici and face == "arriere":
+			c = min(18.0, h)
+			r = [x - c - 2, y + h-c, c, c]
+			ajouter(qr_ici, r, "qr", fond=r)
+	return out
+
+
+def poser_symboles(page, elements: list[dict], rect=None, decalage: dict | None = None) -> None:
+	import pymupdf
+
+	if rect and decalage and any(decalage.values()) and elements:
+		def dessiner(p, cible):
+			dx, dy = (cible[0] - rect[0]) / MM(1), (cible[1] - rect[1]) / MM(1)
+			def decaler(r):
+				return (r[0] + dx, r[1] + dy, r[2], r[3]) if r else r
+			poser_symboles(p, [{**el, "rect": decaler(el["rect"]), "fond": decaler(el["fond"])} for el in elements])
+		poser_contenu_decale(page, rect, decalage, dessiner)
+		return
+	for el in elements:
+		if el["fond"]:
+			page.draw_rect(pymupdf.Rect(*_rect_pt(*el["fond"])), color=None, fill=(1, 1, 1))
+		poser = poser_logo if el["logo"] else poser_svg
+		poser(page, _rect_pt(*el["rect"]), el["image"], rotation=el.get("rotation", 0))
+
+
 def dessiner_cartouche(page, rect, style: dict) -> tuple:
 	"""Le fond de couleur, coins arrondis, d'une zone stylée ; -> le rectangle intérieur (pt) où
 	poser le texte, en retrait de 2 mm. Sans fond, la zone est rendue telle quelle."""
@@ -891,9 +1136,34 @@ def _poser_fond_regle(page, reg: dict, r, face: dict, image_fond, bande, dpi: di
 	return False
 
 
-def poser_texte(page, rect, contenu_html: str, archive, css: str) -> float:
+def poser_contenu_decale(page, rect, decalage: dict, dessiner, cadre=None):
+	"""Décale le contenu avant de découper au cadre fixe, en conservant textes et SVG vectoriels.
+
+	La marge de la page temporaire permet aussi les décalages négatifs, sans modifier
+	la largeur de composition du texte. Les cartouches restent sur la page destination.
+	"""
 	import pymupdf
 
+	if not any(decalage.values()):
+		return dessiner(page, rect)
+	r = pymupdf.Rect(*(cadre or rect))
+	dx, dy = MM(decalage.get("x", 0)), MM(decalage.get("y", 0))
+	px, py = r.width + abs(dx), r.height + abs(dy)
+	with pymupdf.open() as temporaire:
+		p = temporaire.new_page(width=r.width + 2*px, height=r.height + 2*py)
+		tx, ty = px - r.x0 + dx, py - r.y0 + dy
+		resultat = dessiner(p, (rect[0]+tx, rect[1]+ty, rect[2]+tx, rect[3]+ty))
+		if p.get_contents():
+			page.show_pdf_page(r, temporaire, 0, clip=pymupdf.Rect(px, py, px+r.width, py+r.height))
+		return resultat
+
+
+def poser_texte(page, rect, contenu_html: str, archive, css: str, decalage: dict | None = None, cadre=None) -> float:
+	import pymupdf
+
+	if decalage and any(decalage.values()):
+		return poser_contenu_decale(page, rect, decalage,
+		                           lambda p, r: poser_texte(p, r, contenu_html, archive, css), cadre=cadre)
 	spare, echelle = page.insert_htmlbox(pymupdf.Rect(*rect), contenu_html, css=css, scale_low=0.4, archive=archive)
 	return echelle if spare >= 0 else 0.0
 
@@ -997,6 +1267,30 @@ def textes_pour_zone(nom_zone: str, textes: dict, langues: dict, taille_pt: floa
 
 
 # ------------------------------------------------------------------ composition
+
+
+def html_zone(doc, zone: dict, textes: dict, langues: dict, familles: set,
+              couleur: str = "#111827", fam_titres: str = "Noto Sans") -> str:
+	"""Contenu et typographie communs à l'éditeur et au PDF, sans les repères techniques."""
+	nom = zone["zone"]
+	ty = typo_zone(zone, familles)
+	style = style_zone(zone) or {}
+	couleur = style.get("texte") or couleur
+	if nom == "nom":
+		texte = doc.get("nom_produit") or doc.get("article") or ""
+		marge = min(CARTOUCHE_STYLE_MARGE_MM, zone["w"] / 4, zone["h"] / 4) if style.get("fond") else 0
+		taille = ty.get("taille") or taille_nom(MM(zone["w"] - 2 * marge), MM(zone["h"] - 2 * marge), texte)
+		return html_bloc([texte], taille_pt=taille, rtl=False, famille=ty.get("police") or fam_titres,
+		                 couleur=couleur, gras=ty.get("gras", True), italique=bool(ty.get("italique")),
+		                 align=ty.get("align") or "center")
+	if nom == "texte_libre":
+		return html_texte_libre(zone.get("texte"), ty, couleur, familles)
+	if nom not in ZONES_TEXTE:
+		return ""
+	base = ty.get("taille") or {"accroche": 11.0, "caracteristiques": flt(doc.get("taille_caracteristiques")) or 8.5,
+	                            "avertissements": 7.0, "contact": 7.0}[nom]
+	return textes_pour_zone(nom, textes, langues, base, couleur,
+	                       police_bloc=doc.get("police_caracteristiques"), familles=familles, typo=ty)
 
 
 def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: dict | None = None,
@@ -1127,6 +1421,8 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 	qr = codes.qr_svg(doc.url_qr, doc.get("couleur_qr")) if doc.type_code_barres in ("QR", "EAN-13 + QR") and doc.url_qr else None
 	pictos_svg = [(p.pictogramme, pictos.svg_bytes(p.pictogramme)) for p in (doc.pictogrammes or [])]
 	pictos_svg = [(c, s) for c, s in pictos_svg if s]
+	from aquaworld_ia.emballage import pictos_images
+	images_pictos = pictos_images.charger(doc)
 	# Un tampon (badge IA, 06/10/2026) a sa propre forme : jamais de carré blanc derrière lui.
 	tampons = set(frappe.get_all("Aquaworld IA Pictogramme", filters={"categorie": "Tampon", "code": ["in", [c for c, _s in pictos_svg] or [""]]},
 	                             pluck="code")) if pictos_svg else set()
@@ -1154,43 +1450,34 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 			continue
 		for z in zones[face["code"]]:
 			rect = _rect_pt(z["x"], z["y"], z["w"], z["h"])
+			decalage = decalage_zone(z)
 			if z["zone"] == "photo":
 				# Une face qui porte un visuel IA (variante de face avant, faces IA) montre déjà le produit :
 				# une zone « photo » dessus le doublerait (constaté sur EMB-2026-0002 le 24/09/2026).
 				if photo_zone and face["code"] not in sans_photo:
-					poser_image(page, rect, photo_zone, garder_proportions=True)
+					poser_image(page, rect, photo_zone, garder_proportions=True, rotation=rotation_zone(z), zoom=zoom_zone(z), decalage=decalage)
 			style = style_zone(z)
 			couleur_zone = (style or {}).get("texte") or textes_face.get(face["code"], couleur_texte)
 			if z["zone"] == "logo" and (z.get("logo") or logo):
 				# Variante de logo propre à cette face (bibliothèque), sinon le logo du design.
 				logo_face = logo
+				source_logo = url_logo(doc)
 				if z.get("logo"):
 					try:
 						logo_face = logos_par_url.setdefault(z["logo"], fichiers.lire(z["logo"]))
+						source_logo = z["logo"]
 					except Exception:
 						logo_face = logo
 				if logo_face:
-					poser_logo(page, rect, logo_face)
+					poser_logo(page, rect, logo_face, rotation=rotation_zone(z), zoom=zoom_zone(z), centre=centre_zone(z, source_logo), decalage=decalage)
 			elif z["zone"] == "nom":
-				typo = typo_zone(z, familles)
 				interieur = dessiner_cartouche(page, rect, style)
-				taille = typo.get("taille") or taille_nom(interieur[2] - interieur[0], interieur[3] - interieur[1], nom_produit)
-				poser_texte(page, interieur, html_bloc([nom_produit], taille_pt=taille, rtl=False,
-				                                       famille=typo.get("police") or fam_titres, couleur=couleur_zone,
-				                                       gras=typo.get("gras", True), italique=bool(typo.get("italique")),
-				                                       align=typo.get("align") or "center"), archive, css)
+				poser_texte(page, interieur, html_zone(doc, z, textes, langues, familles, couleur_zone, fam_titres), archive, css, decalage=decalage, cadre=rect)
 			elif z["zone"] in ("accroche", "caracteristiques", "avertissements", "contact", "texte_libre"):
-				typo = typo_zone(z, familles)
-				if z["zone"] == "texte_libre":
-					contenu_html = html_texte_libre(z.get("texte"), typo, couleur_zone, familles)
-				else:
-					base = typo.get("taille") or {"accroche": 11.0, "caracteristiques": flt(doc.get("taille_caracteristiques")) or 8.5,
-					                              "avertissements": 7.0, "contact": 7.0}[z["zone"]]
-					contenu_html = textes_pour_zone(z["zone"], textes, langues, base, couleur_zone,
-					                                police_bloc=doc.get("police_caracteristiques"), familles=familles, typo=typo)
+				contenu_html = html_zone(doc, z, textes, langues, familles, couleur_zone, fam_titres)
 				if contenu_html:
 					if style and style.get("fond"):
-						echelle = poser_texte(page, dessiner_cartouche(page, rect, style), contenu_html, archive, css)
+						echelle = poser_texte(page, dessiner_cartouche(page, rect, style), contenu_html, archive, css, decalage=decalage, cadre=rect)
 					else:
 						panneau = panneau_pour(z["zone"], couleur_texte, face["code"] in visuels or bool(image_fond))
 						if panneau:
@@ -1198,58 +1485,17 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 							h_texte = hauteur_texte(rect, contenu_html, archive, css)
 							page.draw_rect(pymupdf.Rect(rect[0] - m, rect[1] - m, rect[2] + m, rect[1] + h_texte + m),
 							               color=None, fill=panneau[0], fill_opacity=panneau[1])
-						echelle = poser_texte(page, rect, contenu_html, archive, css)
+						echelle = poser_texte(page, rect, contenu_html, archive, css, decalage=decalage, cadre=rect)
 					# Les tailles choisies ligne par ligne sont des MAXIMUMS : MuPDF réduit tout le bloc s'il ne
 					# tient pas dans sa zone. Le dire, sinon « 14 pt » imprimé en 9 pt paraît ignoré.
 					if echelle < 0.9:
 						rapport["reductions"].append({"face": face["code"], "libelle": face.get("libelle") or face["code"],
 						                              "zone": z["zone"], "echelle": round(echelle, 2)})
-			elif z["zone"] == "code_barres":
-				porte = z.get("code")
-				if porte == "qr":
-					# Zone « QR code » : le QR, carré, au centre de la zone, sur son cartouche blanc.
-					if qr:
-						carre = carre_centre(rect)
-						page.draw_rect(pymupdf.Rect(*carre), color=None, fill=(1, 1, 1))
-						poser_svg(page, carre, qr)
-					continue
-				qr_ici = None if (qr_place or porte == "ean") else qr
-				if ean:
-					fond_blanc = pymupdf.Rect(*rect)
-					page.draw_rect(fond_blanc, color=None, fill=(1, 1, 1))
-					poser_svg(page, rect, ean)
-				elif qr_ici:
-					cote = min(rect[2] - rect[0], rect[3] - rect[1])
-					page.draw_rect(pymupdf.Rect(rect[2] - cote, rect[3] - cote, rect[2], rect[3]), color=None, fill=(1, 1, 1))
-					poser_svg(page, (rect[2] - cote, rect[3] - cote, rect[2], rect[3]), qr_ici)
-				if ean and qr_ici and face["code"] == "arriere":
-					cote = MM(min(18.0, z["h"]))
-					page.draw_rect(pymupdf.Rect(rect[0] - cote - MM(2), rect[3] - cote, rect[0] - MM(2), rect[3]), color=None, fill=(1, 1, 1))
-					poser_svg(page, (rect[0] - cote - MM(2), rect[3] - cote, rect[0] - MM(2), rect[3]), qr)
-			elif z["zone"] == "pictos" and pictos_svg:
-				# Une zone peut ne montrer que certains pictogrammes (demande utilisateur 24/09/2026 :
-				# « NSF seul sur l'avant ») ; sans sélection, elle les montre tous.
-				choisis = z.get("pictos") if isinstance(z.get("pictos"), list) and z.get("pictos") else None
-				# Une zone sans sélection montre les pictogrammes, pas les TAMPONS : un tampon n'apparaît que là où
-				# on l'a posé (« Ajouter : Tampon … » du studio).
-				liste = [(c, s) for c, s in pictos_svg if (c in choisis if choisis else c not in tampons)]
-				taille = MM(taille_pictos(z["w"], z["h"], len(liste)))
-				x = rect[0]
-				for code_picto, svg in liste:
-					if taille <= 0:
-						break
-					if code_picto in tampons:
-						pass
-					elif sans_cartouche:
-						# Demande utilisateur 24/09/2026 : posé en transparence ; un picto monochrome prend
-						# la couleur du texte de la face pour rester lisible sur le fond.
-						if est_svg(svg):
-							svg = recolorer_svg_monochrome(svg, couleur_texte)
-					else:
-						page.draw_rect(pymupdf.Rect(x, rect[1], x + taille, rect[1] + taille), color=None, fill=(1, 1, 1))
-					# Un pictogramme peut être une image à soi (certificat scanné) : même détection que le logo.
-					poser_logo(page, (x + 1, rect[1] + 1, x + taille - 1, rect[1] + taille - 1), svg)
-					x += taille + MM(PICTOS_ECART_MM)
+			elif z["zone"] in ("code_barres", "pictos"):
+				poser_symboles(page, elements_symboles(z, face["code"], pictos_svg=pictos_svg,
+				                                      images_pictos=images_pictos,
+				                                      tampons=tampons, sans_cartouche=sans_cartouche,
+				                                      couleur=couleur_texte, ean=ean, qr=qr, qr_place=qr_place), rect=rect, decalage=decalage)
 
 	# 3. calque « Découpe et plis » (activable dans le lecteur, imprimé par l'imprimeur sur demande)
 	ocg = pdf.add_ocg("Découpe et plis", on=True)
@@ -1310,10 +1556,11 @@ def fiche_technique_html(doc, variante, plan, textes, langues, dpi, pictos_svg, 
 			esc(", ".join(langues.keys()) or "—"),
 			esc(doc.code_barres or "—") if ean else "—", esc(doc.url_qr or "—") if qr else "—",
 			esc(", ".join(c for c, _s in pictos_svg) or "—"))
-		+ "<table style=\"font-family:'Noto Sans'\"><tr><th>Face</th><th>Dimensions (mm)</th><th>Imprimable</th><th>Visuel</th></tr>%s</table>" % lignes_faces
+		+ "<table style=\"font-family:'Noto Sans'\"><tr><th>Face</th><th>Dimensions (mm)</th><th>Imprimable</th><th>Visuel source</th></tr>%s</table>" % lignes_faces
 		+ "<p style=\"font-family:'Noto Sans';font-size:9pt;color:#555\">Couleurs RVB — conversion CMJN, tons directs et surimpressions "
-		  "à la charge de l'imprimeur. Plan de découpe générique à valider par le cartonnier. Textes, logo, codes et pictogrammes "
-		  "sont vectoriels ; les visuels sont des images IA à la résolution indiquée (300 dpi ≈ 13 cm au plus).</p>"
+		  "à la charge de l'imprimeur. Plan de découpe générique à valider par le cartonnier. Les textes et les tracés SVG "
+		  "restent vectoriels. Les photos, logos bitmap et images intégrées dans les SVG dépendent de leur résolution "
+		  "à la taille imprimée. L’agrandissement ne restitue pas nécessairement les détails absents de la source.</p>"
 	)
 
 
@@ -1324,37 +1571,56 @@ def _langues(doc) -> dict:
 
 
 @frappe.whitelist()
-def composer_et_attacher(design: str, variante: int) -> dict:
+def composer_et_attacher(design: str, variante: int = 0) -> dict:
+	from aquaworld_ia.emballage import contenus, exports
+
 	doc = frappe.get_doc("Design Emballage", design)
 	doc.check_permission("write")
+	revision, ancien_pdf = str(doc.modified), doc.get("plan_a_plat")
+	erreurs = exports.verifier(doc)
+	if erreurs:
+		frappe.throw(" ".join(erreurs))
 	v = next((x for x in doc.variantes if x.numero == cint(variante)), None)
 	if not v or v.statut != "Prête" or not v.image:
-		# Sans variante IA, on compose quand même si l'utilisateur a choisi son fond : couleur
-		# ou image, plus la photo du produit en héros. C'est l'emballage « sans IA ».
-		if doc.get("couleur_fond") or doc.get("image_fond"):
-			v = None
-		else:
-			frappe.throw(_("Choisissez une variante prête, ou définissez un fond (couleur ou image) pour composer sans IA."))
+		# Le contenu manuel suffit ; une variante IA est facultative.
+		v = None
+	# Un emballage simple est composable sans génération IA ni sélection de couleur.
+	doc.variante_choisie = v.numero if v else 0
 	plan = plan_du_design(doc)
 	problemes = geometrie.verifier(plan)
 	if problemes:
 		frappe.throw(_("Plan impossible : {0}").format(" ; ".join(problemes)))
-	textes = frappe.parse_json(doc.textes_ia) if doc.textes_ia else {}
+	textes = contenus.imprimes(doc)
 	langues = _langues(doc)
-	if not textes:
-		# Rien de préparé par l'IA : le texte brut de l'étape 2 s'imprime tel quel.
-		textes = textes_bruts(doc.caracteristiques, doc.avertissements, doc.contact, next(iter(langues), "fr"))
 	rapport = {}
 	pdf = composer(doc, v, plan, textes or {}, langues, rapport=rapport)
+	rapport_resolution = None
+	if cint(doc.get("ameliorer_images_pdf")):
+		from aquaworld_ia.emballage import resolution
+		from aquaworld_ia.emballage.variantes import GENRE, EVENEMENT
+		from aquaworld_ia.ia import etat
+
+		def progression(i, total):
+			if etat.lire_etat(GENRE, design).get("tache") == "resolution_pdf":
+				etat.progresser(GENRE, design, f"Image {i+1}/{total} : préparation pour l’impression…",
+					10 + int(80*i/max(1, total)), EVENEMENT, frappe.session.user)
+
+		pdf, rapport_resolution = resolution.preparer_pdf(pdf, progression)
+	# Verrou bref après le calcul : ne jamais publier un export issu d'une autre
+	# révision, ni écraser un PDF concurrent terminé pendant le traitement.
+	actuel = frappe.db.get_value("Design Emballage", design, ["modified", "plan_a_plat"], as_dict=True, for_update=True)
+	if not actuel or str(actuel.modified) != revision or actuel.plan_a_plat != ancien_pdf:
+		frappe.throw(_("Le design ou son PDF a changé pendant la préparation. Relancez l’export."))
 	fichier = save_file("%s-plan-a-plat.pdf" % doc.name, pdf, "Design Emballage", doc.name, is_private=1)
 	import pymupdf
 
-	apercu = pymupdf.open("pdf", pdf)[0].get_pixmap(dpi=100).tobytes("png")
+	with pymupdf.open("pdf", pdf) as document:
+		apercu = document[0].get_pixmap(dpi=100).tobytes("png")
 	apercu_f = save_file("%s-apercu.png" % doc.name, apercu, "Design Emballage", doc.name, is_private=1)
-	valeurs = {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "statut": "Plan prêt"}
-	if v is not None:
-		valeurs["variante_choisie"] = cint(variante)
+	valeurs = {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "statut": "Plan prêt",
+	           "empreinte_plan": exports.empreinte(doc), "variante_choisie": doc.variante_choisie,
+	           "rapport_resolution": json.dumps(rapport_resolution, ensure_ascii=False) if rapport_resolution else None}
 	frappe.db.set_value("Design Emballage", design, valeurs, update_modified=False)
 	frappe.db.commit()
 	return {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "feuille": plan["feuille"],
-	        "reductions": rapport.get("reductions") or []}
+	        "reductions": rapport.get("reductions") or [], "resolution": rapport_resolution}

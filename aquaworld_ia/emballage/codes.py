@@ -73,4 +73,6 @@ def qr_svg(contenu: str, couleur: str | None = None) -> bytes:
 	import segno
 
 	qr = segno.make(contenu or "", error="m")
-	return qr.svg_inline(scale=4, border=2, dark=couleur_qr(couleur)).encode("utf-8")
+	# svg_inline produit un fragment HTML sans namespace ; une image SVG autonome en a besoin.
+	svg = qr.svg_inline(scale=4, border=2, dark=couleur_qr(couleur))
+	return svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ', 1).encode("utf-8")

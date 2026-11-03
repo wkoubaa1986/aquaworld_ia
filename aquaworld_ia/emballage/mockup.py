@@ -3,6 +3,8 @@ depuis le plan à plat, données en référence à gpt-image-1 pour un rendu de 
 
 from __future__ import annotations
 
+import base64
+
 import frappe
 from frappe.utils.file_manager import save_file
 
@@ -12,26 +14,56 @@ from aquaworld_ia.ia import etat, fichiers, images
 from aquaworld_ia.ia.client import qualite_image
 
 
-def faces_rendues(pdf_bytes: bytes, plan: dict, codes=("avant", "cote_droit", "dessus"), dpi: int = 150) -> list[tuple[str, bytes]]:
+FACES_VOLUME = ("avant", "arriere", "cote_gauche", "cote_droit", "dessus", "dessous")
+
+
+def faces_rendues(pdf_bytes: bytes, plan: dict, codes=("avant", "cote_droit", "dessus"), dpi: int = 150,
+                  max_pixels: int = 1800) -> list[tuple[str, bytes]]:
 	import pymupdf
 
-	page = pymupdf.open("pdf", pdf_bytes)[0]
-	sorties = []
-	for code in codes:
-		f = geometrie.face(plan, code)
-		if not f:
-			continue
-		clip = pymupdf.Rect(geometrie.mm_vers_pt(f["x"]), geometrie.mm_vers_pt(f["y"]),
-		                    geometrie.mm_vers_pt(f["x"] + f["w"]), geometrie.mm_vers_pt(f["y"] + f["h"]))
-		sorties.append((code, page.get_pixmap(dpi=dpi, clip=clip).tobytes("png")))
-	return sorties
+	with pymupdf.open("pdf", pdf_bytes) as pdf:
+		# Ces traits servent à l’imprimeur, pas à l’aspect de la boîte montée. Le PDF reste intact.
+		for calque in pdf.layer_ui_configs() or []:
+			if calque["text"] == "Découpe et plis":
+				pdf.set_layer_ui_config(calque["number"], action=2)
+		page = pdf[0]
+		sorties = []
+		for code in codes:
+			f = geometrie.face(plan, code)
+			if not f:
+				continue
+			clip = pymupdf.Rect(geometrie.mm_vers_pt(f["x"]), geometrie.mm_vers_pt(f["y"]),
+			                    geometrie.mm_vers_pt(f["x"] + f["w"]), geometrie.mm_vers_pt(f["y"] + f["h"]))
+			echelle = min(dpi / 72, max_pixels / max(clip.width, clip.height))
+			sorties.append((code, page.get_pixmap(matrix=pymupdf.Matrix(echelle, echelle), clip=clip, alpha=False).tobytes("png")))
+		return sorties
+
+
+@frappe.whitelist()
+def apercu_interactif(design: str) -> dict:
+	"""Six textures du PDF courant, sans IA ni fichier ajouté, pour la maquette de l’étui."""
+	from aquaworld_ia.emballage import exports
+
+	doc = frappe.get_doc("Design Emballage", design)
+	doc.check_permission("read")
+	plan = plan_du_design(doc)
+	if doc.type_boite != geometrie.ETUI or not all(geometrie.face(plan, c) for c in FACES_VOLUME):
+		return {"disponible": False, "raison": "La maquette interactive est disponible pour les étuis à rabats. Le rendu IA reste disponible pour cette forme."}
+	if exports.etat(doc)["pdf"] != "a_jour":
+		frappe.throw("Actualisez le PDF pour afficher la maquette du design actuel.")
+	faces = faces_rendues(fichiers.lire(doc.plan_a_plat), plan, codes=FACES_VOLUME, dpi=100, max_pixels=1200)
+	return {"disponible": True, "empreinte": doc.empreinte_plan,
+	        "dimensions": {"largeur": doc.longueur_mm, "hauteur": doc.hauteur_mm, "profondeur": doc.profondeur_mm},
+	        "faces": {code: "data:image/png;base64," + base64.b64encode(png).decode("ascii") for code, png in faces}}
 
 
 def generer_apercu_3d(design: str, utilisateur: str | None = None) -> None:
+	from aquaworld_ia.emballage import exports
+
 	doc = frappe.get_doc("Design Emballage", design)
 	try:
-		if not doc.plan_a_plat:
-			raise ValueError("Composez d'abord le plan à plat.")
+		if exports.etat(doc)["pdf"] != "a_jour":
+			raise ValueError("Actualisez le PDF avant de générer la simulation IA.")
 		plan = plan_du_design(doc)
 		etat.progresser(GENRE, design, "rendu des faces", 20, EVENEMENT, utilisateur)
 		refs = faces_rendues(fichiers.lire(doc.plan_a_plat), plan)
@@ -40,7 +72,8 @@ def generer_apercu_3d(design: str, utilisateur: str | None = None) -> None:
 		                                          references=[code for code, _png in refs]), refs, taille="1024x1024",
 		                    qualite=qualite_image(), fonctionnalite="Mockup 3D", doc=doc, fidelite="high")[0]
 		fichier = save_file("%s-apercu-3d.png" % doc.name, png, "Design Emballage", doc.name, is_private=1)
-		frappe.db.set_value("Design Emballage", design, "apercu_3d", fichier.file_url, update_modified=False)
+		frappe.db.set_value("Design Emballage", design, {"apercu_3d": fichier.file_url,
+		                    "empreinte_3d": doc.empreinte_plan}, update_modified=False)
 		frappe.db.commit()
 		etat.terminer(GENRE, design, "termine")
 	except Exception as e:
