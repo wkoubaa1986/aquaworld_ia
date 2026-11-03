@@ -702,6 +702,8 @@ def photos_autres_articles(recherche: str, design: str | None = None, limite: in
 	articles = frappe.get_all("Item", or_filters={"item_code": ["like", q], "item_name": ["like", q]},
 	                          fields=["name", "item_name", "image"], limit_page_length=int(limite or 12) * 3)
 	est_image = lambda u: (u or "").rsplit(".", 1)[-1].lower() in EXTENSIONS_IMAGE
+	# Import local : studio importe ce module en fin de fichier, un import de tête serait circulaire.
+	from aquaworld_ia.emballage.studio import genre_image
 	out = []
 	for a in articles:
 		photos, vus = [], set()
