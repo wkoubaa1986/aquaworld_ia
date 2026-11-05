@@ -13,12 +13,16 @@ from bs4 import BeautifulSoup, Comment
 from aquaworld_ia.documents_produit import contexte as C
 
 BALISES = set("div p span strong b em i u br table thead tbody tr td th h1 h2 h3 h4 h5 h6 img ul ol li small".split())
-STYLES = set("color background-color font-size font-weight font-style text-align vertical-align width height max-width border border-top border-bottom border-left border-right border-collapse padding padding-top padding-bottom padding-left padding-right margin margin-top margin-bottom line-height".split())
+STYLES = set("color background-color font-size font-weight font-style text-align vertical-align width height max-width max-height border border-top border-bottom border-left border-right border-collapse padding padding-top padding-bottom padding-left padding-right margin margin-top margin-bottom line-height".split())
 
 
 def disponibles():
-	modeles = frappe.get_list("Letter Head", filters={"disabled": 0}, fields=["name", "source", "image"], order_by="name", limit_page_length=500)
-	return [frappe._dict(name=m.name, a_completer=bool(m.source == "Image" and (not m.image or not frappe.db.exists("File", {"file_url": m.image})))) for m in modeles]
+	champ = "custom_documents_produit_designer"
+	fields = ["name", "source", "image"]
+	if frappe.get_meta("Letter Head").has_field(champ):
+		fields.append(champ)
+	modeles = frappe.get_list("Letter Head", filters={"disabled": 0}, fields=fields, order_by="name", limit_page_length=500)
+	return [frappe._dict(name=m.name, visuel=bool(m.get(champ)), a_completer=bool(m.source == "Image" and (not m.image or not frappe.db.exists("File", {"file_url": m.image})))) for m in modeles]
 
 
 def _ressource(url, ressources):

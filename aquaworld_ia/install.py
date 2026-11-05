@@ -47,6 +47,10 @@ def installer_documents_produit():
 	create_custom_fields({"Item": [
 		{"fieldname": "custom_documents_produit_section", "fieldtype": "Section Break", "label": "Documents produit", "insert_after": "description"},
 		{"fieldname": "custom_documents_produit", "fieldtype": "HTML", "label": "Fiches techniques et manuels", "insert_after": "custom_documents_produit_section"},
+	], "Letter Head": [
+		{"fieldname": "custom_documents_produit_designer", "fieldtype": "Long Text",
+		 "label": "Configuration de l’éditeur visuel", "hidden": 1, "read_only": 1,
+		 "no_copy": 1, "insert_after": "footer"},
 	]}, update=True)
 
 

@@ -264,6 +264,61 @@ def apercu_entete(name, entete):
 
 
 @frappe.whitelist()
+def charger_editeur_entete(name, modele=None, marque=None):
+	from aquaworld_ia.documents_produit import editeur_entete as V
+	from aquaworld_ia.documents_produit import marques
+
+	d = dossier(name)
+	resultat = {"peut_creer": frappe.has_permission("Letter Head", "create"), "modele": modele,
+		"peut_modifier": False, "compatible": True, "modified": None}
+	if modele:
+		h = frappe.get_doc("Letter Head", modele)
+		h.check_permission("read")
+		configuration = V.configuration_enregistree(h)
+		resultat.update(titre=h.name, configuration=configuration, compatible=bool(configuration),
+			modified=h.modified, peut_modifier=h.has_permission("write"))
+	else:
+		b = marques.infos(marque or marques.effective(d))
+		resultat.update(titre="En-tête " + (b["name"] or "personnalisé"),
+			configuration={**V.DEFAUTS, "nom_societe": b["name"], "logo": b["logo"]})
+	return resultat
+
+
+@frappe.whitelist()
+def apercu_editeur_entete(name, configuration):
+	import base64
+
+	from aquaworld_ia.documents_produit import editeur_entete as V
+	from aquaworld_ia.documents_produit import entetes as E
+
+	dossier(name)
+	try:
+		snapshot = V.preparer(_json(configuration))[3]
+		return {cle: {"image": "data:image/png;base64," + base64.b64encode(v["png"]).decode(),
+			"hauteur": v["hauteur"]} for cle, v in E.rendre(snapshot).items()}
+	except (ValueError, frappe.PermissionError, frappe.DoesNotExistError, OSError) as e:
+		return {"erreur": str(e) or "Le logo est absent ou inaccessible. Ajoutez une autre image."}
+
+
+@frappe.whitelist()
+def enregistrer_editeur_entete(name, titre, configuration, modele=None, modified=None, dossier_modified=None):
+	from aquaworld_ia.documents_produit import editeur_entete as V
+	from aquaworld_ia.documents_produit import entetes as E
+
+	d = dossier(name, "write", True)
+	if not dossier_modified or get_datetime(dossier_modified) != get_datetime(d.modified):
+		frappe.throw(_("Le dossier a changé. Rechargez-le avant d’enregistrer."), frappe.TimestampMismatchError)
+	if modele:
+		frappe.get_doc("Letter Head", modele).check_permission("write")
+	else:
+		frappe.has_permission("Letter Head", "create", throw=True)
+	h = V.enregistrer(titre, _json(configuration), modele, modified)
+	d.entete = h.name
+	d.save()
+	return {"name": h.name, "modified": h.modified, "dossier_modified": d.modified, "entetes": E.disponibles()}
+
+
+@frappe.whitelist()
 def detail_cout(name, generation):
 	from aquaworld_ia.documents_produit.couts import details
 

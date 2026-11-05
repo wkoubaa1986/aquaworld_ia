@@ -82,10 +82,10 @@ class DocumentsProduit {
             <p><b>Actualiser le fond PDF</b> affiche le contenu pour vérifier l’emplacement. Le logo libre se superpose au texte sur la première page : placez-le dans une zone dégagée. Vous pouvez déplacer son cadre avant d’avoir ajouté l’image.</p>
           </section>
           <section><h4>En-tête et pied de page</h4>
-            <p>Dans <b>En-tête des PDF</b>, cliquez sur <b>Créer un en-tête</b> ou sélectionnez un modèle puis <b>Ouvrir ce modèle</b>. Donnez un nom au modèle et enregistrez une première fois.</p>
-            <p>Choisissez <b>Image</b> pour importer une bannière déjà composée, ou <b>HTML</b> pour modifier le logo, les textes et les colonnes dans <b>En-tête HTML</b>. Exemple : logo à gauche, service commercial au milieu et support technique à droite. Renseignez aussi le <b>Pied de page</b> avec l’adresse et le site, en image ou en HTML.</p>
-            <p>Enregistrez le modèle, revenez ici, cliquez sur <b>Actualiser la liste</b>, sélectionnez-le et vérifiez <b>Aperçu</b>. L’en-tête et le pied de page se répètent sur chaque page ; le numéro de page est ajouté automatiquement. Pour conserver aussi le logo de marque, cochez <b>Afficher aussi le logo de la marque avec un en-tête personnalisé</b>.</p>
-            <p>Les éléments internes de l’en-tête se modifient dans le modèle ; ils ne se déplacent pas individuellement à la souris dans cet aperçu.</p>
+            <p>Dans <b>En-tête des PDF</b>, cliquez sur <b>Créer un en-tête</b>. L’éditeur visuel s’ouvre dans l’outil : donnez un nom au modèle, choisissez une disposition (logo à gauche, à droite ou centré), ajoutez votre logo et saisissez le nom et les coordonnées.</p>
+            <p>Remplissez les deux blocs de contacts et le pied de page avec l’adresse et le site. Les blocs sans coordonnées sont masqués. Réglez la taille du logo, la couleur et les traits de séparation ; l’aperçu se met à jour automatiquement.</p>
+            <p>Cliquez sur <b>Enregistrer et utiliser</b> : le modèle est sélectionné dans le dossier. Vous pourrez le reprendre avec <b>Modifier visuellement</b> ou en enregistrer une copie. Générez ensuite le PDF. L’en-tête et le pied de page se répètent sur chaque page ; le numéro de page est ajouté automatiquement.</p>
+            <p><b>Réglages avancés</b> ouvre la fiche native pour les anciens modèles en image ou en HTML. Pour conserver aussi le logo dans le corps du document, cochez <b>Afficher aussi le logo de la marque avec un en-tête personnalisé</b>.</p>
           </section>
           <section><h4>Photo, description et ordre des blocs</h4>
             <p>Dans <b>Mise en page personnalisée</b>, choisissez <b>Une colonne</b> pour placer la photo et le texte l’un sous l’autre, ou <b>Deux colonnes</b> pour les mettre côte à côte. Choisissez le côté de la photo, sa largeur et sa hauteur maximale.</p>
@@ -270,9 +270,10 @@ class DocumentsProduit {
       <p class="dp-muted" style="margin:8px 0 0">La marque choisie sera utilisée pour les prochaines fiches et les prochains manuels de ce dossier. Les marques des composants restent distinctes. Le logo est partagé par tous les produits de cette marque.</p></div>
       <div class="dp-card dp-letterhead-card"><h3>En-tête des PDF</h3><div class="dp-actions">
       <select class="form-control dp-letterhead" aria-label="En-tête des PDF" style="width:320px"><option value="">Logo de la marque</option>${(this.data.entetes||[]).map(h=>`<option value="${dpEsc(h.name)}" ${h.name===d.entete?'selected':''}>${dpEsc(h.name)}${h.a_completer?' (image à compléter)':''}</option>`).join('')}${d.entete&&!(this.data.entetes||[]).some(h=>h.name===d.entete)?`<option value="${dpEsc(d.entete)}" selected>${dpEsc(d.entete)} (désactivé)</option>`:''}</select>
+      ${this.data.peut_creer_entete?'<button class="btn btn-primary btn-sm dp-new-letterhead">Créer un en-tête</button>':''}<button class="btn btn-default btn-sm dp-edit-letterhead" style="display:none">Modifier visuellement</button>
       <button class="btn btn-default btn-sm dp-preview-letterhead">Aperçu</button><button class="btn btn-default btn-sm dp-refresh-letterheads">Actualiser la liste</button>
-      ${this.data.peut_creer_entete?'<a class="btn btn-default btn-sm" href="/app/letter-head/new-letter-head" target="_blank" rel="noopener">Créer un en-tête</a>':''}<a class="dp-letterhead-link" href="/app/letter-head" target="_blank" rel="noopener">Gérer les en-têtes</a></div>
-      <p class="dp-muted" style="margin:10px 0 0">Choisissez un modèle réutilisable pour les fiches techniques et les manuels de ce dossier. L’en-tête et son pied de page apparaissent sur chaque page. Après un changement, générez le PDF : une nouvelle version conserve la présentation, sans nouvelle rédaction IA.</p>${this.data.erreur_entete?`<div class="dp-warning" style="margin-top:10px">${dpEsc(this.data.erreur_entete)}</div>`:''}</div>
+      <a class="dp-letterhead-link" href="/app/letter-head" target="_blank" rel="noopener">Réglages avancés</a></div>
+      <p class="dp-muted" style="margin:10px 0 0">Créez votre en-tête avec l’éditeur visuel : disposition, logo, coordonnées et pied de page, avec aperçu immédiat. Les modèles sont réutilisables ; l’en-tête et le pied de page se répètent sur chaque page. Après un changement, générez le PDF pour appliquer la présentation, sans nouvelle rédaction IA.</p>${this.data.erreur_entete?`<div class="dp-warning" style="margin-top:10px">${dpEsc(this.data.erreur_entete)}</div>`:''}</div>
       <details class="dp-card dp-configuration" ${this.data.documents.length?'':'open'}><summary>Sources, photos et variantes</summary>
       <div class="dp-grid"><div class="dp-full"><label class="dp-label">Consignes de rédaction</label><textarea class="form-control dp-consignes" rows="2" placeholder="Public visé, présentation souhaitée…">${dpEsc(d.consignes)}</textarea></div>
       <div class="dp-full"><div class="dp-actions"><h3 style="margin:0">Variantes couvertes (${d.variantes.length})</h3><button class="btn btn-xs btn-default" data-select-all="1">Toutes</button><button class="btn btn-xs btn-default" data-select-all="0">Aucune</button></div>
@@ -346,7 +347,10 @@ class DocumentsProduit {
       if(!this.root.find('.dp-brand option').toArray().some(o=>o.value===b.name))$('<option>').val(b.name).text(b.name).appendTo(this.root.find('.dp-brand'));
       this.root.find('.dp-brand').val(b.name);await this.saveConfig(true);
     },'Créer une marque','Créer et utiliser'));
-    const lienEntete=()=>{const name=this.root.find('.dp-letterhead').val();this.root.find('.dp-letterhead-link').attr('href',name?'/app/letter-head/'+encodeURIComponent(name):'/app/letter-head').text(name?'Ouvrir ce modèle':'Gérer les en-têtes');};
+    const ouvrirEditeur=async(modele=null)=>{await frappe.require('/assets/aquaworld_ia/js/documents_produit_entete.js');await new aquaworld_ia.EditeurEntete(this,modele).ouvrir();};
+    this.root.find('.dp-new-letterhead').on('click',()=>ouvrirEditeur());
+    this.root.find('.dp-edit-letterhead').on('click',()=>ouvrirEditeur(this.root.find('.dp-letterhead').val()));
+    const lienEntete=()=>{const name=this.root.find('.dp-letterhead').val();this.root.find('.dp-letterhead-link').attr('href',name?'/app/letter-head/'+encodeURIComponent(name):'/app/letter-head');this.root.find('.dp-edit-letterhead').toggle(!!this.data.entetes?.find(h=>h.name===name&&h.visuel));};
     this.root.find('.dp-letterhead').on('change',()=>{lienEntete();this.renderLayoutPreview();});lienEntete();
     this.root.find('.dp-refresh-letterheads').on('click',async()=>{if(this.dirty)await this.saveDocument();await this.saveConfig();this.data=await dpCall('charger',{name:this.name});this.rendre();});
     this.root.find('.dp-preview-letterhead').on('click',async()=>{

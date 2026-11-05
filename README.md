@@ -531,6 +531,23 @@ d’ERPNext, d’en créer plusieurs et d’en voir un aperçu. Le modèle et so
 repris sur chaque page ; le choix vide conserve le logo de la marque. Les images locales
 et le HTML de présentation sont pris en charge. Scripts, styles globaux et ressources
 distantes ne sont pas exécutés : vérifier l’aperçu pour les modèles HTML complexes.
+
+**Créer un en-tête** ouvre maintenant un éditeur visuel dans le générateur. Choisir le logo
+à gauche, à droite ou centré ; ajouter ou remplacer l’image ; saisir le nom, le sous-titre,
+deux blocs de contacts facultatifs et le pied de page. Largeur du logo, taille du texte,
+couleur et traits sont réglables. L’aperçu des bandeaux utilise le rendu du PDF et se met
+à jour après la saisie, sans IA ni enregistrement de fichier. Un bloc sans coordonnées
+est masqué et la pagination est ajoutée automatiquement par le générateur.
+
+**Enregistrer et utiliser** crée un modèle réutilisable et le sélectionne dans le dossier.
+**Modifier visuellement** permet de reprendre les modèles créés avec cet éditeur ;
+**Enregistrer une copie** conserve l’original sous son nom. Le modèle global par défaut
+d’ERPNext n’est pas changé par la création. Les anciens modèles en image ou en HTML restent
+accessibles par **Réglages avancés** ; un modèle modifié manuellement hors de l’éditeur
+n’est pas écrasé avec une configuration visuelle devenue obsolète. Les écritures vérifient
+les droits et les modifications concurrentes du modèle et du dossier. Le champ masqué
+de configuration sur **Letter Head** est installé après migration.
+
 Le choix est enregistré avec le dossier et le contenu du modèle est figé dans chaque version.
 Changer de modèle puis **Générer le PDF** crée une nouvelle version avec le texte existant,
 sans appel IA et sans écraser l’ancienne. Les bandeaux sont inclus dans l’archive LaTeX.
