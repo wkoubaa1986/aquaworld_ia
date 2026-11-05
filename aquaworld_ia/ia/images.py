@@ -63,7 +63,7 @@ def _decoder(reponse) -> list[bytes]:
 def editer(prompt: str, references: list[tuple[str, bytes]], *, taille: str, qualite: str,
            n: int = 1, fonctionnalite: str, doc=None, fidelite: str | None = "high") -> list[bytes]:
 	"""images.edit avec des images de référence -> liste de PNG."""
-	client, modele, _ = client_et_modele("image")
+	client, modele, _ = client_et_modele("image", fonctionnalite=fonctionnalite)
 	fichiers = [(f"{nom}.png", io.BytesIO(normaliser_reference(octets)), "image/png")
 	            for nom, octets in references]
 	params = {"model": modele, "image": fichiers, "prompt": prompt, "size": taille,
@@ -96,7 +96,7 @@ def editer(prompt: str, references: list[tuple[str, bytes]], *, taille: str, qua
 
 def generer(prompt: str, *, taille: str, qualite: str, n: int = 1, fonctionnalite: str, doc=None) -> list[bytes]:
 	"""images.generate sans référence -> liste de PNG."""
-	client, modele, _ = client_et_modele("image")
+	client, modele, _ = client_et_modele("image", fonctionnalite=fonctionnalite)
 	debut = time.monotonic()
 	try:
 		reponse = client.images.generate(model=modele, prompt=prompt, size=taille, quality=qualite, n=n)

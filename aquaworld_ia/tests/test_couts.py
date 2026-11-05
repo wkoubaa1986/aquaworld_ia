@@ -38,6 +38,23 @@ class TestCouts(unittest.TestCase):
 		R.prix_sortie_par_million = 3.0
 		self.assertEqual(C.tarifs_depuis_reglages(R(), modele="gpt-5.2")["sortie_par_million"], 3.0)
 
+	def test_tarifs_astra_sol_terra_luna(self):
+		from types import SimpleNamespace
+
+		for modele, attendu in (
+			("gpt-6-astra", 0.20),
+			("gpt-6.1-sol", 0.04),
+			("gpt-6.1-terra", 0.02),
+			("gpt-6-luna", 0.002),
+			("gpt-6-sol", 0.04),
+		):
+			with self.subTest(modele=modele):
+				tarifs = C.tarifs_depuis_reglages(SimpleNamespace(), modele)
+				self.assertAlmostEqual(C.estimer_cout(10000, 2000, tarifs=tarifs), attendu)
+		self.assertEqual(C.tarifs_texte("gpt-6.1-sol-2026-11-05"), (2, 10))
+		self.assertEqual(C.tarifs_texte("gpt-5.4-mini"), (0.75, 4.5))
+		self.assertEqual(C.tarifs_texte("gpt-5.6-terra"), (2, 12))
+
 	def test_images_par_qualite(self):
 		"""Grille gpt-image-2 (septembre 2026) : 0,006 / 0,053 / 0,211 ; une qualité inconnue
 		compte comme medium."""

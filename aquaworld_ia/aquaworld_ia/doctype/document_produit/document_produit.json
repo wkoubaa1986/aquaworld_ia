@@ -1,0 +1,198 @@
+{
+ "doctype": "DocType",
+ "name": "Document Produit",
+ "module": "Aquaworld IA",
+ "engine": "InnoDB",
+ "istable": 0,
+ "issingle": 0,
+ "editable_grid": 1,
+ "field_order": [
+  "dossier",
+  "type_document",
+  "titre",
+  "langue",
+  "libelle_langue",
+  "rtl",
+  "numero",
+  "statut",
+  "source_fr",
+  "pdf",
+  "source_latex",
+  "archive_latex",
+  "contenu_json",
+  "contexte_json",
+  "empreinte_context"
+ ],
+ "fields": [
+  {
+   "fieldname": "dossier",
+   "fieldtype": "Link",
+   "label": "Dossier produit",
+   "options": "Dossier Produit",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "type_document",
+   "fieldtype": "Select",
+   "label": "Document",
+   "options": "Fiche technique\nManuel d'utilisation",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "titre",
+   "fieldtype": "Data",
+   "label": "Titre",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "langue",
+   "fieldtype": "Data",
+   "label": "Code langue",
+   "default": "fr",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "libelle_langue",
+   "fieldtype": "Data",
+   "label": "Langue",
+   "default": "Français",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rtl",
+   "fieldtype": "Check",
+   "label": "Droite à gauche",
+   "read_only": 1
+  },
+  {
+   "fieldname": "numero",
+   "fieldtype": "Int",
+   "label": "Version",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "statut",
+   "fieldtype": "Select",
+   "label": "Statut",
+   "options": "Brouillon\nValidé",
+   "default": "Brouillon",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "source_fr",
+   "fieldtype": "Link",
+   "label": "Version française de référence",
+   "options": "Document Produit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pdf",
+   "fieldtype": "Attach",
+   "label": "PDF",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_latex",
+   "fieldtype": "Attach",
+   "label": "Source LaTeX",
+   "read_only": 1
+  },
+  {
+   "fieldname": "archive_latex",
+   "fieldtype": "Attach",
+   "label": "LaTeX et images (ZIP)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contenu_json",
+   "fieldtype": "Long Text",
+   "label": "Contenu structuré",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "contexte_json",
+   "fieldtype": "Long Text",
+   "label": "Contexte et sources",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "empreinte_context",
+   "fieldtype": "Data",
+   "label": "Empreinte des articles et sources",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Item Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Aquaworld IA",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  }
+ ],
+ "creation": "2026-11-04 10:00:00.000000",
+ "modified": "2026-11-04 10:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "autoname": "DOC-P-.YYYY.-.#####",
+ "title_field": "titre"
+}

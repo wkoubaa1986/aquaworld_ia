@@ -36,7 +36,18 @@ def after_migrate():
 	from aquaworld_ia import transfert
 
 	transfert.restaurer()
+	installer_documents_produit()
 	frappe.db.commit()
+
+
+def installer_documents_produit():
+	"""Accès durable aux documents produit depuis chaque fiche Article."""
+	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+	create_custom_fields({"Item": [
+		{"fieldname": "custom_documents_produit_section", "fieldtype": "Section Break", "label": "Documents produit", "insert_after": "description"},
+		{"fieldname": "custom_documents_produit", "fieldtype": "HTML", "label": "Fiches techniques et manuels", "insert_after": "custom_documents_produit_section"},
+	]}, update=True)
 
 
 def semer_langues() -> int:

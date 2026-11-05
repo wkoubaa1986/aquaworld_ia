@@ -1,0 +1,396 @@
+"""Rendu LaTeX déterministe : textes échappés, images locales, commandes externes désactivées."""
+
+from __future__ import annotations
+
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import zipfile
+from pathlib import Path
+
+import frappe
+from frappe.utils.file_manager import save_file
+
+from aquaworld_ia.documents_produit import contexte as C
+from aquaworld_ia.documents_produit import mise_en_page as M
+
+ECHAPPE = {
+	"\\": r"\textbackslash{}",
+	"{": r"\{",
+	"}": r"\}",
+	"$": r"\$",
+	"&": r"\&",
+	"#": r"\#",
+	"%": r"\%",
+	"_": r"\_",
+	"~": r"\textasciitilde{}",
+	"^": r"\textasciicircum{}",
+}
+POLICES = {
+	"ar": "Noto Naskh Arabic",
+	"fa": "Noto Naskh Arabic",
+	"ur": "Noto Naskh Arabic",
+	"he": "Noto Sans Hebrew",
+	"zh": "Noto Sans CJK SC",
+	"ja": "Noto Sans CJK JP",
+	"ko": "Noto Sans CJK KR",
+	"hi": "Noto Sans Devanagari",
+	"bn": "Noto Sans Bengali",
+	"ta": "Noto Sans Tamil",
+	"te": "Noto Sans Telugu",
+	"th": "Noto Sans Thai",
+	"ka": "Noto Sans Georgian",
+	"hy": "Noto Sans Armenian",
+	"km": "Noto Sans Khmer",
+	"lo": "Noto Sans Lao",
+	"ml": "Noto Sans Malayalam",
+	"gu": "Noto Sans Gujarati",
+	"kn": "Noto Sans Kannada",
+	"pa": "Noto Sans Gurmukhi",
+	"si": "Noto Sans Sinhala",
+	"my": "Noto Sans Myanmar",
+	"am": "Noto Sans Ethiopic",
+}
+
+
+def echapper(s):
+	return "".join(ECHAPPE.get(c, c) for c in str(s or "") if ord(c) >= 32 or c in "\n\t").replace(
+		"\n", "\n\n"
+	)
+
+
+def texte(s, rtl=False):
+	if not rtl:
+		return echapper(s)
+	# Les références et valeurs latines gardent leur sens de lecture dans un paragraphe RTL.
+	morceaux = re.split(r"([^\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff\n]+)", str(s or ""))
+	return "".join(
+		(r"{\LR{\latinfont " + echapper(v) + "}}") if i % 2 and v.strip() else echapper(v)
+		for i, v in enumerate(morceaux)
+	)
+
+
+def image_png(octets):
+	import pymupdf
+	from PIL import Image, ImageOps
+
+	try:
+		with Image.open(io.BytesIO(octets)) as im:
+			if im.width * im.height > 40_000_000:
+				raise ValueError("Illustration trop grande.")
+			im = ImageOps.exif_transpose(im).convert("RGBA")
+			im.thumbnail((2400, 2400))
+			out = io.BytesIO()
+			im.save(out, format="PNG")
+			return out.getvalue()
+	except (OSError, SyntaxError):
+		# Les SVG sont rasterisés en local sans exécuter de script ni de commande externe.
+		if b"<svg" not in octets[:2000].lower() or re.search(
+			rb"(?:href\s*=\s*[\"\']\s*(?:https?:|file:|/)|<!ENTITY|<!DOCTYPE)", octets, re.I
+		):
+			raise ValueError("Image non prise en charge. Utilisez PNG, JPEG, WebP ou SVG autonome.")
+		with pymupdf.open(stream=octets, filetype="svg") as svg:
+			pdf = svg.convert_to_pdf()
+		with pymupdf.open(stream=pdf, filetype="pdf") as p:
+			return (
+				p[0]
+				.get_pixmap(
+					matrix=pymupdf.Matrix(
+						min(2, 2400 / max(p[0].rect.width, p[0].rect.height)),
+						min(2, 2400 / max(p[0].rect.width, p[0].rect.height)),
+					),
+					alpha=True,
+				)
+				.tobytes("png")
+			)
+
+
+def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=None):
+	assets = assets or {}
+	disposition = M.normaliser(ctx.get("mise_en_page"))
+
+	def t(s):
+		return texte(s, rtl)
+
+	labels = contenu["libelles"]
+	police = POLICES.get(langue.split("-")[0], "Noto Sans")
+	en_tete = r"""\documentclass[10pt,a4paper]{article}
+\usepackage[margin=18mm,headheight=16pt]{geometry}
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{eso-pic,adjustbox}
+\usepackage{paracol}
+\usepackage[table]{xcolor}
+\usepackage{array,longtable,booktabs}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\definecolor{aqua}{HTML}{087E8B}
+\hypersetup{hidelinks}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{4em}
+\newcommand{\docsection}[1]{\section*{\color{aqua}#1}}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+"""
+	en_tete = en_tete.replace("{087E8B}", "{" + disposition["couleur"][1:] + "}")
+	script = "[Script=Arabic]" if langue.split("-")[0] in ("ar", "fa", "ur") else ""
+	en_tete += "\\setmainfont" + script + "{" + police + "}\n\\newfontfamily\\latinfont{Noto Sans}\n"
+	if rtl:
+		en_tete += "\\usepackage{bidi}\n"
+	if langue.split("-")[0] in ("zh", "ja", "ko"):
+		en_tete += '\\XeTeXlinebreaklocale "' + langue.split("-")[0] + '"\n'
+	bandeaux = assets.get("entete", {})
+	if bandeaux:
+		haut, bas = bandeaux.get("haut"), bandeaux.get("bas")
+		hh, hb = (haut["hauteur"] if haut else 0), (bas["hauteur"] if bas else 0)
+		en_tete += (
+			f"\\geometry{{top={18 + hh:.2f}mm,headheight={max(6, hh):.2f}mm,headsep=6mm,"
+			f"bottom={22 + hb:.2f}mm,footskip={12 + hb:.2f}mm}}\n"
+		)
+		if haut:
+			position = {"Left": "L", "Right": "R"}.get(haut.get("align"), "C")
+			en_tete += (f"\\fancyhead[{position}]{{\\includegraphics[width={haut['largeur']:.2f}mm,"
+				f"height={hh:.2f}mm,keepaspectratio]{{{haut['fichier']}}}}}\n")
+		if bas:
+			alignement = {"Left": r"\raggedright", "Right": r"\raggedleft"}.get(bas.get("align"), r"\centering")
+			en_tete += (r"\fancyfoot[C]{\begin{minipage}[b]{\textwidth}" + alignement
+				+ f"\\includegraphics[width={bas['largeur']:.2f}mm,height={hb:.2f}mm,keepaspectratio]{{{bas['fichier']}}}"
+				+ r"\par\centering\small\thepage\end{minipage}}" + "\n")
+	body = [en_tete, "\\begin{document}", "\\setRTL" if rtl else ""]
+	alignement = {"gauche": r"\raggedright", "centre": r"\centering", "droite": r"\raggedleft"}
+	marque = {**M.MARQUE_DEFAUTS, **disposition}
+	if marque["position_marque"] == "libre":
+		positions = []
+
+		def placer(element, y):
+			return (
+				r"\put(\LenToUnit{" + f"{marque['logo_x']:.1f}" + r"mm},\LenToUnit{-"
+				+ f"{y:.1f}" + r"mm}){\makebox(0,0)[lt]{" + element + "}}"
+			)
+
+		if assets.get("logo"):
+			positions.append(placer(
+				r"\includegraphics[width=" + str(marque["largeur_logo"]) + "mm,height="
+				+ f"{marque['largeur_logo'] * 18 / 32:.2f}"
+				+ "mm,keepaspectratio]{" + assets["logo"] + "}", marque["logo_y"],
+			))
+		nom = ctx.get("marque_document") or ctx["article"].get("brand") or ""
+		if marque["afficher_nom_marque"] and nom:
+			positions.append(placer(
+				r"\adjustbox{max width=" + str(marque["largeur_logo"])
+				+ r"mm,max height=6mm}{\strut\small\bfseries " + t(nom.replace("\n", " ")) + "}",
+				marque["logo_y"] + marque["largeur_logo"] * 18 / 32 + 1,
+			))
+		if positions:
+			body.append(r"\AddToShipoutPictureFG*{\AtPageUpperLeft{" + "\n".join(positions) + "}}")
+	zone_marque = []
+	if marque["position_marque"] not in ("masquee", "libre"):
+		if assets.get("logo"):
+			largeur = marque["largeur_logo"]
+			zone_marque.append(
+				r"\includegraphics[width=" + str(largeur) + "mm,height="
+				+ f"{largeur * 18 / 32:.2f}" + "mm,keepaspectratio]{" + assets["logo"] + r"}\par"
+			)
+		if marque["afficher_nom_marque"]:
+			nom_marque = ctx.get("marque_document") or ctx["article"].get("brand") or ""
+			if nom_marque:
+				zone_marque.append(r"{\bfseries " + t(nom_marque) + r"}\par")
+	if zone_marque:
+		zone_marque = [r"\begingroup" + alignement[marque["alignement_marque"]], *zone_marque, r"\endgroup"]
+	if marque["position_marque"] == "avant_titre":
+		body.extend(zone_marque)
+	body.append(r"\begingroup" + alignement[disposition["alignement_titre"]])
+	body += [
+		r"{\LARGE\bfseries\color{aqua} " + t(contenu["titre"]) + r"}\par",
+		t(ctx.get("marque_document") or ctx["article"].get("brand") or "") + r"\quad " + t(ctx["article"]["name"]) + r"\par",
+		t(labels["version"]) + " " + str(numero) + r"\par",
+	]
+	if not valide:
+		body.append(r"{\color{red}\bfseries " + t(labels["brouillon"]) + r"}\par")
+	body.append(r"\endgroup")
+	if marque["position_marque"] == "apres_titre":
+		body.extend(zone_marque)
+	blocs = {cle: [] for cle in M.ORDRE}
+
+	def photo(index, largeur, hauteur):
+		lignes = [
+			r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
+			+ r"\linewidth,height=" + str(hauteur) + "mm,keepaspectratio]{"
+			+ assets["images"][index] + r"}\end{center}",
+			t(contenu["legendes"][index]) + r"\par",
+		]
+		if ctx["images"][index].get("article"):
+			lignes.append(t(labels["portee"] + " : " + ctx["images"][index]["article"]) + r"\par")
+		return "\n".join(lignes)
+
+	resume = t(contenu["resume"]) + r"\par"
+	position = disposition["position_photo"]
+	largeur = disposition["largeur_photo"] / 100
+	if not assets.get("images"):
+		blocs["presentation"] = [resume]
+	elif position in ("gauche", "droite"):
+		image = photo(0, 1, disposition["hauteur_photo"])
+		gauche, droite = (image, resume) if position == "gauche" else (resume, image)
+		ratio = largeur if position == "gauche" else 1 - largeur
+		blocs["presentation"] = [
+			r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
+			r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}",
+		]
+	else:
+		image = photo(0, largeur, disposition["hauteur_photo"])
+		blocs["presentation"] = [image, resume] if position == "avant" else [resume, image]
+	for s in contenu["sections"]:
+		blocs["rubriques"].append(r"\docsection{" + t(s["titre"]) + "}")
+		if s.get("article"):
+			blocs["rubriques"].append(r"{\small " + t(labels["portee"] + " : " + s["article"]) + r"}\par")
+		blocs["rubriques"].append(t(s["texte"]) + r"\par")
+	if contenu["caracteristiques"]:
+		blocs["caracteristiques"] += [
+			r"\docsection{" + t(labels["caracteristiques"]) + "}",
+			r"\begin{longtable}{p{.27\linewidth}p{.42\linewidth}p{.19\linewidth}}",
+			r"\toprule "
+			+ " & ".join(t(labels[k]) for k in ("parametre", "valeur", "portee"))
+			+ r"\\\midrule\endhead",
+		]
+		for c in contenu["caracteristiques"]:
+			blocs["caracteristiques"].append(
+				" & ".join(
+					t(s)
+					for s in [
+						c["nom"],
+						c["valeur"] + (" " + c["unite"] if c["unite"] else ""),
+						c["article"] or labels["commun"],
+					]
+				)
+				+ r"\\\addlinespace"
+			)
+		blocs["caracteristiques"].append(r"\bottomrule\end{longtable}")
+	if contenu["variantes"]:
+		blocs["variantes"] += [
+			r"\docsection{" + t(labels["variantes"]) + "}",
+			r"\begin{longtable}{p{.31\linewidth}p{.61\linewidth}}",
+			r"\toprule "
+			+ t(labels["reference"])
+			+ " & "
+			+ t(labels["configuration"])
+			+ r"\\\midrule\endhead",
+		]
+		for v in contenu["variantes"]:
+			config = "; ".join(a["nom"] + " : " + a["valeur"] for a in v["attributs"])
+			blocs["variantes"].append(t(v["article"]) + " & " + t(v["marque"] + " — " + config) + r"\\\addlinespace")
+		blocs["variantes"].append(r"\bottomrule\end{longtable}")
+	for i in range(1, len(assets.get("images", []))):
+		blocs["illustrations"].append(photo(i, .8, 120))
+	for cle in disposition["ordre"]:
+		body.extend(blocs[cle])
+	if contenu.get("points_a_verifier"):
+		body += [r"\docsection{" + t(labels["brouillon"]) + "}"]
+		body += [t("• " + p) + r"\par" for p in contenu["points_a_verifier"]]
+	if ctx.get("sources"):
+		body += [r"\docsection{" + t(labels["sources"]) + "}"]
+		body += [
+			t("S{} — {}{}".format(i + 1, s["nom"], (" — " + s["pages"]) if s["pages"] else "")) + r"\par"
+			for i, s in enumerate(ctx["sources"])
+		]
+	if marque["position_marque"] == "fin_document":
+		body.extend(zone_marque)
+	body.append(r"\end{document}")
+	return "\n".join(body)
+
+
+def compiler(tex, fichiers):
+	moteur = shutil.which("xelatex")
+	if not moteur:
+		raise ValueError("XeLaTeX est absent du serveur. Installez les dépendances LaTeX du module.")
+	with tempfile.TemporaryDirectory(prefix="doc-produit-") as temp:
+		p = Path(temp)
+		(p / "images").mkdir()
+		(p / "document.tex").write_text(tex, encoding="utf-8")
+		for name, b in fichiers.items():
+			if not re.fullmatch(r"images/(?:logo|image-[0-9]+|entete-(?:haut|bas))\.png", name):
+				raise ValueError("Nom de fichier LaTeX invalide.")
+			(p / name).write_bytes(b)
+		env = {**os.environ, "openin_any": "p", "openout_any": "p", "shell_escape": "f", "TEXMFOUTPUT": temp}
+		for _ in range(2):
+			r = subprocess.run(
+				[moteur, "-no-shell-escape", "-halt-on-error", "-interaction=nonstopmode", "document.tex"],
+				cwd=temp,
+				env=env,
+				stdout=subprocess.PIPE,
+				stderr=subprocess.STDOUT,
+				timeout=100,
+			)
+			if r.returncode:
+				raise ValueError(
+					"Composition LaTeX impossible : " + r.stdout.decode(errors="replace")[-1300:]
+				)
+		log = (p / "document.log").read_text(errors="replace")
+		if "Missing character:" in log:
+			manquants = re.findall(r"Missing character:.*", log)[:3]
+			raise ValueError(
+				"La police ne couvre pas tous les caractères de cette langue : " + " ; ".join(manquants)
+			)
+		pdf = (p / "document.pdf").read_bytes()
+		archive = io.BytesIO()
+		with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
+			z.writestr("document.tex", tex)
+			z.writestr(
+				"README.txt",
+				"Compiler avec XeLaTeX (2 passages), texlive-xetex, texlive-latex-extra, texlive-fonts-recommended, texlive-lang-arabic, fonts-noto-core et fonts-noto-cjk.\n",
+			)
+			for name, b in fichiers.items():
+				z.writestr(name, b)
+		return pdf, archive.getvalue()
+
+
+def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
+	"""Compose en mémoire, pour le PDF enregistré comme pour son aperçu sans écriture."""
+	from aquaworld_ia.documents_produit.entetes import rendre
+
+	fichiers = {}
+	assets = {"images": []}
+	if ctx.get("logo") and (not ctx.get("entete") or ctx.get("logo_marque_avec_entete")) and ctx.get("mise_en_page", {}).get("position_marque") != "masquee":
+		fichiers["images/logo.png"] = image_png(C.octets(ctx["logo"]))
+		assets["logo"] = "images/logo.png"
+	if ctx.get("entete"):
+		assets["entete"] = {}
+		for cle, bandeau in rendre(ctx["entete"]).items():
+			name = "images/entete-" + cle + ".png"
+			fichiers[name] = bandeau["png"]
+			assets["entete"][cle] = {k: v for k, v in bandeau.items() if k != "png"}
+			assets["entete"][cle]["fichier"] = name
+	for i, im in enumerate(ctx.get("images", [])):
+		name = f"images/image-{i}.png"
+		fichiers[name] = image_png(C.octets(im["image"]))
+		assets["images"].append(name)
+	tex = source(contenu, ctx, langue, bool(rtl), numero, valide, assets)
+	pdf, archive = compiler(tex, fichiers)
+	return tex, pdf, archive
+
+
+def generer_pdf(doc, valider=False):
+	contenu, ctx = json.loads(doc.contenu_json), json.loads(doc.contexte_json)
+	if valider and contenu["points_a_verifier"]:
+		raise ValueError("Résolvez les points à vérifier avant de valider le document.")
+	tex, pdf, archive = composer(contenu, ctx, doc.langue, doc.rtl, doc.numero, valider or doc.statut == "Validé")
+	prefixe = doc.name + "-" + doc.langue
+	urls = {}
+	for champ, suffixe, b in (
+		("pdf", ".pdf", pdf),
+		("source_latex", ".tex", tex.encode("utf-8")),
+		("archive_latex", ".zip", archive),
+	):
+		urls[champ] = save_file(prefixe + suffixe, b, C.DOCUMENT, doc.name, is_private=1).file_url
+	doc.update(urls)
+	if valider:
+		doc.statut = "Validé"
+	doc.flags.document_produit_interne = True
+	doc.save()
+	return urls

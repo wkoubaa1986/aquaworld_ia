@@ -1,0 +1,165 @@
+"""Vérifie la position réelle des images, la pagination et la validation des dispositions."""
+
+import io
+import shutil
+import unittest
+
+from aquaworld_ia.documents_produit import latex as L
+from aquaworld_ia.documents_produit import mise_en_page as M
+from aquaworld_ia.tests.test_documents_produit import contenu_simple, contexte_simple
+
+
+class TestMiseEnPage(unittest.TestCase):
+	def test_validation_et_compatibilite(self):
+		ctx = contexte_simple()
+		self.assertEqual(M.appliquer(ctx, {}, "Fiche technique"), ctx)
+		for valeur in (
+			{"couleur": "red}\\input{/etc/passwd}"}, {"largeur_photo": float("inf")},
+			{"hauteur_photo": True}, {"ordre": ["presentation"] * 5},
+			{"ordre": [[], 1, 2, 3, 4]}, {"position_photo": "inconnue"},
+			{"commande": "\\input"}, {"largeur_photo": 100},
+			{"largeur_logo": 100}, {"largeur_logo": True}, {"largeur_logo": "32"},
+			{"position_marque": "ailleurs"}, {"alignement_marque": "\\input"},
+			{"afficher_nom_marque": "1"},
+			{"logo_x": float("nan")}, {"logo_y": float("inf")}, {"logo_x": "20"},
+			{"logo_y": True}, {"logo_x": -1}, {"logo_y": 298},
+		):
+			with self.subTest(valeur=valeur), self.assertRaises(ValueError):
+				M.normaliser(valeur)
+		with self.assertRaises(ValueError):
+			M.configuration({"inconnu": {}})
+		self.assertEqual(M.normaliser({"position_photo": "gauche"})["largeur_photo"], 55)
+		ancien = M.normaliser({"position_photo": "droite", "largeur_photo": 40})
+		self.assertEqual(M.normaliser({**ancien, **M.MARQUE_DEFAUTS}), ancien)
+		ctx["mise_en_page"] = ancien
+		self.assertEqual(M.appliquer(ctx, {"mises_en_page": {"fiche": ancien}}, "Fiche technique"), ctx)
+		libre = M.normaliser({"position_marque": "libre", "largeur_logo": 70,
+			"afficher_nom_marque": 1, "logo_x": 210, "logo_y": 297})
+		self.assertEqual(libre["logo_x"], 140)
+		self.assertLessEqual(libre["logo_y"] + M.hauteur_zone_marque(libre), 297)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_logo_libre_coordonnees_exactes_premiere_page_et_rtl(self):
+		import pymupdf
+		from PIL import Image
+
+		im = io.BytesIO()
+		Image.new("RGB", (200, 100), "#176b44").save(im, format="PNG")
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		c["sections"][0]["texte"] = "Description technique du produit. " * 500
+		pdf_initial, _ = L.compiler(L.source(c, ctx), {})
+		ctx["mise_en_page"] = M.normaliser({"position_marque": "libre", "logo_x": 120.4,
+			"logo_y": 70.6, "largeur_logo": 32, "afficher_nom_marque": 1})
+		pdf, _ = L.compiler(L.source(c, ctx, assets={"logo": "images/logo.png"}), {"images/logo.png": im.getvalue()})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc, pymupdf.open(stream=pdf_initial, filetype="pdf") as initial:
+			self.assertEqual(len(doc), len(initial))
+			self.assertGreater(len(doc), 1)
+			logo = doc[0].get_image_rects(doc[0].get_images()[0][0])[0]
+			self.assertAlmostEqual(logo.x0, 120.4 * 72 / 25.4, delta=.3)
+			self.assertAlmostEqual(logo.y0, 70.6 * 72 / 25.4, delta=.3)
+			self.assertAlmostEqual(logo.width, 32 * 72 / 25.4, delta=.3)
+			for page in list(doc)[1:]:
+				self.assertTrue(all(not page.get_image_rects(img[0]) for img in page.get_images()))
+			self.assertEqual(doc[0].search_for("Fiche technique"), initial[0].search_for("Fiche technique"))
+		c.update(titre="دليل الاستخدام", resume="جهاز لتنقية المياه ecoPurium", sections=[])
+		pdf, _ = L.compiler(L.source(c, ctx, langue="ar", rtl=True, assets={"logo": "images/logo.png"}), {"images/logo.png": im.getvalue()})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			logo = doc[0].get_image_rects(doc[0].get_images()[0][0])[0]
+			self.assertAlmostEqual(logo.x0, 120.4 * 72 / 25.4, delta=.3)
+			self.assertAlmostEqual(logo.y0, 70.6 * 72 / 25.4, delta=.3)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_zone_marque_positions_alignement_et_masquage(self):
+		import pymupdf
+		from PIL import Image
+
+		im = io.BytesIO()
+		Image.new("RGB", (200, 100), "#176b44").save(im, format="PNG")
+		ctx = contexte_simple()
+		ctx["logo"] = "/files/logo-test.png"
+		for position, alignement, largeur in (
+			("avant_titre", "gauche", 24), ("apres_titre", "centre", 40),
+			("fin_document", "droite", 50), ("masquee", "gauche", 32),
+		):
+			with self.subTest(position=position):
+				ctx["mise_en_page"] = M.normaliser({"position_marque": position,
+					"alignement_marque": alignement, "largeur_logo": largeur, "afficher_nom_marque": 1})
+				tex = L.source(contenu_simple(ctx), ctx, assets={"logo": "images/logo.png"})
+				pdf, _ = L.compiler(tex, {"images/logo.png": im.getvalue()})
+				with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+					if position == "masquee":
+						self.assertTrue(all(not p.get_images() for p in doc))
+						continue
+					page = next(p for p in doc if p.get_images())
+					logo = page.get_image_rects(page.get_images()[0][0])[0]
+					self.assertTrue(page.rect.contains(logo))
+					self.assertAlmostEqual(logo.width, largeur * 72 / 25.4, delta=1)
+					if alignement == "gauche":
+						self.assertAlmostEqual(logo.x0, 18 * 72 / 25.4, delta=1)
+					elif alignement == "centre":
+						self.assertAlmostEqual((logo.x0 + logo.x1) / 2, page.rect.width / 2, delta=1)
+					else:
+						self.assertAlmostEqual(logo.x1, page.rect.width - 18 * 72 / 25.4, delta=1)
+					if position == "avant_titre":
+						self.assertLess(logo.y1, page.search_for("Fiche technique")[0].y0)
+					elif position == "apres_titre":
+						self.assertGreater(logo.y0, page.search_for("Fiche technique")[0].y1)
+					else:
+						self.assertGreater(logo.y0, page.search_for("Variantes couvertes")[0].y1)
+				self.assertIn(r"{\bfseries ecoPurium}\par", tex)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_positions_pdf_et_ordre(self):
+		import pymupdf
+		from PIL import Image
+
+		im = io.BytesIO()
+		Image.new("RGB", (180, 120), "teal").save(im, format="PNG")
+		for position in ("avant", "apres", "gauche", "droite"):
+			with self.subTest(position=position):
+				ctx = contexte_simple()
+				ctx["images"] = [{"image": "/files/test.png", "legende": "Photo de test", "article": ""}]
+				ctx["mise_en_page"] = M.normaliser({"position_photo": position, "largeur_photo": 40,
+					"ordre": ["caracteristiques", "presentation", "rubriques", "variantes", "illustrations"]})
+				c = contenu_simple(ctx)
+				pdf, _ = L.compiler(L.source(c, ctx, assets={"images": ["images/image-0.png"]}), {"images/image-0.png": im.getvalue()})
+				with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+					page = doc[0]
+					photo = page.get_image_rects(page.get_images()[0][0])[0]
+					resume = page.search_for("Un produit ecoPurium.")[0]
+					self.assertTrue(page.rect.contains(photo))
+					self.assertLess(page.search_for("Caractéristiques techniques")[0].y0, min(photo.y0, resume.y0))
+					if position == "avant":
+						self.assertLess(photo.y1, resume.y0)
+					elif position == "apres":
+						self.assertLess(resume.y1, photo.y0)
+					elif position == "gauche":
+						self.assertLess(photo.x1, resume.x0)
+					else:
+						self.assertLess(resume.x1, photo.x0)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_colonnes_longues_et_arabe(self):
+		import pymupdf
+		from PIL import Image
+
+		im = io.BytesIO()
+		Image.new("RGB", (100, 180), "teal").save(im, format="PNG")
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": "/files/test.png", "legende": "Illustration", "article": ""}]
+		ctx["mise_en_page"] = M.normaliser({"position_photo": "droite", "largeur_photo": 35})
+		c = contenu_simple(ctx)
+		c["resume"] = "Description détaillée du produit. " * 160 + "FIN DESCRIPTION"
+		pdf, _ = L.compiler(L.source(c, ctx, assets={"images": ["images/image-0.png"]}), {"images/image-0.png": im.getvalue()})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			self.assertGreater(len(doc), 1)
+			texte = "".join(p.get_text() for p in doc)
+			self.assertIn("FIN DESCRIPTION", texte)
+			self.assertIn("Caractéristiques techniques", texte)
+			for page in doc:
+				for block in page.get_text("blocks"):
+					self.assertLess(block[3], page.rect.height)
+		c.update(titre="دليل الاستخدام", resume="جهاز لتنقية المياه ecoPurium")
+		pdf, _ = L.compiler(L.source(c, ctx, langue="ar", rtl=True, assets={"images": ["images/image-0.png"]}), {"images/image-0.png": im.getvalue()})
+		self.assertTrue(pdf.startswith(b"%PDF"))

@@ -1,0 +1,198 @@
+{
+ "doctype": "DocType",
+ "name": "Dossier Produit",
+ "module": "Aquaworld IA",
+ "engine": "InnoDB",
+ "istable": 0,
+ "issingle": 0,
+ "editable_grid": 1,
+ "field_order": [
+  "article",
+  "titre",
+  "marque_document",
+  "logo_marque_avec_entete",
+  "entete",
+  "consignes",
+  "mises_en_page",
+  "variantes",
+  "sources",
+  "images",
+  "traitement",
+  "etat_traitement",
+  "progression",
+  "message_traitement",
+  "token_traitement",
+  "debut_traitement",
+  "utilisateur_traitement"
+ ],
+ "fields": [
+  {
+   "fieldname": "mises_en_page",
+   "fieldtype": "Long Text",
+   "label": "Mises en page des documents",
+   "hidden": 1
+  },
+  {
+   "fieldname": "article",
+   "fieldtype": "Link",
+   "label": "Article parent",
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "titre",
+   "fieldtype": "Data",
+   "label": "Produit",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "entete",
+   "fieldtype": "Link",
+   "options": "Letter Head",
+   "label": "En-tête des PDF",
+   "description": "Vide : logo de la marque. Le modèle choisi et son pied de page sont appliqués à chaque page."
+  },
+  {
+   "fieldname": "consignes",
+   "fieldtype": "Small Text",
+   "label": "Consignes de rédaction"
+  },
+  {
+   "fieldname": "variantes",
+   "fieldtype": "Table",
+   "label": "Variantes couvertes",
+   "options": "Dossier Produit Variante"
+  },
+  {
+   "fieldname": "sources",
+   "fieldtype": "Table",
+   "label": "Manuels et documents sources",
+   "options": "Dossier Produit Source"
+  },
+  {
+   "fieldname": "images",
+   "fieldtype": "Table",
+   "label": "Photos et illustrations",
+   "options": "Dossier Produit Image"
+  },
+  {
+   "fieldname": "traitement",
+   "fieldtype": "Section Break",
+   "label": "Traitement"
+  },
+  {
+   "fieldname": "etat_traitement",
+   "fieldtype": "Data",
+   "label": "État du traitement",
+   "read_only": 1
+  },
+  {
+   "fieldname": "progression",
+   "fieldtype": "Int",
+   "label": "Progression",
+   "read_only": 1
+  },
+  {
+   "fieldname": "message_traitement",
+   "fieldtype": "Small Text",
+   "label": "Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "token_traitement",
+   "fieldtype": "Data",
+   "label": "Identifiant du traitement",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "debut_traitement",
+   "fieldtype": "Datetime",
+   "label": "Début",
+   "read_only": 1
+  },
+  {
+   "fieldname": "utilisateur_traitement",
+   "fieldtype": "Link",
+   "label": "Lancé par",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "marque_document",
+   "fieldtype": "Link",
+   "options": "Brand",
+   "label": "Marque du document",
+   "description": "Vide : marque de l’article. Ce choix s’applique aux nouvelles fiches et aux nouveaux manuels du dossier."
+  },
+  {
+   "fieldname": "logo_marque_avec_entete",
+   "fieldtype": "Check",
+   "label": "Afficher le logo de marque avec un en-tête personnalisé",
+   "default": "0"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Item Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Aquaworld IA",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  }
+ ],
+ "creation": "2026-11-04 10:00:00.000000",
+ "modified": "2026-11-04 10:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "autoname": "DPR-.YYYY.-.#####",
+ "title_field": "titre"
+}

@@ -93,7 +93,7 @@ class TestLotsParalleles(unittest.TestCase):
 		paras = [{"id": i, "texte": "Paragraph number %d about water" % i} for i in range(9)]
 		avancement = []
 		with mock.patch.object(T2, "chat_json_differe", faux_differe), \
-		     mock.patch("aquaworld_ia.ia.client.client_et_modele", lambda usage="texte": ("client", "x", 0.2)), \
+		     mock.patch("aquaworld_ia.ia.client.client_et_modele", lambda usage="texte", **kw: ("client", "x", 0.2)), \
 		     mock.patch("aquaworld_ia.ia.journal.enregistrer") as jr:
 			trad, laisses = T2.traduire_tout(paras, {"code": "fr", "libelle": "Français"}, taille_lot=2, parallele=3,
 			                                 progression=lambda f, t: avancement.append((f, t)))
@@ -109,7 +109,7 @@ class TestLotsParalleles(unittest.TestCase):
 		from aquaworld_ia.manuels import traduction as T2
 
 		with mock.patch.object(T2, "chat_json_differe", lambda c, s, u: {"sortie": None, "journal": {"appel": "chat", "modele": "x", "duree_ms": 1, "erreur": "boom"}}), \
-		     mock.patch("aquaworld_ia.ia.client.client_et_modele", lambda usage="texte": ("client", "x", 0.2)), \
+		     mock.patch("aquaworld_ia.ia.client.client_et_modele", lambda usage="texte", **kw: ("client", "x", 0.2)), \
 		     mock.patch("aquaworld_ia.ia.journal.enregistrer"):
 			trad, laisses = T2.traduire_tout([{"id": 1, "texte": "Hello water"}, {"id": 2, "texte": "Bye water"}], {"code": "fr"}, taille_lot=1, parallele=2)
 		self.assertEqual(sorted(laisses), [1, 2])

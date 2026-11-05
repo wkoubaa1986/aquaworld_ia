@@ -11,6 +11,22 @@ from __future__ import annotations
 # OpenAI le 23/09/2026 ; les autres sont la grille de 2025, à vérifier si on les remet en service.
 # Correspondance par préfixe, le plus long d'abord : « gpt-5.2-2026-01-15 » prend la ligne gpt-5.2.
 TARIFS_TEXTE_PAR_MODELE = {
+	# Tarifs Standard vérifiés le 05/11/2026 sur les fiches officielles :
+	# https://developers.openai.com/api/docs/models/<identifiant>
+	# Hors cache, modes accélérés, traitement régional et contexte long.
+	"gpt-6-astra": (10.00, 50.00),
+	"gpt-6.1-sol": (2.00, 10.00),
+	"gpt-6.1-terra": (1.00, 5.00),
+	"gpt-6-luna": (0.10, 0.50),
+	"gpt-6-sol": (2.00, 10.00),
+	# Tarif promotionnel GPT-5.6 Sol annoncé jusqu'au 30/11/2026 ; à revérifier ensuite.
+	"gpt-5.6-sol": (4.00, 20.00),
+	"gpt-5.6-terra": (2.00, 12.00),
+	"gpt-5.6-luna": (0.20, 1.20),
+	"gpt-5.5": (5.00, 30.00),
+	"gpt-5.4": (2.50, 15.00),
+	"gpt-5.4-mini": (0.75, 4.50),
+	"gpt-4.1": (2.00, 8.00),
 	"gpt-5.2-pro": (10.50, 84.00),
 	"gpt-5.2": (1.75, 14.00),
 	"gpt-5-mini": (0.25, 2.00),

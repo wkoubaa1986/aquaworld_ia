@@ -25,7 +25,13 @@
   "cout_estime",
   "duree_ms",
   "sb_erreur_6",
-  "erreur"
+  "erreur",
+  "section_produit",
+  "dossier_produit",
+  "generation_produit",
+  "action_produit",
+  "langue_produit",
+  "usage_inconnu"
  ],
  "fields": [
   {
@@ -48,7 +54,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Fonctionnalité",
-   "options": "Manuel\nEmballage texte\nEmballage image\nEmballage faces\nMockup 3D\nEmballage fond\nLogo IA\nManuel illustration\nManuel lecture\nManuel mise en page\nTampon IA\nEnquête écarts stock",
+   "options": "Manuel\nEmballage texte\nEmballage image\nEmballage faces\nMockup 3D\nEmballage fond\nLogo IA\nManuel illustration\nManuel lecture\nManuel mise en page\nTampon IA\nEnquête écarts stock\nDocument produit — lecture\nDocument produit — rédaction\nDocument produit — fiche technique\nDocument produit — manuel\nDocument produit — traduction",
    "read_only": 1
   },
   {
@@ -155,6 +161,45 @@
    "fieldname": "erreur",
    "fieldtype": "Small Text",
    "label": "Erreur",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_produit",
+   "fieldtype": "Section Break",
+   "label": "Génération de documents produit",
+   "depends_on": "eval:doc.dossier_produit"
+  },
+  {
+   "fieldname": "dossier_produit",
+   "fieldtype": "Link",
+   "options": "Dossier Produit",
+   "label": "Dossier produit",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "generation_produit",
+   "fieldtype": "Data",
+   "label": "Génération",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "action_produit",
+   "fieldtype": "Data",
+   "label": "Action",
+   "read_only": 1
+  },
+  {
+   "fieldname": "langue_produit",
+   "fieldtype": "Data",
+   "label": "Langue cible",
+   "read_only": 1
+  },
+  {
+   "fieldname": "usage_inconnu",
+   "fieldtype": "Check",
+   "label": "Consommation non communiquée par le fournisseur",
    "read_only": 1
   }
  ],

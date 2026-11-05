@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"aqia_h1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Aquaworld IA</b></span>\", \"col\": 12}}, {\"id\": \"aqia_s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Manuels multilingues\", \"col\": 4}}, {\"id\": \"aqia_s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Designs d'emballage\", \"col\": 4}}, {\"id\": \"aqia_s_studio\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Studio emballage\", \"col\": 4}}, {\"id\": \"aqia_s_studio_manuel\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Studio manuel\", \"col\": 4}}, {\"id\": \"aqia_s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Journal IA\", \"col\": 4}}, {\"id\": \"aqia_h2\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Réglages</b></span>\", \"col\": 12}}, {\"id\": \"aqia_s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Réglages\", \"col\": 4}}, {\"id\": \"aqia_s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Langues\", \"col\": 4}}, {\"id\": \"aqia_s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Pictogrammes\", \"col\": 4}}, {\"id\": \"aqia_s_biblio\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bibliothèque emballage\", \"col\": 4}}]",
+ "content": "[{\"id\": \"aqia_h1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Aquaworld IA</b></span>\", \"col\": 12}}, {\"id\": \"aqia_documents_produit\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Documents produit IA\", \"col\": 4}}, {\"id\": \"aqia_s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Manuels multilingues\", \"col\": 4}}, {\"id\": \"aqia_s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Designs d'emballage\", \"col\": 4}}, {\"id\": \"aqia_s_studio\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Studio emballage\", \"col\": 4}}, {\"id\": \"aqia_s_studio_manuel\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Studio manuel\", \"col\": 4}}, {\"id\": \"aqia_s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Journal IA\", \"col\": 4}}, {\"id\": \"aqia_h2\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Réglages</b></span>\", \"col\": 12}}, {\"id\": \"aqia_s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Réglages\", \"col\": 4}}, {\"id\": \"aqia_entetes_documents\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"En-têtes des documents\", \"col\": 4}}, {\"id\": \"aqia_s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Langues\", \"col\": 4}}, {\"id\": \"aqia_s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Pictogrammes\", \"col\": 4}}, {\"id\": \"aqia_s_biblio\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bibliothèque emballage\", \"col\": 4}}]",
  "creation": "2026-09-22 14:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -31,6 +31,13 @@
  ],
  "sequence_id": 40.0,
  "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "label": "Documents produit IA",
+   "link_to": "documents-produit",
+   "type": "Page"
+  },
   {
    "color": "Blue",
    "doc_view": "List",
@@ -70,6 +77,13 @@
    "doc_view": "",
    "label": "Réglages",
    "link_to": "Aquaworld IA Reglages",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "En-têtes des documents",
+   "link_to": "Letter Head",
    "type": "DocType"
   },
   {

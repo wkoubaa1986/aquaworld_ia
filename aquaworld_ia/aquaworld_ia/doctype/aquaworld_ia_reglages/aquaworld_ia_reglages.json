@@ -12,6 +12,20 @@
   "cb_1",
   "variantes_max",
   "lot_paragraphes",
+  "sb_modeles_outils",
+  "modeles_outils_aide",
+  "modele_fiche_technique",
+  "modele_manuel_produit",
+  "modele_lecture_documents",
+  "modele_traduction_documents",
+  "modele_traduction_manuels",
+  "modele_studio_manuel",
+  "modele_texte_emballage",
+  "cb_modeles_images",
+  "modele_image_manuels",
+  "modele_image_emballage",
+  "modele_logo",
+  "modele_mockup",
   "sb_co_ts_usd_1",
   "plafond_mensuel_usd",
   "alerte_pourcentage",
@@ -22,6 +36,8 @@
   "prix_image_low",
   "prix_image_medium",
   "prix_image_high",
+  "sb_documents_produit",
+  "documents_produit_liens",
   "sb_manuels_2",
   "glossaire_global",
   "instructions_globales",
@@ -43,22 +59,22 @@
   {
    "fieldname": "sb_mod_les_0",
    "fieldtype": "Section Break",
-   "label": "Modèles"
+   "label": "Modèles par défaut"
   },
   {
-   "description": "Vide = celui d'AI Settings (gpt-5.2 en prod). Traductions et textes d'emballage.",
+   "description": "Modèle utilisé lorsqu’aucun modèle propre à l’outil n’est renseigné ci-dessous. Vide = modèle défini dans AI Settings.",
    "fieldname": "modele_texte",
    "fieldtype": "Autocomplete",
    "label": "Modèle texte",
-   "options": "gpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
   },
   {
    "default": "gpt-image-2",
-   "description": "gpt-image-2 : le modèle vedette (meilleure fidélité aux références, tailles souples, moins cher). gpt-image-1 est arrêté par OpenAI le 23/10/2026, gpt-image-1.5 le 01/12/2026. gpt-image-1-mini : brouillons à 0,005 $. Vous pouvez taper un autre identifiant (ex. une version 2.5).",
+   "description": "Modèle de création et retouche d’images utilisé par défaut. Les variantes Sunburst et Flare sont proposées avec GPT Image 2. Les modèles 1.5 et 1 Mini sont anciens et dépréciés. Vous pouvez saisir un autre identifiant compatible.",
    "fieldname": "modele_image",
    "fieldtype": "Autocomplete",
    "label": "Modèle image",
-   "options": "gpt-image-2\ngpt-image-1.5\ngpt-image-1-mini\ngpt-image-1"
+   "options": "gpt-image-2.6-sunburst\ngpt-image-2.6-flare\ngpt-image-2.5-sunburst\ngpt-image-2.5-flare\ngpt-image-2\ngpt-image-1.5\ngpt-image-1-mini"
   },
   {
    "default": "medium",
@@ -83,6 +99,98 @@
    "fieldname": "lot_paragraphes",
    "fieldtype": "Int",
    "label": "Paragraphes par appel (manuels)"
+  },
+  {
+   "fieldname": "sb_modeles_outils",
+   "fieldtype": "Section Break",
+   "label": "Modèles par outil"
+  },
+  {
+   "fieldname": "modeles_outils_aide",
+   "fieldtype": "HTML",
+   "options": "<p>Choisissez un modèle différent pour chaque outil. <b>Un champ vide reprend le modèle par défaut</b>. Les changements s’appliquent aux prochains appels IA ; les documents et les coûts déjà enregistrés restent conservés.</p><p class=\"text-muted small\">Les champs de gauche concernent le texte et la lecture. Ceux de droite concernent la création et la retouche d’images. Vous pouvez sélectionner une suggestion ou saisir un identifiant de modèle compatible avec votre accès API.</p><p class=\"text-muted small\">Catalogue vérifié le 05/11/2026 : Astra, Sol, Terra et Luna pour la rédaction et la lecture ; GPT Image pour créer et retoucher les images. La présence dans la liste ne garantit pas l’accès avec votre clé API. <a href=\"https://developers.openai.com/api/docs/models/all\" target=\"_blank\" rel=\"noopener\">Catalogue OpenAI</a>.</p>"
+  },
+  {
+   "fieldname": "modele_fiche_technique",
+   "fieldtype": "Autocomplete",
+   "label": "Fiches techniques",
+   "description": "Rédaction des fiches dans Documents produit IA. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "modele_manuel_produit",
+   "fieldtype": "Autocomplete",
+   "label": "Manuels produit",
+   "description": "Rédaction des manuels dans Documents produit IA. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "modele_lecture_documents",
+   "fieldtype": "Autocomplete",
+   "label": "Lecture des sources produit",
+   "description": "PDF scannés et photos de documents dans Documents produit IA. Choisissez un modèle capable de lire des images. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "modele_traduction_documents",
+   "fieldtype": "Autocomplete",
+   "label": "Traductions des documents produit",
+   "description": "Traduction des fiches techniques et des manuels dans Documents produit IA. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "modele_traduction_manuels",
+   "fieldtype": "Autocomplete",
+   "label": "Manuels multilingues",
+   "description": "Traduction des manuels fournisseurs, y compris les lots et les reprises du Studio manuel. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "modele_studio_manuel",
+   "fieldtype": "Autocomplete",
+   "label": "Studio manuel — lecture et mise en page",
+   "description": "Lecture des pages et reconstruction de leur présentation. Le modèle doit pouvoir lire des images. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "modele_texte_emballage",
+   "fieldtype": "Autocomplete",
+   "label": "Emballage — textes et tampons",
+   "description": "Rédaction des contenus et des tampons dans Designs d’emballage et Studio emballage. Vide = modèle texte par défaut.",
+   "options": "gpt-6-astra\ngpt-6.1-sol\ngpt-6.1-terra\ngpt-6-luna\ngpt-6-sol\ngpt-5.6-sol\ngpt-5.6-terra\ngpt-5.6-luna\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini\ngpt-5.2\ngpt-5-mini\ngpt-4.1\ngpt-4o-mini"
+  },
+  {
+   "fieldname": "cb_modeles_images",
+   "fieldtype": "Column Break",
+   "label": "Modèles image"
+  },
+  {
+   "fieldname": "modele_image_manuels",
+   "fieldtype": "Autocomplete",
+   "label": "Studio manuel — illustrations",
+   "description": "Création et remplacement des illustrations des manuels. Vide = modèle image par défaut.",
+   "options": "gpt-image-2.6-sunburst\ngpt-image-2.6-flare\ngpt-image-2.5-sunburst\ngpt-image-2.5-flare\ngpt-image-2\ngpt-image-1.5\ngpt-image-1-mini"
+  },
+  {
+   "fieldname": "modele_image_emballage",
+   "fieldtype": "Autocomplete",
+   "label": "Emballage — images et fonds",
+   "description": "Variantes visuelles, fonds, faces et retouches de photos produit. Vide = modèle image par défaut.",
+   "options": "gpt-image-2.6-sunburst\ngpt-image-2.6-flare\ngpt-image-2.5-sunburst\ngpt-image-2.5-flare\ngpt-image-2\ngpt-image-1.5\ngpt-image-1-mini"
+  },
+  {
+   "fieldname": "modele_logo",
+   "fieldtype": "Autocomplete",
+   "label": "Logos",
+   "description": "Création et retouche de logos dans le Studio emballage. Vide = modèle image par défaut.",
+   "options": "gpt-image-2.6-sunburst\ngpt-image-2.6-flare\ngpt-image-2.5-sunburst\ngpt-image-2.5-flare\ngpt-image-2\ngpt-image-1.5\ngpt-image-1-mini"
+  },
+  {
+   "fieldname": "modele_mockup",
+   "fieldtype": "Autocomplete",
+   "label": "Mockups 3D",
+   "description": "Mises en situation de l’emballage. Vide = modèle image par défaut.",
+   "options": "gpt-image-2.6-sunburst\ngpt-image-2.6-flare\ngpt-image-2.5-sunburst\ngpt-image-2.5-flare\ngpt-image-2\ngpt-image-1.5\ngpt-image-1-mini"
   },
   {
    "fieldname": "sb_co_ts_usd_1",
@@ -118,13 +226,14 @@
    "fieldtype": "Float",
    "label": "Prix jetons entrée (USD / million)",
    "precision": "4",
-   "description": "Vide = grille intégrée du modèle texte (gpt-5.2 : 1,75 $ entrée / 14 $ sortie par million, relevé le 23/09/2026). Saisissez une valeur pour l'imposer."
+   "description": "Saisi : tarif commun à tous les outils texte. Vide : grille intégrée du modèle réellement utilisé pour chaque appel. Les tarifs restent des estimations à vérifier."
   },
   {
    "fieldname": "prix_sortie_par_million",
    "fieldtype": "Float",
    "label": "Prix jetons sortie (USD / million)",
-   "precision": "4"
+   "precision": "4",
+   "description": "Saisi : tarif commun à tous les outils texte. Vide : grille intégrée du modèle utilisé."
   },
   {
    "default": "0.006",
@@ -132,21 +241,33 @@
    "fieldtype": "Float",
    "label": "Prix image low (USD)",
    "precision": "4",
-   "description": "Par image gpt-image-2 en 1024×1024 (0,006 / 0,053 / 0,211 $ en 09/2026). Indicatif : une image 1536 px coûte un peu plus."
+   "description": "Tarif indicatif par image de qualité low, commun aux outils image. À ajuster selon vos modèles et tailles d’image."
   },
   {
    "default": "0.053",
    "fieldname": "prix_image_medium",
    "fieldtype": "Float",
    "label": "Prix image medium (USD)",
-   "precision": "4"
+   "precision": "4",
+   "description": "Tarif indicatif par image de qualité medium, commun aux outils image."
   },
   {
    "default": "0.211",
    "fieldname": "prix_image_high",
    "fieldtype": "Float",
    "label": "Prix image high (USD)",
-   "precision": "4"
+   "precision": "4",
+   "description": "Tarif indicatif par image de qualité high, commun aux outils image."
+  },
+  {
+   "fieldname": "sb_documents_produit",
+   "fieldtype": "Section Break",
+   "label": "Fiches techniques et manuels — en-têtes"
+  },
+  {
+   "fieldname": "documents_produit_liens",
+   "fieldtype": "HTML",
+   "options": "<p>Créez plusieurs modèles avec votre logo, vos coordonnées et un pied de page. Choisissez ensuite l’en-tête à utiliser dans chaque dossier produit.</p><p><a class=\"btn btn-default btn-sm\" href=\"/app/letter-head\">Gérer les en-têtes</a> <a class=\"btn btn-default btn-sm\" href=\"/app/letter-head/new-letter-head\">Créer un en-tête</a> <a class=\"btn btn-default btn-sm\" href=\"/app/documents-produit\">Ouvrir Documents produit IA</a></p><p class=\"text-muted small\">Les modèles de rédaction, de lecture et de traduction se choisissent dans « Modèles par outil » ci-dessus. Le choix de l’en-tête, des sources et des variantes se fait dans chaque dossier ; le coût de génération y est affiché.</p>"
   },
   {
    "fieldname": "sb_manuels_2",

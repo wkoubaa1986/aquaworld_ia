@@ -35,3 +35,14 @@ fixtures = [
 	{"dt": "Police Emballage"},
 	{"dt": "Ressource Emballage"},
 ]
+
+# Documents produit : droits de l'article appliqués aussi aux liens directs et fichiers privés.
+has_permission = {
+    "Dossier Produit": "aquaworld_ia.documents_produit.permissions.dossier_permission",
+    "Document Produit": "aquaworld_ia.documents_produit.permissions.document_permission",
+    "File": "aquaworld_ia.documents_produit.permissions.fichier_permission",
+}
+permission_query_conditions = {
+    "Dossier Produit": "aquaworld_ia.documents_produit.permissions.dossier_query",
+    "Document Produit": "aquaworld_ia.documents_produit.permissions.document_query",
+}

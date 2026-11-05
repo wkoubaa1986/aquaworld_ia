@@ -7,12 +7,32 @@ de `ia/chat.py` et `ia/images.py`, qui passent tous les deux par `enregistrer`.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 import frappe
 from frappe import _
 from frappe.utils import flt, now_datetime
 
 from aquaworld_ia.ia import couts
 from aquaworld_ia.ia.client import PlafondAtteint, reglages
+
+_generation_produit = ContextVar("generation_produit", default=None)
+
+
+@contextmanager
+def suivre_generation(dossier, token, action, langue):
+	"""Regroupe lecture, rédaction et reprises sous le même lancement du studio."""
+	jeton = _generation_produit.set({
+		"dossier_produit": dossier,
+		"generation_produit": token,
+		"action_produit": action,
+		"langue_produit": langue or "fr",
+	})
+	try:
+		yield
+	finally:
+		_generation_produit.reset(jeton)
 
 
 def _reference(doc):
@@ -39,6 +59,7 @@ def enregistrer(*, fonctionnalite: str, appel: str, modele: str, doc=None, usage
 	entree, sortie = _jetons(usage)
 	tarifs = couts.tarifs_depuis_reglages(reglages(), modele=modele)
 	doctype, name = _reference(doc)
+	generation = _generation_produit.get()
 	try:
 		ligne = frappe.get_doc({
 			"doctype": "Journal IA",
@@ -58,7 +79,12 @@ def enregistrer(*, fonctionnalite: str, appel: str, modele: str, doc=None, usage
 			"duree_ms": int(duree_ms or 0),
 			"statut": "Erreur" if erreur else "OK",
 			"erreur": (erreur or "")[:1000] or None,
+			**(dict(generation, usage_inconnu=int(usage is None)) if generation else {}),
 		}).insert(ignore_permissions=True)
+		if generation:
+			# Dans le worker produit, aucun document n'est modifié pendant un appel IA.
+			# Garder sa consommation même si le contenu reçu échoue ensuite à la validation.
+			frappe.db.commit()
 		return ligne.name
 	except Exception:
 		frappe.log_error(title="Journal IA : écriture impossible", message=frappe.get_traceback())

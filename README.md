@@ -385,6 +385,34 @@ compteurs de série (`aligner_series`). Ex. :
 - Chaque appel est journalisé (`Journal IA` : jetons, images, coût estimé). Plafond mensuel et
   seuil d'alerte e-mail dans les réglages ; grille de tarifs éditable (les prix OpenAI changent).
 
+Dans **Aquaworld IA → Réglages → Modèles par outil**, sélectionner indépendamment les modèles
+des fiches techniques, des manuels produit, de la lecture des sources produit et de leurs
+traductions. Les manuels multilingues, la lecture/mise en page du Studio manuel, les textes
+d’emballage, les illustrations des manuels, les images/fonds d’emballage, les logos et les
+mockups ont aussi leur propre réglage. Un champ vide reprend le modèle texte ou image général ;
+le modèle texte général vide reprend `AI Settings`, puis la configuration du site.
+Les identifiants restent saisissables librement et doivent être compatibles avec l’usage et
+l’accès API. Lecture de scans et reconstruction de pages nécessitent la lecture d’images.
+
+Le choix s’applique aux prochains appels, y compris les reprises et les traductions en lots
+parallèles. Les modèles effectivement appelés sont conservés dans le journal. Les coûts
+texte suivent leur grille intégrée, sauf tarif global explicitement renseigné ; les tarifs
+image restent des estimations communes configurées par qualité. Aucun modèle actif n’est
+changé lors de l’installation des nouveaux champs, laissés vides.
+
+Le catalogue des réglages, vérifié le 05/11/2026 dans la [documentation OpenAI](https://developers.openai.com/api/docs/models/all),
+inclut GPT-6 Astra, GPT-6.1 Sol, GPT-6.1 Terra, GPT-6 Luna, GPT-6 Sol, les trois modèles GPT-5.6,
+GPT-5.5, GPT-5.4 et Mini, ainsi que les choix texte précédemment proposés. Pour les images,
+GPT Image 2.6 et 2.5 Sunburst/Flare complètent GPT Image 2 et les anciens 1.5/1 Mini ; le modèle
+retiré GPT Image 1 n’est plus suggéré. La saisie d’un identifiant complet reste possible et
+la présence dans la liste ne garantit pas les droits d’accès API du compte.
+
+Les appels GPT-6 et GPT-5.6 conservent le mode JSON et leur raisonnement par défaut, sans
+paramètre de température incompatible. Les tarifs texte ajoutés sont ceux du traitement
+Standard, hors cache, contexte long et suppléments éventuels. Le tarif promotionnel GPT-5.6
+Sol est annoncé jusqu’au 30/11/2026 et devra être revérifié. Les estimations d’images restent
+configurées par qualité et doivent être adaptées au modèle et à la taille employés.
+
 ## Développement
 
 ```
@@ -395,3 +423,140 @@ node --test aquaworld_ia/tests/test_studio_emballage.js  # depuis le dossier de 
 
 Aucun DocType en fixtures : langues et pictogrammes sont semés (idempotents) par
 `aquaworld_ia.install.after_migrate`.
+
+## Documents produit IA
+
+Dans l’onglet **Aquaworld IA**, le raccourci **Documents produit IA** ouvre le générateur.
+La partie **Réglages** donne accès aux **En-têtes des documents**, aux réglages IA et aux
+langues. Le formulaire **Aquaworld IA Réglages** comporte aussi une section pour créer ou
+gérer les en-têtes et ouvrir le générateur.
+
+Depuis une fiche Article, ouvrir **Aquaworld IA → Documents produit IA**, ou la section
+**Documents produit**. La page `/app/documents-produit` regroupe les dossiers.
+Un dossier appartient à l'article parent et définit les variantes couvertes, les sources
+(PDF ou photos de pages) et les illustrations. Les manuels existants et les pièces jointes
+aux articles peuvent être réutilisés. Une page de PDF peut devenir une illustration.
+
+Chaque dossier comporte deux onglets : **Fiche technique** et **Manuel d’utilisation**.
+Chacun affiche sa commande de génération, son modèle IA, ses versions et ses traductions.
+Une note HTML **Comment utiliser cet onglet ?**, placée sous son titre, s’ouvre et se
+referme au clic ou au clavier. Le guide est adapté à la fiche ou au manuel : préparation
+avec ou sans PDF source, choix du modèle, rédaction, relecture, validation et traduction.
+Il explique aussi le logo et son placement libre, les en-têtes et pieds de page en image
+ou HTML, les colonnes photo/description, les versions et les coûts. L’ouverture de la
+note est conservée séparément pour chaque onglet pendant la navigation dans la page.
+La marque, l’en-tête, les sources, les photos et les variantes sont partagés ; les corrections
+sont enregistrées avant de changer d’onglet. **Créer les deux** reste accessible en haut.
+Le dernier onglet est mémorisé dans la session du navigateur ; un lien se terminant par
+`/fiche` ou `/manuel` ouvre directement le type voulu.
+
+**Mise en page personnalisée** permet de définir une disposition différente par onglet
+et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**
+(photo à gauche et description à droite, 50/50 au premier choix). On peut inverser les côtés
+et ajuster la répartition ; les autres blocs gardent toute la largeur. Les réglages incluent
+la photo au-dessus, sous, à gauche ou à droite de la description ; largeur
+(20–80 %, limitée à 55 % à côté du texte), hauteur maximale (20–120 mm), alignement du
+titre et couleur des titres. Les cinq blocs (présentation/photo, rubriques, caractéristiques,
+variantes, autres illustrations) se déplacent par glisser-déposer ou avec les flèches.
+L’en-tête, le titre et le pied de page conservent leurs emplacements. L’aperçu montre la
+disposition ; le PDF final dépend du contenu et de la pagination A4.
+
+La **Zone de marque** affiche le logo sélectionné dans l’aperçu, avec un choix de position
+au-dessus du titre, sous le titre ou à la fin du document. Elle peut être masquée, alignée
+à gauche, au centre ou à droite, avec une largeur maximale de logo entre 10 et 70 mm et
+un nom de marque facultatif. La zone apparaît une seule fois ; les en-têtes personnalisés
+restent répétés. La case **Afficher aussi le logo de la marque avec un en-tête personnalisé**
+reste nécessaire pour combiner les deux. **Voir / placer le logo** rejoint ces réglages
+depuis le cadre **Marque du document** ; **Actualiser le logo** récupère une modification
+de la fiche de marque et renouvelle l’image affichée grâce à son empreinte de contenu.
+L’aperçu montre la marque actuellement choisie et signale une différence avec celle de
+la version affichée : une nouvelle rédaction reste nécessaire pour actualiser les textes.
+
+**Déplacer le logo à la souris** active le **Placement libre sur la première page**.
+Le cadre se déplace sur l’aperçu A4 à la souris, au doigt ou avec les flèches du clavier
+(1 mm, ou 10 mm avec Maj). Les distances depuis les bords gauche et haut peuvent aussi
+être saisies au dixième de millimètre ; le cadre reste dans les limites de la page.
+On peut préparer son emplacement avant d’ajouter l’image de marque. **Actualiser le fond
+PDF** affiche la version sélectionnée avec les corrections en cours, ou un exemple si
+aucune version n’existe, sans IA ni création de document ou de fichier. Le logo libre
+se superpose à la première page sans déplacer le texte : le fond permet de vérifier
+son emplacement. Son déplacement ne relance pas la préparation du fond. Ces réglages
+restent indépendants entre fiche technique et manuel.
+
+**Enregistrer la mise en page**, puis **Générer le PDF**, applique ces réglages au contenu
+existant dans une nouvelle version, sans appel IA et sans écraser les anciennes versions.
+Les nouvelles rédactions conservent aussi la disposition choisie ; une traduction reprend
+la présentation de sa version source. La photo principale reste la première photo de la
+version. Le réglage d’une fiche ne modifie pas celui du manuel. **Disposition initiale**
+rétablit le gabarit d’origine pour l’onglet actif.
+
+Sans PDF de référence, les données de l’article et les éléments fournis servent de base,
+avec des points à vérifier lorsque les informations manquent. Les textes, rubriques,
+caractéristiques et légendes restent modifiables après génération.
+
+**Marque du document** permet de choisir une marque existante (par exemple ecoPurium),
+d’en créer une et d’ajouter ou remplacer son logo directement dans le générateur.
+Le choix vide reprend la marque de l’article. Le choix explicite s’applique aux nouvelles
+fiches et aux nouveaux manuels du dossier, sans modifier les articles du catalogue ni les
+marques de leurs composants. Le logo est enregistré sur la marque et partagé avec ses
+autres produits. Une option permet de l’afficher aussi avec un en-tête personnalisé.
+Changer de marque nécessite une nouvelle rédaction pour les documents existants ; changer
+seulement le logo puis **Générer le PDF** crée une version sans appel IA.
+
+**Créer la fiche technique**, **Créer le manuel** ou **Créer les deux** lance la rédaction
+française en arrière-plan. Relire les caractéristiques, leurs sources, leurs modèles
+concernés et les points à vérifier. **Enregistrer mes corrections** crée une nouvelle
+version. **Valider et générer le PDF** est disponible après résolution des points à vérifier.
+Le PDF, le fichier `.tex` et l'archive LaTeX avec ses images restent attachés à la version.
+
+**Traduire** part d'une version française. La traduction est sauvegardée immédiatement en
+base, comme brouillon indépendant, avec sa langue et son lien vers la version française.
+Sa sauvegarde ne dépend pas de la réussite d'une compilation PDF. Une nouvelle version
+française ou une modification des articles/sources signale les documents concernés « À actualiser ».
+Les PDF validés sont accessibles depuis le parent et les variantes couvertes. Les fichiers
+restent privés et héritent des droits de l'article et du dossier.
+
+Le studio affiche les **modèles effectifs par étape**, leurs tarifs et le **coût estimé par
+génération** (50 derniers lancements avec appels IA), ainsi que le total du dossier.
+Chaque lancement regroupe les lectures de scans, la rédaction et les reprises éventuelles ;
+les traductions sont des lancements distincts. **Détail** donne les jetons et le coût de chaque
+appel. Les coûts sont calculés après l'appel, hors remises de cache et taxes ; une consommation
+non communiquée est signalée comme inconnue, jamais présentée comme un coût nul confirmé.
+Les appels restent journalisés si une étape ultérieure échoue. PDF et corrections manuelles
+ne déclenchent aucun appel IA. **Régler les modèles par outil** ouvre les réglages depuis le
+générateur. Les tarifs se règlent dans **Aquaworld IA Réglages**.
+
+**En-tête des PDF** permet de choisir parmi les modèles actifs **Letter Head / En-tête**
+d’ERPNext, d’en créer plusieurs et d’en voir un aperçu. Le modèle et son pied de page sont
+repris sur chaque page ; le choix vide conserve le logo de la marque. Les images locales
+et le HTML de présentation sont pris en charge. Scripts, styles globaux et ressources
+distantes ne sont pas exécutés : vérifier l’aperçu pour les modèles HTML complexes.
+Le choix est enregistré avec le dossier et le contenu du modèle est figé dans chaque version.
+Changer de modèle puis **Générer le PDF** crée une nouvelle version avec le texte existant,
+sans appel IA et sans écraser l’ancienne. Les bandeaux sont inclus dans l’archive LaTeX.
+
+### Installation
+
+Les DocTypes et la page sont installés par `bench migrate`. `after_migrate` ajoute la section
+Article. Sur un serveur hors Frappe Cloud, installer les dépendances déclarées dans
+`pyproject.toml` avant de générer des PDF :
+
+```sh
+apt-get install --no-install-recommends texlive-xetex texlive-latex-extra texlive-fonts-recommended texlive-lang-arabic fonts-noto-core fonts-noto-cjk
+bench --site SITE migrate
+bench build --app aquaworld_ia
+```
+
+Un worker de la file `long` doit être actif. Les appels IA utilisent les réglages et le journal
+existants de l'app. Aucun appel de génération d'image n'est nécessaire : les photos proviennent
+des articles ou des documents sélectionnés. Maximum par dossier : 250 variantes, 12 sources,
+20 illustrations ; 30 Mo par fichier et 40 pages utiles par PDF.
+
+Le rendu utilise un modèle XeLaTeX contrôlé, des textes échappés et des images locales
+rasterisées. L'exécution de commandes est désactivée avec `-no-shell-escape` ; le délai de
+compilation est borné. Voir la [documentation XeTeX](https://tug.ctan.org/info/xetexref/xetex-reference.pdf).
+L'arabe utilise `bidi` et Noto Naskh Arabic ; les scripts CJK et les principaux autres scripts
+utilisent les familles Noto correspondantes. Une police manquante est signalée sans supprimer
+la traduction enregistrée. La suite `aquaworld_ia.tests.test_documents_produit` contrôle les
+versions, les permissions, les sources PDF/photo, les traductions (appels IA simulés) et les
+PDF réels en français, arabe et chinois.

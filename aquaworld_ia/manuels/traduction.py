@@ -162,7 +162,7 @@ def _traduire_lots_paralleles(lots, uniques, langue, glossaire, instructions, co
 	from aquaworld_ia.ia import journal
 	from aquaworld_ia.ia.client import client_et_modele
 
-	contexte_ia = client_et_modele("texte")
+	contexte_ia = client_et_modele("texte", fonctionnalite="Manuel")
 	journaux = {k: [] for k in range(len(lots))}
 
 	def un_lot(k):
