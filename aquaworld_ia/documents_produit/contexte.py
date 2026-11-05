@@ -25,7 +25,19 @@ def article_lisible(name):
 	return doc
 
 
-def fichier_lisible(url):
+def fichier_lisible(url, *, silencieux=False):
+	"""Vérifie les droits ; une vérification facultative ne remplit pas les messages de réponse."""
+	if not silencieux:
+		return _fichier_lisible(url)
+	muet_avant = frappe.flags.mute_messages
+	frappe.flags.mute_messages = True
+	try:
+		return _fichier_lisible(url)
+	finally:
+		frappe.flags.mute_messages = muet_avant
+
+
+def _fichier_lisible(url):
 	if not isinstance(url, str) or not url.startswith(("/files/", "/private/files/")):
 		frappe.throw(_("Ajoutez le fichier dans les pièces jointes de l’article ou du dossier."))
 	noms = frappe.get_all("File", filters={"file_url": url}, pluck="name")

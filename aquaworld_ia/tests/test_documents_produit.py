@@ -526,6 +526,48 @@ class TestDocumentsBase(unittest.TestCase):
 			with self.assertRaises((frappe.ValidationError, frappe.PermissionError)):
 				C.fichier_lisible(url)
 
+	def test_manuel_lie_absent_sans_popup_et_source_selectionnee_refusee(self):
+		import pymupdf
+		from frappe.utils.file_manager import save_file
+
+		absent = "/private/files/manuel-absent-" + frappe.generate_hash(length=12) + ".pdf"
+		with pymupdf.open() as pdf:
+			pdf.new_page().insert_text((60, 60), "Source disponible de test")
+			present = save_file("test-source-disponible.pdf", pdf.tobytes(), C.DOSSIER, self.name, is_private=1)
+		for url in (absent, present.file_url):
+			frappe.get_doc({"doctype": "Manuel Article", "article": self.d.article,
+				"titre": "Manuel lié de test", "pdf_source": url}).insert()
+		message_avant = {"message": "Message à conserver"}
+		with patch.object(frappe.local, "message_log", [message_avant]):
+			data = API.charger(self.name)
+			proposes = {s["fichier"] for s in data["sources_disponibles"]}
+			self.assertNotIn(absent, proposes)
+			self.assertIn(present.file_url, proposes)
+			self.assertEqual(frappe.local.message_log, [message_avant])
+			with self.assertRaises(frappe.PermissionError):
+				API.enregistrer(self.name, {"sources": [{"fichier": absent}]})
+			self.assertEqual(frappe.local.message_log[-1]["message"], "Vous ne pouvez pas lire ce fichier.")
+		self.assertFalse(API.dossier(self.name).sources)
+
+	def test_logo_absent_facultatif_sans_popup(self):
+		from aquaworld_ia.documents_produit import marques
+
+		nom = "Marque logo absent " + frappe.generate_hash(length=8)
+		url = "/private/files/logo-absent-" + frappe.generate_hash(length=12) + ".png"
+		frappe.get_doc({"doctype": "Brand", "brand": nom, "image": url}).insert()
+		API.enregistrer(self.name, {"marque_document": nom})
+		with patch.object(frappe.local, "message_log", []):
+			self.assertEqual(API.info_marque(self.name, nom)["logo"], "")
+			self.assertEqual(marques.infos(nom)["logo"], "")
+			self.assertEqual(API.charger(self.name)["contexte"]["logo"], "")
+			self.assertFalse(frappe.local.message_log)
+			with self.assertRaises(frappe.PermissionError):
+				C.fichier_lisible(url, silencieux=True)
+			self.assertFalse(frappe.local.message_log)
+			with self.assertRaises(frappe.PermissionError):
+				C.octets(url)
+			self.assertTrue(frappe.local.message_log)
+
 	def test_restrictions_article_protegent_listes_et_fichiers(self):
 		from frappe.utils.file_manager import save_file
 
@@ -577,6 +619,12 @@ class TestDocumentsBase(unittest.TestCase):
 		for fn, arg in ((API.charger, self.name), (API.lire_document, v.name), (C.octets, fichier.file_url)):
 			with self.assertRaises(frappe.PermissionError):
 				fn(arg)
+		with patch.object(frappe.local, "message_log", []):
+			muet_avant = frappe.flags.mute_messages
+			with self.assertRaises(frappe.PermissionError):
+				C.fichier_lisible(fichier.file_url, silencieux=True)
+			self.assertFalse(frappe.local.message_log)
+			self.assertEqual(frappe.flags.mute_messages, muet_avant)
 
 	def test_pdf_source_native_et_photo_vision(self):
 		import pymupdf
@@ -732,7 +780,9 @@ class TestDocumentsBase(unittest.TestCase):
 		self.assertTrue(C.octets(urls["pdf"]).startswith(b"%PDF"))
 		modeles[1].content = '<img src="/files/test-image-entete-inexistante.png">'
 		modeles[1].save(ignore_permissions=True)
-		self.assertTrue(API.charger(self.name)["erreur_entete"])
+		with patch.object(frappe.local, "message_log", []):
+			self.assertTrue(API.charger(self.name)["erreur_entete"])
+			self.assertFalse(frappe.local.message_log)
 		API.enregistrer(self.name, {"entete": ""})
 		sans = API.appliquer_entete(troisieme, API.dossier(self.name))
 		self.assertNotIn("entete", json.loads(sans.contexte_json))

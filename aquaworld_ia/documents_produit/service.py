@@ -169,7 +169,7 @@ def charger(name):
 			fields=["file_url", "file_name"],
 		):
 			try:
-				C.fichier_lisible(f.file_url)
+				C.fichier_lisible(f.file_url, silencieux=True)
 			except frappe.PermissionError:
 				continue
 			sources.append(
@@ -184,7 +184,7 @@ def charger(name):
 		):
 			if m.pdf_source:
 				try:
-					C.fichier_lisible(m.pdf_source)
+					C.fichier_lisible(m.pdf_source, silencieux=True)
 				except frappe.PermissionError:
 					continue
 				sources.append(

@@ -28,7 +28,7 @@ def _ressource(url, ressources):
 		if len(ressources) >= 10:
 			raise ValueError("Un en-tête peut contenir au maximum 10 images.")
 		try:
-			f = C.fichier_lisible(url)
+			f = C.fichier_lisible(url, silencieux=True)
 		except frappe.PermissionError:
 			raise frappe.PermissionError("Une image de cet en-tête est absente ou inaccessible. Ouvrez le modèle pour joindre une image accessible.")
 		b = C.octets(url)

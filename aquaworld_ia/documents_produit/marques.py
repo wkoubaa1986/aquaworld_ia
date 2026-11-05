@@ -28,7 +28,7 @@ def logo(name, tolerer_absent=False):
 	try:
 		url = lire(name).image
 		if url and url.startswith(("/files/", "/private/files/")):
-			f = C.fichier_lisible(url)
+			f = C.fichier_lisible(url, silencieux=tolerer_absent)
 			resultat.update(logo=f.file_url, logo_hash=f.content_hash)
 	except (frappe.PermissionError, frappe.DoesNotExistError):
 		if not tolerer_absent:
