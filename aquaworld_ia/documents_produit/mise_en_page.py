@@ -14,6 +14,7 @@ MARQUE_DEFAUTS = {
 	"largeur_logo": 32, "afficher_nom_marque": 0,
 	"logo_x": 150, "logo_y": 8,
 }
+PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1}
 
 
 def hauteur_zone_marque(disposition):
@@ -29,7 +30,7 @@ def normaliser(valeur=None):
 		"position_photo": "apres", "largeur_photo": 65, "hauteur_photo": 65,
 		"alignement_titre": "gauche", "couleur": "#087E8B", "ordre": list(ORDRE),
 	}
-	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS)):
+	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS) | set(PHOTOS_DEFAUTS)):
 		raise ValueError("Réglage de mise en page inconnu.")
 	resultat = {**defauts, **copy.deepcopy(valeur)}
 	if resultat["position_photo"] not in ("avant", "apres", "gauche", "droite"):
@@ -72,6 +73,14 @@ def normaliser(valeur=None):
 			resultat.pop(cle, None)
 		else:
 			resultat[cle] = valeur_marque
+	for cle, defaut in PHOTOS_DEFAUTS.items():
+		v = valeur.get(cle, defaut)
+		if type(v) is not int or v not in ((0, 1) if cle == "photos_variantes" else (1, 2, 3)):
+			raise ValueError("Présentation des photos invalide.")
+		if v == defaut:
+			resultat.pop(cle, None)
+		else:
+			resultat[cle] = v
 	return resultat
 
 

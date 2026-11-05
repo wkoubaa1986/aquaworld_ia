@@ -212,6 +212,15 @@ def charger(name):
 
 
 @frappe.whitelist()
+def photos_disponibles(name, variantes=None):
+	from aquaworld_ia.documents_produit.photos import disponibles
+
+	d = dossier(name)
+	selection = [r.article for r in d.variantes] if variantes is None else _json(variantes)
+	return disponibles(d, selection)
+
+
+@frappe.whitelist()
 def info_marque(name, marque=None):
 	from aquaworld_ia.documents_produit import marques
 
@@ -411,6 +420,10 @@ def _contexte_presentation(v, d):
 	snapshot = instantane(d.get("entete"))
 	nouveau_ctx = contexte_avec_entete(ctx, snapshot)
 	nouveau_ctx = M.appliquer(nouveau_ctx, d, v.type_document)
+	nouveau_ctx["images"] = C.images_contexte(d)
+	articles = {ctx["article"]["name"]} | {a["name"] for a in ctx.get("variantes", [])}
+	if any(im["article"] and im["article"] not in articles for im in nouveau_ctx["images"]):
+		raise ValueError("Une photo concerne une variante absente de cette version. Créez une nouvelle fiche ou un nouveau manuel avec les variantes choisies.")
 	marque_version = ctx.get("marque_document") or ctx["article"].get("brand") or ""
 	if marque_version == marques.effective(d):
 		nouveau_ctx.pop("logo_hash", None)
@@ -428,8 +441,10 @@ def appliquer_entete(v, d):
 	nouveau_ctx = _contexte_presentation(v, d)
 	if ctx == nouveau_ctx:
 		return v
+	from aquaworld_ia.documents_produit.photos import legendes
+
 	return nouvelle_version(
-		v.dossier, v.type_document, json.loads(v.contenu_json),
+		v.dossier, v.type_document, legendes(json.loads(v.contenu_json), ctx, nouveau_ctx),
 		nouveau_ctx, v.langue, v.libelle_langue, v.rtl, v.source_fr,
 	)
 
@@ -452,7 +467,9 @@ def apercu_placement_logo(name, type_document, mise_en_page, document_name=None,
 		if v.dossier != name or v.type_document != type_document:
 			frappe.throw(_("Choisissez une version de ce type dans ce dossier."))
 		ctx = _contexte_presentation(v, d)
-		c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
+		from aquaworld_ia.documents_produit.photos import legendes
+
+		c = S.normaliser(legendes(_json(contenu) if contenu is not None else json.loads(v.contenu_json), json.loads(v.contexte_json), ctx), ctx)
 		langue, rtl, numero, valide = v.langue, v.rtl, v.numero, v.statut == "Validé"
 	else:
 		ctx = C.contexte(d, tolerer_logo_absent=True)

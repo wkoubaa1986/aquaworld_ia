@@ -124,6 +124,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \usepackage{graphicx}
 \usepackage{eso-pic,adjustbox}
 \usepackage{paracol}
+\usepackage{needspace}
 \usepackage[table]{xcolor}
 \usepackage{array,longtable,booktabs}
 \usepackage{fancyhdr}
@@ -219,16 +220,28 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		body.extend(zone_marque)
 	blocs = {cle: [] for cle in M.ORDRE}
 
-	def photo(index, largeur, hauteur):
+	def photo(index, largeur, hauteur, portee=True):
 		lignes = [
 			r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
 			+ r"\linewidth,height=" + str(hauteur) + "mm,keepaspectratio]{"
 			+ assets["images"][index] + r"}\end{center}",
 			t(contenu["legendes"][index]) + r"\par",
 		]
-		if ctx["images"][index].get("article"):
+		if portee and ctx["images"][index].get("article"):
 			lignes.append(t(labels["portee"] + " : " + ctx["images"][index]["article"]) + r"\par")
 		return "\n".join(lignes)
+
+	def galerie(indices, portee=True):
+		colonnes = disposition.get("colonnes_photos", 1)
+		if colonnes == 1:
+			return [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices]
+		lignes = []
+		for debut in range(0, len(indices), colonnes):
+			cellules = [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}"
+				+ r"\linewidth}\vspace{0pt}\small " + photo(i, 1, 55, portee) + r"\end{minipage}"
+				for i in indices[debut:debut + colonnes]]
+			lignes.append(r"\noindent " + r"\hfill ".join(cellules) + r"\par\medskip")
+		return lignes
 
 	resume = t(contenu["resume"]) + r"\par"
 	position = disposition["position_photo"]
@@ -272,9 +285,25 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				+ r"\\\addlinespace"
 			)
 		blocs["caracteristiques"].append(r"\bottomrule\end{longtable}")
-	if contenu["variantes"]:
+	regrouper = disposition.get("photos_variantes", 0)
+	photos_variantes = {v["article"]: [] for v in contenu["variantes"]}
+	for i, im in enumerate(ctx.get("images", [])):
+		if i and regrouper and im.get("article") in photos_variantes:
+			photos_variantes[im["article"]].append(i)
+	illustrees = [v for v in contenu["variantes"] if photos_variantes[v["article"]]] if regrouper else []
+	tabulees = [v for v in contenu["variantes"] if v not in illustrees]
+	if illustrees:
+		blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
+		for v in illustrees:
+			blocs["variantes"].append(r"\Needspace{" + ("110" if photos_variantes[v["article"]] else "35") + "mm}")
+			blocs["variantes"].append(r"\subsection*{" + t(v["article"] + " — " + v["nom"]) + "}")
+			blocs["variantes"].append(t(v["marque"]) + r"\par")
+			blocs["variantes"].extend(t(a["nom"] + " : " + a["valeur"]) + r"\par" for a in v["attributs"])
+			blocs["variantes"].extend(galerie(photos_variantes[v["article"]], portee=False))
+	if tabulees:
+		if not illustrees:
+			blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
 		blocs["variantes"] += [
-			r"\docsection{" + t(labels["variantes"]) + "}",
 			r"\begin{longtable}{p{.31\linewidth}p{.61\linewidth}}",
 			r"\toprule "
 			+ t(labels["reference"])
@@ -282,12 +311,16 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			+ t(labels["configuration"])
 			+ r"\\\midrule\endhead",
 		]
-		for v in contenu["variantes"]:
+		for v in tabulees:
 			config = "; ".join(a["nom"] + " : " + a["valeur"] for a in v["attributs"])
 			blocs["variantes"].append(t(v["article"]) + " & " + t(v["marque"] + " — " + config) + r"\\\addlinespace")
 		blocs["variantes"].append(r"\bottomrule\end{longtable}")
-	for i in range(1, len(assets.get("images", []))):
-		blocs["illustrations"].append(photo(i, .8, 120))
+	regroupees = {i for indices in photos_variantes.values() for i in indices}
+	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]
+	if illustrations:
+		if regrouper or disposition.get("colonnes_photos", 1) > 1:
+			blocs["illustrations"].append(r"\docsection{" + t(labels["illustrations"]) + "}")
+		blocs["illustrations"].extend(galerie(illustrations))
 	for cle in disposition["ordre"]:
 		body.extend(blocs[cle])
 	if contenu.get("points_a_verifier"):

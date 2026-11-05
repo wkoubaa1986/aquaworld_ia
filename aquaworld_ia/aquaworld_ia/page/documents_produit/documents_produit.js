@@ -13,7 +13,7 @@ const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFract
 const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
 const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Tableau des variantes',illustrations:'Autres illustrations'};
-const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8});
+const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
 
 class DocumentsProduit {
@@ -37,8 +37,10 @@ class DocumentsProduit {
       const r=await dpCall('creer',v); frappe.set_route('documents-produit',r.name);
     },'Créer un dossier produit','Ouvrir le dossier'));
   }
-  scopeOptions(value='') {
-    return `<option value="">Toute la gamme</option>${this.data.dossier.variantes.map(r=>`<option value="${dpEsc(r.article)}" ${r.article===value?'selected':''}>${dpEsc(r.article)}</option>`).join('')}`;
+  scopeOptions(value='',courante=false) {
+    const selection=courante?this.root.find('.dp-variants input:checked').map((_,el)=>el.value).get():this.data.dossier.variantes.map(r=>r.article);
+    if(value===this.data.dossier.article)value='';
+    return `<option value="">Toute la gamme</option>${selection.map(article=>`<option value="${dpEsc(article)}" ${article===value?'selected':''}>${dpEsc(article)}</option>`).join('')}${value&&!selection.includes(value)?`<option value="${dpEsc(value)}" selected>${dpEsc(value)} — variante non sélectionnée</option>`:''}`;
   }
   typeActif() { return DP_TYPES[this.activeTab]; }
   documentsActifs() { return this.data.documents.filter(v=>v.type_document===this.typeActif()); }
@@ -63,7 +65,7 @@ class DocumentsProduit {
       <div class="dp-help-body">
         <p>${manuel?'Cet onglet prépare un manuel pour accompagner l’installation, l’utilisation, l’entretien et le dépannage du produit, à partir des informations disponibles.':'Cet onglet prépare une fiche pour présenter le produit, ses applications, ses caractéristiques techniques et les variantes sélectionnées.'}</p>
         <ol class="dp-help-steps">
-          <li><strong>Préparer les informations.</strong> Ouvrez <b>Sources, photos et variantes</b>. Sélectionnez les variantes, utilisez <b>Ajouter un document</b> pour vos sources et <b>Ajouter une photo</b> pour les images du produit. Précisez les pages utiles et la variante concernée si nécessaire. La première photo de la version sera la photo principale.
+          <li><strong>Préparer les informations.</strong> Ouvrez <b>Sources, photos et variantes</b>. Sélectionnez les variantes, utilisez <b>Ajouter un document</b> pour vos sources et <b>Choisir les photos des articles</b> pour voir les images déjà jointes au produit et à ses variantes. Cochez plusieurs vues ou utilisez <b>Suggérer les photos principales</b>. <b>Importer des photos</b> accepte plusieurs fichiers. Chaque photo garde son association à une variante ; vous pouvez la corriger, changer la légende, choisir la <b>Photo principale</b> et réordonner les vues avec les flèches.
             <p>${manuel?'Ajoutez les notices du fabricant, les schémas et les photos utiles aux étapes d’installation ou d’entretien. Dans Consignes de rédaction, indiquez le public visé et les rubriques souhaitées.':'Vérifiez les données de l’article en cliquant sur sa référence en haut de la page. Renseignez les dimensions, matériaux, performances et applications dans l’article ou les documents sources. Utilisez Consignes de rédaction pour indiquer le public visé et le style souhaité.'} Cliquez sur <b>Enregistrer les sources et la sélection</b>.</p>
             <p><b>Sans PDF de référence :</b> l’IA part des données de l’article et des variantes. Vos consignes guident la rédaction, mais ne remplacent pas une source technique. Les informations manquantes restent à vérifier${manuel?', notamment les procédures d’installation, d’utilisation et de sécurité':''}.</p>
           </li>
@@ -93,7 +95,7 @@ class DocumentsProduit {
           </section>
           <section><h4>Versions, réglages et coût</h4>
             <p>La marque, l’en-tête, les sources, les photos et les consignes sont communs aux deux onglets. La mise en page, les versions et les traductions sont propres à chaque onglet. Le modèle IA se règle par outil pour les prochaines générations. <b>Créer les deux</b> lance les deux rédactions.</p>
-            <p>Pour modifier seulement le logo, l’en-tête ou la disposition, générez le PDF depuis le contenu existant. Une modification de présentation crée une nouvelle version et conserve les anciennes, sans nouvelle rédaction IA. Un changement de marque commerciale demande une nouvelle rédaction pour actualiser les textes.</p>
+            <p>Pour modifier seulement le logo, les photos, l’en-tête ou la disposition, générez le PDF depuis le contenu existant. Les vues peuvent être regroupées avec la référence et les caractéristiques de chaque variante, sur une, deux ou trois colonnes. Les légendes corrigées ou traduites des vues conservées restent associées à leur photo ; les nouvelles légendes sont reprises telles que vous les saisissez. Une modification crée une nouvelle version et conserve les anciennes, sans nouvelle rédaction IA. Un changement de marque commerciale ou l’ajout de variantes demande une nouvelle rédaction pour actualiser les textes.</p>
             <p><b>Modèles et tarifs par étape</b> affiche les modèles et tarifs configurés ; <b>Coût par génération du dossier</b> et <b>Détail</b> expliquent les montants. Rédaction, lecture des scans et traduction peuvent consommer des jetons. Corrections manuelles, placement du logo et composition PDF n’ajoutent aucun coût IA.</p>
           </section>
         </div>
@@ -149,7 +151,7 @@ class DocumentsProduit {
       z.find('.dp-layout-position').val(deux?'gauche':'apres').trigger('change');
     });
     z.find('.dp-save-layout').on('click',async()=>{if(this.dirty)await this.saveDocument();await this.saveConfig();this.root.find('.dp-layout-status').text('Mise en page enregistrée. Générez le PDF pour l’appliquer à la version choisie.');frappe.show_alert({message:'Mise en page enregistrée',indicator:'green'});});
-    z.find('.dp-reset-layout').on('click',()=>{this.layouts[this.activeTab]=dpLayoutDefault();this.renderStructure();this.layoutChanged();this.showState(this.data.dossier);});
+    z.find('.dp-reset-layout').on('click',()=>{this.layouts[this.activeTab]=dpLayoutDefault();this.root.find('.dp-photo-group').val('0');this.root.find('.dp-photo-columns').val('1');this.renderStructure();this.layoutChanged();this.showState(this.data.dossier);});
     this.renderColumnChoices();this.renderLayoutOrder();this.renderLayoutPreview();
   }
   renderColumnChoices() {
@@ -217,7 +219,7 @@ class DocumentsProduit {
   }
   renderLayoutPreview() {
     if(this.logoDragging){this.previewNeedsRender=true;return;}
-    const m=this.layoutValues(),c=this.current?.contenu,ctx=this.current?.contexte||this.data.contexte,im=ctx.images?.[0];
+    const m=this.layoutValues(),c=this.current?.contenu,ctx=this.current?.contexte||this.data.contexte,images=this.configValues().images,im=images[0];
     this.root.find('.dp-free-controls').toggle(m.position_marque==='libre');
     this.root.find('.dp-layout-brand-align').closest('label').toggle(m.position_marque!=='libre');
     const marque=this.brandInfo||{name:this.root.find('.dp-brand').val()||this.data.contexte.article.brand||'',logo:''};
@@ -240,12 +242,16 @@ class DocumentsProduit {
     const titre=this.root.find('.dp-title').val()??c?.titre??this.typeActif(),resume=this.root.find('.dp-summary').val()??c?.resume??'Description du produit, rédigée à partir des informations disponibles.';
     const couleur=/^#[0-9a-f]{6}$/i.test(m.couleur)?m.couleur:'#087E8B',align={gauche:'left',centre:'center',droite:'right'}[m.alignement_titre];
     const cote=['gauche','droite'].includes(m.position_photo),largeur=Math.min(cote?55:80,m.largeur_photo),hauteur=Math.min(120,m.hauteur_photo)*1.4;
-    const photo=`<div class="dp-design-photo" style="${cote?'':`width:${largeur}%;margin-left:auto;margin-right:auto;`}">${im?`<img src="${dpUrl(im.image)}" alt="${dpEsc(im.legende||'Photo principale')}" style="max-height:${hauteur}px">`:`<div class="dp-design-placeholder" style="height:${hauteur}px">Photo principale</div>`}<small>${dpEsc(c?.legendes?.[0]||im?.legende||'Légende')}</small></div>`;
+    const photo=`<div class="dp-design-photo" style="${cote?'':`width:${largeur}%;margin-left:auto;margin-right:auto;`}">${im?`<img src="${dpUrl(im.image)}" alt="${dpEsc(im.legende||'Photo principale')}" style="max-height:${hauteur}px">`:`<div class="dp-design-placeholder" style="height:${hauteur}px">Photo principale</div>`}<small>${dpEsc(im?.legende||'Légende')}</small></div>`;
     const description=`<div class="dp-design-description">${dpEsc(resume.slice(0,210))}${resume.length>210?'…':''}</div>`;
     const parties=['avant','gauche'].includes(m.position_photo)?[photo,description]:[description,photo];
     const ratio=m.position_photo==='gauche'?largeur:100-largeur;
     const presentation=`<div class="dp-design-presentation ${cote?'dp-design-columns':''}" style="${cote?`grid-template-columns:minmax(0,${ratio}fr) minmax(0,${100-ratio}fr)`:''}">${parties.join('')}</div>`;
-    const blocs={presentation,rubriques:`<div class="dp-design-block">${this.activeTab==='manuel'?'Installation · Utilisation<br>Entretien · Dépannage':'Présentation · Applications'}</div>`,caracteristiques:'<div class="dp-sheet-table">Caractéristiques techniques</div>',variantes:'<div class="dp-design-block">Tableau des variantes</div>',illustrations:'<div class="dp-design-block">Autres illustrations</div>'};
+    const grille=photos=>`<div class="dp-photo-mini-grid" style="grid-template-columns:repeat(${m.colonnes_photos},minmax(0,1fr))">${photos.map(p=>`<img src="${dpUrl(p.image)}" alt="${dpEsc(p.legende)}">`).join('')}</div>`;
+    const variantes=this.configValues().variantes.map(v=>v.article),supp=images.slice(1),communes=supp.filter(p=>!m.photos_variantes||!variantes.includes(p.article));
+    const illustrees=variantes.filter(v=>supp.some(p=>p.article===v)),sansPhoto=variantes.length-illustrees.length;
+    const apercuVariantes=illustrees.slice(0,3).map(v=>`<div class="dp-design-block"><b>${dpEsc(v)}</b>${grille(supp.filter(p=>p.article===v))}</div>`).join('')+(illustrees.length>3?`<div class="dp-sheet-small">+ ${illustrees.length-3} variantes illustrées dans le PDF</div>`:'')+(sansPhoto?`<div class="dp-design-block">Tableau : ${sansPhoto} variantes sans autre photo</div>`:'');
+    const blocs={presentation,rubriques:`<div class="dp-design-block">${this.activeTab==='manuel'?'Installation · Utilisation<br>Entretien · Dépannage':'Présentation · Applications'}</div>`,caracteristiques:'<div class="dp-sheet-table">Caractéristiques techniques</div>',variantes:m.photos_variantes?apercuVariantes:'<div class="dp-design-block">Tableau des variantes</div>',illustrations:communes.length?`<div class="dp-design-block">Autres illustrations${grille(communes)}</div>`:'<div class="dp-design-block">Autres illustrations</div>'};
     this.root.find('.dp-layout-preview').html(`<div class="dp-sheet dp-design-sheet" aria-label="Aperçu de la mise en page"><div class="dp-sheet-header">${entete?'En-tête : '+dpEsc(entete):'Document A4'}</div>${m.position_marque==='avant_titre'?zoneMarque:''}<div class="dp-sheet-title" style="color:${couleur};text-align:${align}">${dpEsc(titre)}</div><div class="dp-sheet-small" style="text-align:${align}">${dpEsc(marque.name)} · ${dpEsc(ctx.article.name)}</div>${m.position_marque==='apres_titre'?zoneMarque:''}<div class="dp-design-blocks" style="--dp-accent:${couleur}">${m.ordre.map(k=>`<div data-preview-block="${k}">${blocs[k]}</div>`).join('')}</div>${m.position_marque==='fin_document'?zoneMarque:''}<div class="dp-sheet-footer">Pied de page et numéro de page</div></div>`);
   }
   rendre() {
@@ -281,7 +287,11 @@ class DocumentsProduit {
       <div class="dp-full"><h3>Manuels PDF et photos de pages</h3><div class="dp-actions"><button class="btn btn-default btn-sm dp-upload-source">Ajouter un document</button><button class="btn btn-default btn-sm dp-existing">Documents déjà liés aux articles</button></div>
       <div class="dp-muted" style="margin-top:8px">Sélectionnez les pages utiles (ex. 1-4,7), au maximum 40 pages par PDF. Indiquez la variante si le document lui est spécifique.</div>
       <div class="dp-sources">${d.sources.map((s,i)=>`<div class="dp-sources-row" data-index="${i}"><div>S${i+1} · <a href="${dpUrl(s.fichier)}" target="_blank" rel="noopener">${dpEsc(s.fichier.split('/').pop())}</a>${/\.pdf$/i.test(s.fichier)?` <button class="btn btn-xs btn-default dp-page" data-index="${i}">Illustrer avec une page</button>`:''}</div><input class="form-control input-sm dp-pages" value="${dpEsc(s.pages)}" placeholder="Pages"><select class="form-control input-sm dp-source-scope">${this.scopeOptions(s.article)}</select><button class="btn btn-xs btn-default dp-remove-source" data-index="${i}" title="Retirer">×</button></div>`).join('')}</div></div>
-      <div class="dp-full"><h3>Photos du produit et illustrations</h3><button class="btn btn-default btn-sm dp-upload-image">Ajouter une photo</button><div class="dp-images">${d.images.map((im,i)=>`<div class="dp-image" data-index="${i}"><img src="${dpUrl(im.image)}" alt="${dpEsc(im.legende)}"><input class="form-control input-sm dp-caption" value="${dpEsc(im.legende)}" placeholder="Légende"><select class="form-control input-sm dp-image-scope">${this.scopeOptions(im.article)}</select><button class="btn btn-xs btn-default dp-remove-image" data-index="${i}" style="margin-top:6px">Retirer</button></div>`).join('')}</div></div>
+      <div class="dp-full dp-photo-section"><h3>Photos du produit et des variantes</h3><div class="dp-actions"><button class="btn btn-primary btn-sm dp-choose-images">Choisir les photos des articles</button><button class="btn btn-default btn-sm dp-upload-image">Importer des photos</button><span class="dp-photo-count dp-muted" role="status"></span></div>
+      <p class="dp-muted" style="margin-top:10px">Choisissez plusieurs vues parmi les pièces jointes, puis indiquez la variante concernée. « Photo principale » choisit l’image de présentation. Les flèches règlent l’ordre des autres vues. Retirer une photo ici conserve le fichier d’origine.</p>
+      <div class="dp-grid"><label class="dp-label">Photos des variantes · ${manuel?'manuel':'fiche technique'}<select class="form-control dp-photo-group"><option value="1">Avec la référence et les caractéristiques de chaque variante</option><option value="0">Dans les illustrations à la fin</option></select></label><label class="dp-label">Galeries de photos · ${manuel?'manuel':'fiche technique'}<select class="form-control dp-photo-columns"><option value="1">Une photo par ligne</option><option value="2">Deux photos par ligne</option><option value="3">Trois photos par ligne</option></select></label></div>
+      <p class="dp-muted">La sélection est commune aux deux onglets ; la présentation se règle par onglet. Enregistrez puis générez le PDF pour appliquer les photos à une version existante, sans appel IA. Si vous ajoutez des variantes, créez une nouvelle version du contenu.</p>
+      <div class="dp-images">${d.images.map((im,i)=>`<div class="dp-image" data-index="${i}"><a href="${dpUrl(im.image)}" target="_blank" rel="noopener" aria-label="Voir la photo en grand"><img src="${dpUrl(im.image)}" alt="${dpEsc(im.legende)}" loading="lazy"></a><button class="btn btn-xs btn-default dp-main-image" aria-pressed="${i===0}">${i===0?'★ Photo principale':'Définir comme principale'}</button><label class="dp-label">Légende<input class="form-control input-sm dp-caption" value="${dpEsc(im.legende)}" maxlength="140" placeholder="Ex. Vue de face"></label><label class="dp-label">Produit / variante<select class="form-control input-sm dp-image-scope">${this.scopeOptions(im.article)}</select></label><div class="dp-actions"><button class="btn btn-xs btn-default dp-image-prev" aria-label="Avancer cette photo">←</button><button class="btn btn-xs btn-default dp-image-next" aria-label="Reculer cette photo">→</button><button class="btn btn-xs btn-default dp-remove-image" data-index="${i}">Retirer</button></div></div>`).join('')}</div></div>
       <div class="dp-full"><button class="btn btn-default dp-save-config">Enregistrer les sources et la sélection</button><span class="dp-muted"> Le logo de la marque est repris depuis sa fiche.</span></div></div></details>
       <div class="dp-card"><div class="dp-top"><h3 style="margin:0">${manuel?'Manuels et traductions enregistrés':'Fiches techniques et traductions enregistrées'}</h3><select class="form-control dp-versions" aria-label="Versions ${manuel?'du manuel':'de la fiche technique'}" style="max-width:640px"><option value="">Choisir une version…</option>${versions.map(v=>`<option value="${dpEsc(v.name)}">${dpEsc(v.libelle_langue)} · v${v.numero} · ${dpEsc(v.statut)}${v.a_actualiser?' · À actualiser':''}</option>`).join('')}</select></div><div class="dp-document">${versions.length?'Choisissez une version pour la relire, la traduire ou télécharger son PDF.':manuel?'Aucun manuel enregistré. Cliquez sur Créer le manuel pour préparer la première version.':'Aucune fiche technique enregistrée. Cliquez sur Créer la fiche technique pour préparer la première version.'}</div></div></div>`);
     const helpTab=this.activeTab;
@@ -331,12 +341,17 @@ class DocumentsProduit {
   async saveConfig(redraw=false) {
     const values=this.configValues();
     if(JSON.stringify(values)===this.lastConfig)return;
+    const selection=new Set([this.data.dossier.article,...values.variantes.map(v=>v.article)]);
+    if([...values.images,...values.sources].some(x=>x.article&&!selection.has(x.article))){frappe.msgprint('Une photo ou une source concerne une variante décochée. Rétablissez cette variante, retirez sa photo/source de la sélection ou corrigez son association.');throw new Error('Variante non sélectionnée');}
     const r=await dpCall('enregistrer',{name:this.name,data:values,modified:this.data.dossier.modified});
     Object.assign(this.data.dossier,values,{modified:r.modified});this.lastConfig=JSON.stringify(values);
     if(redraw){this.data=await dpCall('charger',{name:this.name});this.rendre();frappe.show_alert({message:'Dossier enregistré',indicator:'green'});}
   }
   bindConfig() {
     this.lastConfig=JSON.stringify(this.configValues());
+    const m=this.layoutValues();this.root.find('.dp-photo-group').val(String(m.photos_variantes));this.root.find('.dp-photo-columns').val(String(m.colonnes_photos));
+    this.root.find('.dp-photo-group,.dp-photo-columns').on('change',()=>{this.layouts[this.activeTab]={...this.layoutValues(),photos_variantes:Number(this.root.find('.dp-photo-group').val()),colonnes_photos:Number(this.root.find('.dp-photo-columns').val())};this.renderLayoutPreview();this.layoutChanged();});
+    this.root.find('.dp-choose-images').on('click',async()=>{await frappe.require('/assets/aquaworld_ia/js/documents_produit_photos.js');await new aquaworld_ia.PhotosProduit(this).ouvrir();});
     this.root.find('.dp-brand').on('change',()=>this.renderBrand());
     this.root.find('.dp-brand-with-header').on('change',()=>this.renderLayoutPreview());
     this.root.find('.dp-refresh-brand').on('click',()=>this.renderBrand());
@@ -359,19 +374,40 @@ class DocumentsProduit {
       const images=await dpCall('apercu_entete',{name:this.name,entete});
       frappe.msgprint({title:'Aperçu — '+dpEsc(entete),wide:true,message:[['haut','En-tête'],['bas','Pied de page']].filter(([k])=>images[k]?.startsWith('data:image/png;base64,')).map(([k,label])=>`<p><b>${label}</b></p><img src="${dpEsc(images[k])}" alt="${label}" style="width:100%;max-width:100%;border:1px solid var(--border-color);margin-bottom:18px">`).join('')});
     });
-    this.root.find('.dp-save-config,.dp-save-brand').on('click',async()=>{if(this.dirty)await this.saveDocument();await this.saveConfig(true);});
+    this.root.find('.dp-save-config,.dp-save-brand').on('click',async()=>{try{if(this.dirty)await this.saveDocument();await this.saveConfig(true);}catch(e){if(e?.message!=='Variante non sélectionnée')throw e;}});
     this.root.find('.dp-search').on('input',e=>{const q=e.target.value.toLowerCase();this.root.find('.dp-variant').each((_,el)=>$(el).toggle($(el).attr('data-search').includes(q)));});
-    this.root.find('[data-select-all]').on('click',e=>this.root.find('.dp-variant:visible input').prop('checked',$(e.currentTarget).attr('data-select-all')==='1'));
-    this.root.find('.dp-remove-source,.dp-remove-image').on('click',e=>$(e.currentTarget).closest('.dp-sources-row,.dp-image').remove());
+    const scopes=()=>this.root.find('.dp-image-scope,.dp-source-scope').each((_,el)=>{const v=el.value;$(el).html(this.scopeOptions(v,true));});
+    this.root.find('.dp-variant input').on('change',scopes);
+    this.root.find('[data-select-all]').on('click',e=>{this.root.find('.dp-variant:visible input').prop('checked',$(e.currentTarget).attr('data-select-all')==='1');scopes();});
+    this.root.find('.dp-remove-source,.dp-remove-image').on('click',e=>{$(e.currentTarget).closest('.dp-sources-row,.dp-image').remove();this.photoOrder();});
+    this.root.find('.dp-main-image,.dp-image-prev,.dp-image-next').on('click',e=>{const b=$(e.currentTarget),card=b.closest('.dp-image');if(b.hasClass('dp-main-image'))card.prependTo(this.root.find('.dp-images'));else if(b.hasClass('dp-image-prev'))card.prev('.dp-image').before(card);else card.next('.dp-image').after(card);this.photoOrder();});
+    this.root.find('.dp-caption,.dp-image-scope').on('input change',()=>this.renderLayoutPreview());
+    this.photoOrder();
     const ajouter=async(table,row)=>{if(this.dirty)await this.saveDocument();await this.saveConfig();const values=this.configValues();values[table].push(row);await dpCall('enregistrer',{name:this.name,data:values,modified:this.data.dossier.modified});this.data=await dpCall('charger',{name:this.name});this.rendre();};
     this.root.find('.dp-upload-source').on('click',()=>new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:this.name,allow_multiple:true,is_private:1,restrictions:{allowed_file_types:['.pdf','.png','.jpg','.jpeg','.webp']},on_success:f=>{this.uploads=(this.uploads||Promise.resolve()).then(()=>ajouter('sources',{fichier:f.file_url,pages:'',article:''}));}}));
-    this.root.find('.dp-upload-image').on('click',()=>new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:this.name,allow_multiple:false,is_private:1,restrictions:{allowed_file_types:['.png','.jpg','.jpeg','.webp','.svg']},on_success:f=>ajouter('images',{image:f.file_url,legende:'',article:''})}));
+    this.root.find('.dp-upload-image').on('click',()=>{const name=this.name;new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:name,allow_multiple:true,is_private:1,restrictions:{allowed_file_types:['.png','.jpg','.jpeg','.webp','.svg']},on_success:f=>{this.uploads=(this.uploads||Promise.resolve()).catch(()=>{}).then(async()=>{if(this.name!==name)return;if(this.configValues().images.length>=20)return frappe.msgprint('20 photos sont déjà sélectionnées. Le fichier reste joint au dossier et peut être choisi plus tard.');await ajouter('images',{image:f.file_url,legende:'',article:''});});}});});
     this.root.find('.dp-existing').on('click',()=>{
       const choices=this.data.sources_disponibles.filter(s=>!this.configValues().sources.some(x=>x.fichier===s.fichier));
       if(!choices.length)return frappe.msgprint('Aucun autre document joint aux articles ou aux manuels existants.');
       const d=new frappe.ui.Dialog({title:'Documents disponibles',fields:[{fieldtype:'Select',fieldname:'choix',label:'Document',options:choices.map((s,i)=>({label:s.nom,value:String(i)})),reqd:1}],primary_action_label:'Ajouter',primary_action:async v=>{d.hide();const s=choices[+v.choix];await ajouter('sources',{fichier:s.fichier,pages:'',article:s.article});}});d.show();
     });
     this.root.find('.dp-page').on('click',e=>{const i=+$(e.currentTarget).attr('data-index'),fichier=this.data.dossier.sources[i].fichier;frappe.prompt([{fieldtype:'Int',fieldname:'page',label:'Page à utiliser comme illustration',default:1,reqd:1}],async v=>{await this.saveConfig();await dpCall('illustrer_page',{name:this.name,fichier,page:v.page});this.data=await dpCall('charger',{name:this.name});this.rendre();},'Illustration du manuel','Ajouter l’illustration');});
+  }
+  photoOrder() {
+    const cards=this.root.find('.dp-image');this.root.find('.dp-photo-count').text(`${cards.length} / 20 photos sélectionnées`);
+    cards.each((i,el)=>$(el).find('.dp-main-image').attr('aria-pressed',i===0).text(i===0?'★ Photo principale':'Définir comme principale'));
+    this.renderLayoutPreview();
+  }
+  async ajouterPhotos(images,presentation) {
+    if(this.dirty)await this.saveDocument();
+    const values=this.configValues(),cle=im=>JSON.stringify([im.image,im.article||'']);
+    const connus=new Set(values.images.map(cle));
+    for(const im of images)if(!connus.has(cle(im))){values.images.push(im);connus.add(cle(im));}
+    if(values.images.length>20)throw new Error('Sélectionnez au maximum 20 photos au total.');
+    values.mises_en_page[this.activeTab]={...this.layoutValues(),...presentation};
+    await dpCall('enregistrer',{name:this.name,data:values,modified:this.data.dossier.modified});
+    this.data=await dpCall('charger',{name:this.name});this.rendre();
+    frappe.show_alert({message:'Photos sélectionnées. Générez le PDF pour les appliquer.',indicator:'green'});
   }
   async renderBrand() {
     const sequence=this.brandSequence=(this.brandSequence||0)+1,name=this.name,z=this.root.find('.dp-brand-preview');

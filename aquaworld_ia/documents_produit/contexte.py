@@ -148,6 +148,15 @@ def contexte(doc, inclure_entete=True, tolerer_logo_absent=False):
 	return base
 
 
+def images_contexte(doc):
+	resultat = []
+	for r in doc.images:
+		f = fichier_lisible(r.image)
+		resultat.append({"image": f.file_url, "nom": f.file_name, "hash": f.content_hash,
+			"pages": "", "legende": r.legende or "", "article": r.article or ""})
+	return resultat
+
+
 def pages_selection(expression, total):
 	if not expression or not expression.strip():
 		pages = list(range(total))

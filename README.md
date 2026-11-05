@@ -437,6 +437,30 @@ Un dossier appartient à l'article parent et définit les variantes couvertes, l
 (PDF ou photos de pages) et les illustrations. Les manuels existants et les pièces jointes
 aux articles peuvent être réutilisés. Une page de PDF peut devenir une illustration.
 
+Dans **Sources, photos et variantes**, **Choisir les photos des articles** ouvre une
+galerie des images principales et pièces jointes accessibles du parent, des variantes
+cochées et du dossier. Plusieurs vues peuvent être choisies par variante. La suggestion
+reprend les photos principales distinctes des articles qui n’ont pas déjà une vue
+sélectionnée ; elle évite les images déjà choisies et ne fait aucun appel IA. Les images
+répétées entre variantes sont masquées au départ ; un bouton ou une recherche permet
+de les retrouver et de les choisir explicitement. Les associations suivent les articles d’origine
+et restent modifiables. **Importer des photos** accepte plusieurs fichiers.
+
+Choisir la **Photo principale**, saisir les légendes et régler l’ordre avec les flèches.
+On peut regrouper les autres vues avec la référence et les attributs de leur variante,
+et afficher les galeries sur une, deux ou trois colonnes. Les vues communes apparaissent
+dans les illustrations ; les variantes sans autre vue restent dans un tableau compact.
+Les dispositions sont propres à chaque onglet ; les images choisies
+sont communes au dossier, limitées à 20. Retirer une vue ne supprime pas le fichier joint.
+
+Après enregistrement, **Générer le PDF** applique aussi les ajouts, retraits, changements
+d’ordre et d’association des photos à une nouvelle version, sans nouvelle rédaction IA.
+Les légendes corrigées ou traduites des photos conservées sont maintenues ; une légende
+modifiée ou ajoutée est reprise telle que saisie, sans traduction automatique. Les anciens
+PDF restent conservés. Une photo associée à une variante absente de la version demande
+d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
+jamais silencieusement ses photos à toute la gamme.
+
 Chaque dossier comporte deux onglets : **Fiche technique** et **Manuel d’utilisation**.
 Chacun affiche sa commande de génération, son modèle IA, ses versions et ses traductions.
 Une note HTML **Comment utiliser cet onglet ?**, placée sous son titre, s’ouvre et se
