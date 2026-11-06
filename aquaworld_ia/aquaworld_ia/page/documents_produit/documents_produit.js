@@ -38,7 +38,7 @@ class DocumentsProduit {
     let tab=frappe.get_route()[2];
     if(!Object.hasOwn(DP_TYPES,tab)){try{tab=sessionStorage.getItem('dp-tab:'+this.name);}catch{tab=null;}}
     this.activeTab=Object.hasOwn(DP_TYPES,tab)?tab:this.data.documents.some(v=>v.type_document===DP_TYPES.fiche)?'fiche':this.data.documents.some(v=>v.type_document===DP_TYPES.manuel)?'manuel':'fiche';
-    let step=null;try{step=sessionStorage.getItem('dp-step:'+this.name);}catch{step=null;}
+    let step=null;try{step=sessionStorage.getItem('dp-step:'+this.name);this.liveLayout=sessionStorage.getItem('dp-live:'+this.name)==='1';this.liveReview=sessionStorage.getItem('dp-live-review:'+this.name)==='1';}catch{step=null;}
     this.activeStep=Object.hasOwn(DP_STEPS,step)?step:this.documentsActifs().length?'relire':'preparer';
     this.rendre(); this.poll();
   }
@@ -224,7 +224,10 @@ class DocumentsProduit {
       <h3 style="margin-top:18px">Ordre des blocs</h3><div class="dp-layout-order"></div>
       <div class="dp-actions" style="margin-top:14px"><button class="btn btn-default btn-sm dp-reset-layout">Disposition initiale</button></div>
       <p class="dp-muted dp-layout-status" role="status" style="margin-top:10px">La mise en page s’applique en générant le PDF d’une version, sans nouvelle rédaction IA.</p>
-      </div><div><div class="dp-layout-preview"></div><p class="dp-muted" style="margin-top:12px">Aperçu de disposition : les blocs sans contenu sont omis du PDF.</p></div></div>`);
+      </div><div class="dp-preview-column"><div class="dp-actions dp-preview-switch" role="group" aria-label="Aperçu"><button type="button" class="btn btn-xs ${this.liveLayout?'btn-default':'btn-primary'} dp-preview-mode" data-mode="schema">Schéma</button><button type="button" class="btn btn-xs ${this.liveLayout?'btn-primary':'btn-default'} dp-preview-mode" data-mode="pages">Pages PDF en direct</button><span class="dp-muted dp-live-status"></span></div>
+      <div class="dp-layout-preview" ${this.liveLayout?'hidden':''}></div><p class="dp-muted dp-schema-note" style="margin-top:12px" ${this.liveLayout?'hidden':''}>Aperçu de disposition : les blocs sans contenu sont omis du PDF.</p>
+      <div class="dp-live-pages" ${this.liveLayout?'':'hidden'}></div></div></div>`);
+    z.find('.dp-preview-mode').on('click',e=>this.setLiveLayout(e.currentTarget.dataset.mode==='pages'));
     z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
       const position=z.find('.dp-layout-position').val(),maximum=['gauche','droite'].includes(position)?55:80;
       const borne=(selector,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selector).val())||def)));
@@ -255,6 +258,8 @@ class DocumentsProduit {
     z.find('.dp-photo-group').val(String(m.photos_variantes));z.find('.dp-photo-columns').val(String(m.colonnes_photos));
     z.find('.dp-photo-group,.dp-photo-columns,.dp-photo-hauteur,.dp-photo-style,.dp-photo-grande,.dp-photo-grande-largeur,.dp-variant-table,.dp-legendes,.dp-legende-align,.dp-legende-couleur').on('input change',()=>{const h=Math.max(25,Math.min(90,Math.round(Number(z.find('.dp-photo-hauteur').val())||55))),lg=Math.max(30,Math.min(75,Math.round(Number(z.find('.dp-photo-grande-largeur').val())||62)));this.layouts[this.activeTab]={...this.layoutValues(),photos_variantes:Number(z.find('.dp-photo-group').val()),colonnes_photos:Number(z.find('.dp-photo-columns').val()),hauteur_vignettes:h,style_galerie:z.find('.dp-photo-style').val()||'grille',photo_grande:z.find('.dp-photo-grande').val()||'',largeur_grande:lg,tableau_variantes:z.find('.dp-variant-table').val()||'liste',legendes_galerie:Number(z.find('.dp-legendes').val()),legende_alignement:z.find('.dp-legende-align').val()||'gauche',legende_couleur:z.find('.dp-legende-couleur').val()||'texte'};const mos=this.layoutValues().style_galerie==='mosaique';z.find('.dp-photo-grande-zone').prop('hidden',!mos);z.find('.dp-photo-style-aide').text(mos?'La grande photo à gauche, jusqu’à trois petites empilées à droite (le QR code des illustrations compte comme une petite) ; au-delà, grille. La photo principale (★, étape Préparer) est dans le bloc de présentation, pas dans la galerie.':'');this.renderLayoutPreview();this.layoutChanged();});
     this.renderColumnChoices();this.renderLayoutOrder();this.renderLayoutPreview();
+    z.closest('.dp-card').toggleClass('dp-live-on',!!this.liveLayout);
+    if(this.liveLayout)this.planifierPages('layout',300);
   }
   renderColumnChoices() {
     const m=this.layoutValues(),cote=['gauche','droite'].includes(m.position_photo);
@@ -319,7 +324,42 @@ class DocumentsProduit {
     el.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)||!this.canMoveLogo())return;e.preventDefault();const m=this.layoutValues(),pas=e.shiftKey?10:1;this.moveFreeLogo(m.logo_x+(e.key==='ArrowLeft'?-pas:e.key==='ArrowRight'?pas:0),m.logo_y+(e.key==='ArrowUp'?-pas:e.key==='ArrowDown'?pas:0));});
     this.root.find('.dp-load-free-background').on('click',()=>this.loadFreeBackground());
   }
-  layoutChanged() { this.root.find('.dp-layout-status').text('Disposition modifiée : enregistrez, puis générez le PDF pour l’appliquer.');this.root.find('.dp-layout-summary').text(this.layoutSummary());this.updateBar(); }
+  layoutChanged() { this.root.find('.dp-layout-status').text('Disposition modifiée : enregistrez, puis générez le PDF pour l’appliquer.');this.root.find('.dp-layout-summary').text(this.layoutSummary());this.updateBar();if(this.liveLayout)this.planifierPages('layout'); }
+  // ---- pages PDF en direct (écran partagé, demande 06/11/2026) : recomposition en mémoire après chaque changement,
+  // sans rien enregistrer ; une composition à la fois, la suivante attend la fin de la précédente.
+  setLiveLayout(on) {
+    this.liveLayout=!!on;try{sessionStorage.setItem('dp-live:'+this.name,on?'1':'0');}catch{/* sans stockage */}
+    const z=this.root.find('.dp-layout');z.find('.dp-layout-preview,.dp-schema-note').prop('hidden',this.liveLayout);z.find('.dp-live-pages').prop('hidden',!this.liveLayout);
+    z.find('.dp-preview-mode').each((_,b)=>{const actif=(b.dataset.mode==='pages')===this.liveLayout;$(b).toggleClass('btn-primary',actif).toggleClass('btn-default',!actif);});
+    z.closest('.dp-card').toggleClass('dp-live-on',this.liveLayout);
+    if(this.liveLayout)this.planifierPages('layout',0);else this.root.find('.dp-live-status').text('');
+  }
+  setLiveReview(on) {
+    this.liveReview=!!on;try{sessionStorage.setItem('dp-live-review:'+this.name,on?'1':'0');}catch{/* sans stockage */}
+    const z=this.root.find('.dp-document');z.find('.dp-review-saved').prop('hidden',this.liveReview);z.find('.dp-review-live').prop('hidden',!this.liveReview);
+    z.find('.dp-review-mode').each((_,b)=>{const actif=(b.dataset.mode==='live')===this.liveReview;$(b).toggleClass('btn-primary',actif).toggleClass('btn-default',!actif);});
+    z.find('.dp-review').addClass('dp-review-split');
+    if(this.liveReview)this.planifierPages('review',0);
+  }
+  planifierPages(cible,delai=1200) {
+    clearTimeout(this.pagesTimer);this.pagesCible=cible;
+    const statut=cible==='layout'?this.root.find('.dp-live-status'):this.root.find('.dp-review-live-status');
+    statut.text('Recomposition prévue…');
+    this.pagesTimer=setTimeout(()=>this.composerPages(cible),delai);
+  }
+  async composerPages(cible) {
+    if(this.pagesEnCours){this.pagesRelance=cible;return;}
+    const zone=cible==='layout'?this.root.find('.dp-live-pages'):this.root.find('.dp-review-live'),statut=cible==='layout'?this.root.find('.dp-live-status'):this.root.find('.dp-review-live-status');
+    if(!zone.length)return;
+    this.pagesEnCours=true;statut.text('Composition du PDF…');zone.addClass('dp-pages-pending');
+    try{
+      const doc=this.current?.doc.type_document===this.typeActif()?this.current.doc:null;
+      const r=await dpCall('apercu_document',{name:this.name,document_name:doc?.name||null,type_document:this.typeActif(),contenu:doc&&this.root.find('.dp-editor').length?this.captureDocument():undefined,mise_en_page:this.layoutValues(),echelle:cible==='layout'?1.2:1.4});
+      zone.html(`<div class="dp-apercu-pages dp-apercu-pages-live">${r.pages.map((p,i)=>`<figure><img src="${p}" alt="Page ${i+1}"><figcaption>Page ${i+1}</figcaption></figure>`).join('')}</div>`);
+      statut.text(`${r.total} page${r.total>1?'s':''}${doc?'':' · exemple (aucune version)'} · à jour`);
+    }catch(e){statut.text('Composition impossible : '+(e?.message||'vérifiez les réglages.'));}
+    finally{zone.removeClass('dp-pages-pending');this.pagesEnCours=false;if(this.pagesRelance){const c=this.pagesRelance;this.pagesRelance=null;this.composerPages(c);}}
+  }
   moveLayoutBlock(from,to) {
     if(!this.data.peut_ecrire||this.switchingTab||this.busy())return;
     const m=this.layoutValues(),ordre=[...m.ordre],i=ordre.indexOf(from),j=ordre.indexOf(to);
@@ -619,7 +659,7 @@ class DocumentsProduit {
       ${info?.a_actualiser?'<div class="dp-warning" style="margin:12px 0">À actualiser : la marque, la présentation, les articles, les sources ou la version française ont changé depuis cette version.</div>':''}
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
-      <div class="dp-review ${doc.pdf?'dp-review-split':''}"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation <button type="button" class="btn btn-default btn-xs dp-ia-resume" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ Réécrire avec l’IA…</button></label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
+      <div class="dp-review dp-review-split"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation <button type="button" class="btn btn-default btn-xs dp-ia-resume" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ Réécrire avec l’IA…</button></label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
       <div class="dp-sections">${c.sections.map((s,i)=>`<div class="dp-section" data-index="${i}"><div class="dp-section-title"><input class="form-control dp-section-name" value="${dpEsc(s.titre)}" placeholder="Titre de la rubrique"><button class="btn btn-xs btn-default dp-remove-section">×</button></div><div class="dp-scope"><select class="form-control input-sm dp-section-scope">${scope(s.article)}</select><input class="form-control input-sm dp-section-source" value="${dpEsc(s.source)}" placeholder="Source : S1 p.3, Article…"></div><textarea class="form-control dp-section-text">${dpEsc(s.texte)}</textarea>
       <div class="dp-section-extras"><button type="button" class="btn btn-default btn-xs dp-ia-rubrique" ${doc.langue==='fr'?'':'disabled title="Réécrivez la version française puis traduisez"'}>✦ Réécrire avec l’IA…</button>${this.sectionImageHtml(s)}${this.sectionTableHtml(s)}</div></div>`).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
@@ -627,8 +667,13 @@ class DocumentsProduit {
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
       <label class="dp-label">Points à vérifier avant validation — retirez chaque point une fois résolu</label><textarea class="form-control dp-checks" placeholder="Aucun point en attente">${dpEsc(c.points_a_verifier.join('\n'))}</textarea>
       <details style="margin-top:14px"><summary>Variantes et sources de cette version</summary><div class="dp-table-wrap"><table class="dp-table">${c.variantes.map(v=>`<tr><td>${dpEsc(v.article)}</td><td>${dpEsc(v.marque)}</td><td>${v.attributs.map(a=>dpEsc(a.nom+' : '+a.valeur)).join('<br>')}</td></tr>`).join('')}</table></div>${(ctx.preuves||[]).map(p=>`<details><summary>${dpEsc(p.source+' · '+p.fichier)}</summary><div style="white-space:pre-wrap;padding:10px">${dpEsc(p.texte)}</div></details>`).join('')}</details></div>
-      ${doc.pdf?`<div class="dp-review-pdf"><iframe class="dp-preview" title="Aperçu PDF" src="${dpUrl(doc.pdf)}#toolbar=1"></iframe></div>`:'<div class="dp-muted dp-review-pdf" style="margin-top:12px">Pas encore de PDF pour cette version : relisez, puis cliquez sur « Générer le PDF ».</div>'}</div>`);
-    z.find('.dp-editor').on('input change',()=>{this.dirty=true;this.renderLayoutPreview();this.updateBar();});
+      <div class="dp-review-pdf"><div class="dp-actions dp-preview-switch" role="group" aria-label="Aperçu"><button type="button" class="btn btn-xs ${this.liveReview?'btn-default':'btn-primary'} dp-review-mode" data-mode="saved">PDF enregistré</button><button type="button" class="btn btn-xs ${this.liveReview?'btn-primary':'btn-default'} dp-review-mode" data-mode="live">Pages en direct</button><span class="dp-muted dp-review-live-status"></span></div>
+      <div class="dp-review-saved" ${this.liveReview?'hidden':''}>${doc.pdf?`<iframe class="dp-preview" title="Aperçu PDF" src="${dpUrl(doc.pdf)}#toolbar=1"></iframe>`:'<div class="dp-muted" style="margin-top:12px">Pas encore de PDF pour cette version : relisez, puis cliquez sur « Générer le PDF » — ou passez en « Pages en direct ».</div>'}</div>
+      <div class="dp-review-live" ${this.liveReview?'':'hidden'}></div></div></div>`);
+    z.find('.dp-editor').on('input change',()=>{this.dirty=true;this.renderLayoutPreview();this.updateBar();if(this.liveReview)this.planifierPages('review',1500);});
+    z.find('.dp-review-mode').on('click',e=>this.setLiveReview(e.currentTarget.dataset.mode==='live'));
+    z.find('.dp-review').addClass('dp-review-split');
+    if(this.liveReview)this.planifierPages('review',300);
     z.find('.dp-remove-section,.dp-remove-carac').on('click',e=>{$(e.currentTarget).closest('.dp-section,tr').remove();this.dirty=true;this.updateBar();});
     const add=(key,row)=>{this.current.contenu=this.captureDocument();this.current.contenu[key].push(row);this.renderDocument();this.dirty=true;this.updateBar();};
     z.find('.dp-add-section').on('click',()=>add('sections',{titre:'Nouvelle rubrique',texte:'',article:'',source:'Saisie manuelle'}));

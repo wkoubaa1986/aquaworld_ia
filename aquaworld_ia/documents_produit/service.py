@@ -487,10 +487,12 @@ def reecrire_partie(name, document_name, cible, instruction, contenu=None):
 
 
 @frappe.whitelist()
-def apercu_document(name, document_name, contenu=None):
+def apercu_document(name, document_name=None, contenu=None, mise_en_page=None, type_document=None, echelle=1.4):
 	"""Les pages du PDF composées en mémoire depuis le contenu à l'écran (corrections non enregistrées
-	comprises), avec la marque, l'en-tête et la mise en page actuels du dossier. Rien n'est écrit, aucun appel
-	IA (demande 06/11/2026 : « voir la disposition du document visuellement » avant d'enregistrer)."""
+	comprises), avec la marque, l'en-tête et les photos actuels du dossier, et la mise en page passée en
+	argument si elle l'est (réglages en cours, non enregistrés). Sans version : un document d'exemple du type
+	demandé. Rien n'est écrit, aucun appel IA (demandes 06/11/2026 : voir le document avant d'enregistrer, puis
+	« écran partagé, l'aperçu PDF se recompose pendant que je règle »)."""
 	import base64
 
 	import pymupdf
@@ -499,21 +501,33 @@ def apercu_document(name, document_name, contenu=None):
 	from aquaworld_ia.documents_produit.photos import legendes
 
 	d = dossier(name)
-	v = document(document_name)
-	if v.dossier != name:
-		frappe.throw(_("Choisissez une version de ce dossier."))
-	ctx = _contexte_presentation(v, d)
-	c = S.normaliser(legendes(_json(contenu) if contenu is not None else json.loads(v.contenu_json), json.loads(v.contexte_json), ctx), ctx)
+	if document_name:
+		v = document(document_name)
+		if v.dossier != name:
+			frappe.throw(_("Choisissez une version de ce dossier."))
+		ctx = _contexte_presentation(v, d)
+		c = S.normaliser(legendes(_json(contenu) if contenu is not None else json.loads(v.contenu_json), json.loads(v.contexte_json), ctx), ctx)
+		langue, rtl, numero, valide, genre = v.langue, v.rtl, v.numero, v.statut == "Validé", v.type_document
+	else:
+		genre = type_document if type_document in S.TYPES else S.TYPES[0]
+		ctx = C.contexte(d, tolerer_logo_absent=True)
+		ctx = M.appliquer(ctx, d, genre)
+		c = S.normaliser({"titre": (genre + " — " + d.titre)[:140],
+			"resume": "Exemple de disposition. Le contenu apparaîtra après rédaction du document."}, ctx)
+		langue, rtl, numero, valide = "fr", False, 1, False
+	if mise_en_page is not None:
+		ctx["mise_en_page"] = M.normaliser(_json(mise_en_page))
 	for s in c["sections"]:
 		if s.get("image"):
 			C.fichier_lisible(s["image"])
-	_tex, pdf, _zip = composer(c, ctx, v.langue, v.rtl, v.numero, v.statut == "Validé")
+	_tex, pdf, _zip = composer(c, ctx, langue, rtl, numero, valide)
 	pages = []
+	zoom = max(0.8, min(2.0, float(echelle or 1.4)))
 	with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 		for page in list(doc)[:20]:
-			png = page.get_pixmap(matrix=pymupdf.Matrix(1.4, 1.4), alpha=False).tobytes("png")
+			png = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False).tobytes("png")
 			pages.append("data:image/png;base64," + base64.b64encode(png).decode())
-		return {"pages": pages, "total": len(doc)}
+		return {"pages": pages, "total": len(doc), "type_document": genre}
 
 
 @frappe.whitelist()

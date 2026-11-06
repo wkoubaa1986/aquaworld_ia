@@ -554,6 +554,15 @@ rubrique) est remplacé à l’écran, les points à vérifier renvoyés s’ajo
 enregistré avant Enregistrer. Un appel IA par réécriture, compté dans les coûts du dossier (action
 « reecrire », modèle de l’onglet). Réservé aux versions françaises : une traduction repart du français.
 
+**Écran partagé, pages PDF en direct** (06/11/2026) : dans la mise en page (étape Présenter), la
+colonne de droite bascule entre **Schéma** et **Pages PDF en direct** ; en direct, la colonne s’élargit,
+reste visible au défilement et montre les vraies pages du document, recomposées en mémoire (1,2 s
+après le dernier changement, une composition à la fois) avec les réglages en cours — sans rien
+enregistrer ; sans version, un document d’exemple du type de l’onglet. À l’étape Relire, le volet de
+droite bascule de même entre **PDF enregistré** et **Pages en direct**, recomposées 1,5 s après chaque
+saisie de l’éditeur. Le choix est mémorisé dans la session du navigateur. `apercu_document` accepte
+la mise en page en argument et un dossier sans version.
+
 **Aperçu** (étape Relire, bouton à côté de « Générer le PDF », 06/11/2026) : compose le document en
 mémoire à partir du contenu affiché — corrections non enregistrées comprises — avec la marque,
 l’en-tête et la mise en page actuels du dossier, et montre ses pages (20 au plus) dans une fenêtre.
