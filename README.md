@@ -520,6 +520,16 @@ six variantes avec au moins deux attributs, les lignes sont regroupées sous un 
 premier attribut (ex. « Marque de membrane : AquaJad »), cette colonne étant alors retirée. La
 marque commerciale n’apparaît que si elle varie ; sans attribut, le nom tient lieu de configuration.
 
+**Réécrire avec l’IA** (étape Relire, 06/11/2026) : sous chaque rubrique, et à côté de « Présentation »,
+le bouton **✦ Réécrire avec l’IA…** demande une instruction (« plus détaillé, en trois paragraphes »,
+« plus court, pour un particulier », « ajoute les précautions avant intervention », « ton plus
+commercial ») et réécrit cette seule partie : mêmes règles que la rédaction (données de l’article =
+faits, rien d’inventé, connaissances générales si l’option du dossier est cochée), le reste du
+document est fourni pour la cohérence mais n’est pas modifié. Le texte (et le titre, la source de la
+rubrique) est remplacé à l’écran, les points à vérifier renvoyés s’ajoutent à la liste ; rien n’est
+enregistré avant Enregistrer. Un appel IA par réécriture, compté dans les coûts du dossier (action
+« reecrire », modèle de l’onglet). Réservé aux versions françaises : une traduction repart du français.
+
 **Aperçu** (étape Relire, bouton à côté de « Générer le PDF », 06/11/2026) : compose le document en
 mémoire à partir du contenu affiché — corrections non enregistrées comprises — avec la marque,
 l’en-tête et la mise en page actuels du dossier, et montre ses pages (20 au plus) dans une fenêtre.

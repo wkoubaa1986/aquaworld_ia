@@ -601,9 +601,9 @@ class DocumentsProduit {
       ${info?.a_actualiser?'<div class="dp-warning" style="margin:12px 0">À actualiser : la marque, la présentation, les articles, les sources ou la version française ont changé depuis cette version.</div>':''}
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
-      <div class="dp-review ${doc.pdf?'dp-review-split':''}"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation</label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
+      <div class="dp-review ${doc.pdf?'dp-review-split':''}"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation <button type="button" class="btn btn-default btn-xs dp-ia-resume" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ Réécrire avec l’IA…</button></label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
       <div class="dp-sections">${c.sections.map((s,i)=>`<div class="dp-section" data-index="${i}"><div class="dp-section-title"><input class="form-control dp-section-name" value="${dpEsc(s.titre)}" placeholder="Titre de la rubrique"><button class="btn btn-xs btn-default dp-remove-section">×</button></div><div class="dp-scope"><select class="form-control input-sm dp-section-scope">${scope(s.article)}</select><input class="form-control input-sm dp-section-source" value="${dpEsc(s.source)}" placeholder="Source : S1 p.3, Article…"></div><textarea class="form-control dp-section-text">${dpEsc(s.texte)}</textarea>
-      <div class="dp-section-extras">${this.sectionImageHtml(s)}${this.sectionTableHtml(s)}</div></div>`).join('')}</div>
+      <div class="dp-section-extras"><button type="button" class="btn btn-default btn-xs dp-ia-rubrique" ${doc.langue==='fr'?'':'disabled title="Réécrivez la version française puis traduisez"'}>✦ Réécrire avec l’IA…</button>${this.sectionImageHtml(s)}${this.sectionTableHtml(s)}</div></div>`).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
       <label class="dp-label">Caractéristiques techniques</label><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
@@ -619,6 +619,8 @@ class DocumentsProduit {
     z.find('.dp-translate').on('click',()=>this.translation());
     z.find('.dp-pdf').on('click',()=>this.lancer('pdf'));
     z.find('.dp-apercu').on('click',()=>this.apercuDocument());
+    z.find('.dp-ia-resume').on('click',()=>this.reecrireAvecIA({type:'resume'}));
+    z.find('.dp-ia-rubrique').on('click',e=>this.reecrireAvecIA({type:'section',index:+$(e.currentTarget).closest('.dp-section').attr('data-index')}));
     z.find('.dp-validate').on('click',()=>this.lancer('valider'));
     z.find('.dp-source-fr').on('click',async e=>{e.preventDefault();if(this.dirty)await this.saveDocument();await this.loadDocument(doc.source_fr);});
     if(!this.data.peut_ecrire)z.find('button,input,textarea,select').prop('disabled',true);
@@ -656,6 +658,28 @@ class DocumentsProduit {
       primary_action_label:'Utiliser cette image',primary_action:v=>{d.hide();
         if(v.choix!=='__import')return appliquer(v.choix);
         new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:this.name,is_private:1,allow_multiple:false,restrictions:{allowed_file_types:['.png','.jpg','.jpeg','.webp','.svg']},on_success:f=>appliquer(f.file_url)});
+      }});
+    d.show();
+  }
+  reecrireAvecIA(cible) {
+    // Une partie (résumé ou rubrique) réécrite par l'IA selon une instruction ; l'écran reprend le texte, rien
+    // n'est enregistré avant « Enregistrer » (demande 06/11/2026).
+    if(!this.current)return;
+    const z=this.root.find('.dp-editor'),rubrique=cible.type==='section'?z.find('.dp-section').eq(cible.index):null;
+    const titre=rubrique?rubrique.find('.dp-section-name').val():'Présentation';
+    const d=new frappe.ui.Dialog({title:'Réécrire avec l’IA · '+dpEsc(titre),fields:[
+      {fieldtype:'Small Text',fieldname:'instruction',label:'Que doit changer l’IA ?',reqd:1,description:'Ex. « Plus détaillé, en trois paragraphes : prétraitement, membrane, post-traitement » · « Plus court, pour un particulier » · « Ajoute les précautions avant intervention » · « Ton plus commercial ». L’instruction change la forme ou l’angle ; elle ne crée pas de fait : ce qui manque reste à vérifier.'},
+      {fieldtype:'HTML',fieldname:'etat',options:'<p class="dp-muted">Un appel IA (coût visible dans l’historique du dossier). Le texte actuel est remplacé à l’écran ; relisez, puis Enregistrer.</p>'}],
+      primary_action_label:'Réécrire',primary_action:async v=>{
+        d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">Réécriture en cours… (10 à 40 s)</p>');
+        try{
+          const r=await dpCall('reecrire_partie',{name:this.name,document_name:this.current.doc.name,cible,instruction:v.instruction,contenu:this.captureDocument()});
+          if(cible.type==='resume')z.find('.dp-summary').val(r.texte);
+          else{rubrique.find('.dp-section-text').val(r.texte);if(r.titre)rubrique.find('.dp-section-name').val(r.titre);if(r.source)rubrique.find('.dp-section-source').val(r.source);}
+          if(r.points_a_verifier?.length){const ch=z.find('.dp-checks');ch.val([ch.val().trim(),...r.points_a_verifier].filter(Boolean).join('\n'));}
+          this.dirty=true;this.updateBar();this.renderLayoutPreview();d.hide();
+          frappe.show_alert({message:'Partie réécrite : relisez, puis Enregistrer.',indicator:'green'});
+        }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'La réécriture a échoué. Reformulez l’instruction et réessayez.')}</div>`);}
       }});
     d.show();
   }

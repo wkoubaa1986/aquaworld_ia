@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from aquaworld_ia.emballage import prompts as P
@@ -58,7 +59,7 @@ class TestPromptDocumentsProduit(unittest.TestCase):
 
 		from aquaworld_ia.documents_produit import traitement
 
-		systeme = inspect.getsource(traitement.generer)
+		systeme = inspect.getsource(traitement.generer) + traitement.REGLES_COMMUNES
 		self.assertIn("énonce-les comme des faits", systeme)
 		self.assertIn("« annoncé »", systeme)
 		self.assertIn("points_a_verifier", systeme)
@@ -71,5 +72,63 @@ class TestPromptDocumentsProduit(unittest.TestCase):
 
 		src = inspect.getsource(traitement.generer)
 		self.assertIn('if ctx.get("connaissances_generales"):', src)
-		self.assertIn("Connaissances générales", src)
-		self.assertIn("Reste interdit sans source : toute valeur chiffrée", src)
+		self.assertIn("Connaissances générales", traitement.CONNAISSANCES_GENERALES)
+		self.assertIn("Reste interdit sans source : toute valeur chiffrée", traitement.CONNAISSANCES_GENERALES)
+
+
+class TestReecriturePartie(unittest.TestCase):
+	"""« Changer cette partie par IA en ajoutant une instruction » (06/11/2026) : réécriture d'une rubrique ou du
+	résumé, avec les mêmes règles que la rédaction, sans toucher au reste ; appel IA simulé."""
+
+	def _ctx_et_contenu(self):
+		from aquaworld_ia.documents_produit import structure as S
+		from aquaworld_ia.tests.test_documents_produit import contenu_simple, contexte_simple
+
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		c["sections"].append({"titre": "Entretien", "texte": "Texte court.", "article": "", "source": "Connaissances générales"})
+		return ctx, S.normaliser(c, ctx)
+
+	def test_rubrique_reecrite_avec_regles_et_contexte(self):
+		from unittest.mock import patch
+
+		from aquaworld_ia.documents_produit import traitement as T
+
+		ctx, c = self._ctx_et_contenu()
+		ctx["connaissances_generales"] = 1
+		appels = []
+
+		def faux_chat(system, user, **kw):
+			appels.append((system, json.loads(user), kw))
+			return {"titre": "Entretien courant", "texte": "Remplacer les cartouches.", "source": "Connaissances générales",
+				"points_a_verifier": ["Fréquences à confirmer"]}
+
+		with patch.object(T, "chat_json", faux_chat):
+			r = T.reecrire(type("D", (), {"name": "DPR-TEST", "doctype": "Dossier Produit"})(), "Fiche technique", ctx, c,
+				{"type": "section", "index": 1}, "Plus détaillé, avec les précautions")
+		self.assertEqual(r, {"texte": "Remplacer les cartouches.", "points_a_verifier": ["Fréquences à confirmer"],
+			"titre": "Entretien courant", "source": "Connaissances générales"})
+		system, user, kw = appels[0]
+		self.assertIn("UNE partie", system)
+		self.assertIn("jamais « annoncé »", system)                        # règles communes partagées avec la rédaction
+		self.assertIn("connaissances générales", system)
+		self.assertEqual(user["partie_a_reecrire"]["titre"], "Entretien")
+		self.assertEqual(user["instruction"], "Plus détaillé, avec les précautions")
+		self.assertEqual([a["titre"] for a in user["document"]["autres_rubriques"]], ["Utilisation"])   # pas la rubrique visée
+		self.assertEqual(kw["fonctionnalite"], "Document produit — fiche technique")
+
+	def test_resume_et_refus(self):
+		from unittest.mock import patch
+
+		from aquaworld_ia.documents_produit import traitement as T
+
+		ctx, c = self._ctx_et_contenu()
+		d = type("D", (), {"name": "DPR-TEST", "doctype": "Dossier Produit"})()
+		with patch.object(T, "chat_json", lambda s, u, **kw: {"texte": "Résumé réécrit."}):
+			self.assertEqual(T.reecrire(d, "Fiche technique", ctx, c, {"type": "resume"}, "Plus court")["texte"], "Résumé réécrit.")
+		with self.assertRaises(ValueError):
+			T.reecrire(d, "Fiche technique", ctx, c, {"type": "section", "index": 0}, "   ")
+		with self.assertRaises(ValueError):
+			T.reecrire(d, "Fiche technique", ctx, c, {"type": "section", "index": 9}, "x")
+		with patch.object(T, "chat_json", lambda s, u, **kw: {"texte": ""}), self.assertRaises(ValueError):
+			T.reecrire(d, "Fiche technique", ctx, c, {"type": "resume"}, "x")

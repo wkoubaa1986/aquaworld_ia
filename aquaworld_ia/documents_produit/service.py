@@ -466,6 +466,27 @@ def appliquer_entete(v, d):
 
 
 @frappe.whitelist()
+def reecrire_partie(name, document_name, cible, instruction, contenu=None):
+	"""Réécrit le résumé ou une rubrique de la version avec l'IA, selon une instruction, à partir du contenu à
+	l'écran. Rien n'est enregistré : l'écran reprend le texte, l'utilisateur relit puis enregistre. Un appel IA,
+	compté dans les coûts du dossier (action « reecrire »)."""
+	from aquaworld_ia.documents_produit import traitement
+
+	d = dossier(name, "write")
+	v = document(document_name, "write")
+	if v.dossier != name:
+		frappe.throw(_("Choisissez une version de ce dossier."))
+	if v.langue != "fr":
+		frappe.throw(_("Réécrivez la version française, puis traduisez-la : la traduction repart du français."))
+	ctx = json.loads(v.contexte_json)
+	ctx["consignes"] = d.consignes or ""
+	if d.get("connaissances_generales"):
+		ctx["connaissances_generales"] = 1
+	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
+	return traitement.reecrire(d, v.type_document, ctx, c, _json(cible), instruction)
+
+
+@frappe.whitelist()
 def apercu_document(name, document_name, contenu=None):
 	"""Les pages du PDF composées en mémoire depuis le contenu à l'écran (corrections non enregistrées
 	comprises), avec la marque, l'en-tête et la mise en page actuels du dossier. Rien n'est écrit, aucun appel
