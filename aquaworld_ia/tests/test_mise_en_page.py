@@ -109,6 +109,21 @@ class TestMiseEnPage(unittest.TestCase):
 						self.assertGreater(logo.y0, page.search_for("Variantes couvertes")[0].y1)
 				self.assertIn(r"{\bfseries ecoPurium}\par", tex)
 
+	def test_lien_woocommerce_du_produit(self):
+		from aquaworld_ia.documents_produit import contexte as C
+
+		# Adresse par identifiant : WordPress la redirige (301) vers la page publique du produit, et elle survit à un
+		# changement de slug — ce qui compte pour un QR imprimé. Les variations (id d'une variante) ne sont pas des
+		# pages : seul l'article parent est utilisé.
+		self.assertEqual(C.url_produit_woocommerce("https://aquaworldservicing.com", 1343),
+			"https://aquaworldservicing.com/?post_type=product&p=1343")
+		self.assertEqual(C.url_produit_woocommerce("https://aquaworldservicing.com/", "1343"),
+			"https://aquaworldservicing.com/?post_type=product&p=1343")
+		for serveur, identifiant in (("", 1), ("https://x.com", 0), ("https://x.com", "abc"), ("ftp://x.com", 1), (None, 1)):
+			with self.subTest(serveur=serveur, identifiant=identifiant):
+				self.assertEqual(C.url_produit_woocommerce(serveur, identifiant), "")
+		self.assertTrue(M.QR_URL.fullmatch(C.url_produit_woocommerce("https://aquaworldservicing.com", 1343)))
+
 	def test_qr_code_validation_et_defauts(self):
 		base = M.normaliser({"qr_url": "https://example.invalid/p/AP-M?x=1#top", "qr_legende": " Fiche en ligne ", "qr_taille": 30})
 		self.assertEqual(base["qr_legende"], "Fiche en ligne")

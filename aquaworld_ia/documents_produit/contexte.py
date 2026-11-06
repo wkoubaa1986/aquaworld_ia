@@ -259,3 +259,35 @@ def lire_sources(ctx, doc, progression=lambda *a: None):
 		if sum(len(str(p["texte"])) for p in preuves) > 100000:
 			raise ValueError("Les sources sont trop longues. Sélectionnez les pages techniques utiles.")
 	return preuves
+
+
+def url_produit_woocommerce(serveur_url, identifiant):
+	"""L'adresse publique d'un produit WooCommerce par son identifiant, ou ''. PURE.
+
+	`?post_type=product&p=ID` : WordPress la redirige (301) vers la page du produit, et elle survit à un changement
+	de slug — ce qui compte pour un QR imprimé. Une variation n'a pas de page : passer l'identifiant du parent.
+	"""
+	try:
+		identifiant = int(identifiant)
+	except (TypeError, ValueError):
+		return ""
+	if identifiant <= 0 or not isinstance(serveur_url, str):
+		return ""
+	serveur_url = serveur_url.strip().rstrip("/")
+	if not re.fullmatch(r"https?://[A-Za-z0-9][A-Za-z0-9\-._~:/@%]*", serveur_url):
+		return ""
+	return f"{serveur_url}/?post_type=product&p={identifiant}"
+
+
+def lien_woocommerce(article):
+	"""Le lien du produit sur la boutique, d'après la section WooCommerce de l'article parent (demande 06/11/2026 :
+	« le lien existe dans la fiche article, est-ce que tu peux le reprendre automatiquement ? »). {} si absent."""
+	if not frappe.db.exists("DocType", "Item WooCommerce Server"):
+		return {}
+	for r in frappe.get_all("Item WooCommerce Server", filters={"parent": article, "parenttype": "Item", "enabled": 1},
+			fields=["woocommerce_server", "woocommerce_id"], order_by="idx asc"):
+		serveur_url = frappe.db.get_value("WooCommerce Server", r.woocommerce_server, "woocommerce_server_url")
+		url = url_produit_woocommerce(serveur_url, r.woocommerce_id)
+		if url:
+			return {"url": url, "serveur": r.woocommerce_server, "id": int(r.woocommerce_id)}
+	return {}

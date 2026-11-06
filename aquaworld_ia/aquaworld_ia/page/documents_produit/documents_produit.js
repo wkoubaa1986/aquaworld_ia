@@ -204,6 +204,7 @@ class DocumentsProduit {
       <label class="dp-label">Position<select class="form-control dp-qr-position">${options({avant_titre:'Au-dessus du titre',apres_titre:'Sous le titre',illustrations:'Dans « Autres illustrations »',fin_document:'À la fin du document'},m.qr_position)}</select></label>
       <label class="dp-label">Alignement<select class="form-control dp-qr-align">${options({gauche:'À gauche',centre:'Centré',droite:'À droite'},m.qr_alignement)}</select></label>
       <label class="dp-label">Taille (mm)<input class="form-control dp-qr-taille" type="number" min="15" max="40" step="1" value="${m.qr_taille}"></label></div>
+      <div class="dp-actions" style="margin-top:8px">${this.data.lien_woocommerce?.url?`<button type="button" class="btn btn-default btn-sm dp-qr-woo">Reprendre le lien WooCommerce de l’article</button><span class="dp-muted">${dpEsc(this.data.lien_woocommerce.serveur)} · produit n° ${dpEsc(this.data.lien_woocommerce.id)}</span>`:'<span class="dp-muted">L’article parent n’est pas lié à WooCommerce : saisissez le lien à la main.</span>'}</div>
       <p class="dp-muted dp-qr-status" role="status"></p>
       <h3 style="margin-top:18px">Ordre des blocs</h3><div class="dp-layout-order"></div>
       <div class="dp-actions" style="margin-top:14px"><button class="btn btn-default btn-sm dp-reset-layout">Disposition initiale</button></div>
@@ -220,6 +221,12 @@ class DocumentsProduit {
       this.clampLogoPosition();
       if($(e.target).hasClass('dp-qr-url'))this.loadQrPreview();
       this.renderColumnChoices();this.renderLayoutPreview();this.layoutChanged();
+    });
+    z.find('.dp-qr-woo').on('click',()=>{
+      // Le lien WooCommerce de l'article parent (section WooCommerce de la fiche Article) ; la légende est proposée si vide.
+      z.find('.dp-qr-url').val(this.data.lien_woocommerce.url);
+      if(!z.find('.dp-qr-legende').val().trim())z.find('.dp-qr-legende').val('Voir le produit en ligne');
+      z.find('.dp-qr-url').trigger('input');
     });
     this.loadQrPreview();
     z.find('.dp-enable-free-logo').on('click',()=>{z.find('.dp-layout-brand-position').val('libre').trigger('change');this.root.find('.dp-free-sheet')[0]?.scrollIntoView({behavior:'smooth',block:'center'});this.loadFreeBackground();});

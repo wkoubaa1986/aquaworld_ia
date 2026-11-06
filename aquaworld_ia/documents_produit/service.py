@@ -208,6 +208,7 @@ def charger(name):
 		"erreur_entete": erreur_entete,
 		"marques": marques.disponibles(),
 		"peut_creer_marque": frappe.has_permission("Brand", "create"),
+		"lien_woocommerce": C.lien_woocommerce(d.article),
 	}
 
 

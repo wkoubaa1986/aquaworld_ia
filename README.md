@@ -516,7 +516,11 @@ disposition ; le PDF final dépend du contenu et de la pagination A4.
 le lien (https://…, par exemple la page du produit sur le site), une légende affichée sous
 le code, sa position (au-dessus du titre, sous le titre, dans « Autres illustrations » après la
 galerie — ou seul sous ce titre s’il n’y a pas d’autre photo —, à la fin du document), son alignement
-et sa taille (15 à 40 mm). Le QR (correction M, noir sur blanc, généré par `segno`) est
+et sa taille (15 à 40 mm). **Reprendre le lien WooCommerce de l’article** remplit le lien depuis
+la section WooCommerce de l’article parent (serveur + identifiant produit, sous la forme
+`https://boutique/?post_type=product&p=ID`, que WordPress redirige vers la page du produit et qui
+survit à un changement de slug) et propose la légende « Voir le produit en ligne » si elle est
+vide ; sans liaison WooCommerce, le lien se saisit à la main. Le QR (correction M, noir sur blanc, généré par `segno`) est
 aussi un lien cliquable dans le PDF ; sans lien, rien n’est ajouté. L’aperçu de disposition
 affiche le vrai code (`apercu_qr`), préparé par le serveur dès que le lien est valide.
 Comme tout réglage de mise en page, il s’applique en générant le PDF d’une version.
