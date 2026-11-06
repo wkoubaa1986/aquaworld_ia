@@ -528,7 +528,9 @@ directement le type voulu.
 **tableau croisé** — le premier attribut (ex. membrane, s’il a de 2 à 6 valeurs) en colonnes, l’attribut
 le plus varié (ex. configuration) en lignes, les autres (ex. mixage) en complément dans la cellule avec
 la référence ; 45 variantes tiennent ainsi en 12 lignes × 3 colonnes. La case d’angle nomme les deux
-attributs d’après leurs libellés (« Configuration de filtration ↓ / Marque de membrane → »). Lignes,
+attributs d’après leurs libellés : l’en-tête tient sur deux lignes — l’attribut des lignes titre la
+première colonne, une cellule chapeau nomme l’attribut des colonnes au-dessus de ses valeurs (ex.
+« Marque de membrane » puis AquaJad · Vontron · DowFilmtec) — et se répète à chaque page. Lignes,
 colonnes et variantes suivent l’**ordre des valeurs d’attribut défini dans ERPNext** (Item Attribute
 Value), pas l’ordre d’apparition ; en mode vignettes, une variante sans photo du dossier montre
 **l’image de sa fiche article**, et le nom de la variante n’est ajouté dans la cellule que s’il dit

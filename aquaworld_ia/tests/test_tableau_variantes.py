@@ -149,7 +149,7 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 					self.assertIn("Avec mixage", texte)
 					self.assertNotIn("Photos et illustrations", texte)                       # les vues sont dans le tableau
 					if mode == "croise":
-						self.assertIn("Configuration de filtration ↓ Marque de membrane → AquaJad DowFilmtec Vontron", texte)   # case d'angle : les deux attributs
+						self.assertIn("Configuration de filtration Marque de membrane AquaJad DowFilmtec Vontron", texte)   # chapeau de l'attribut des colonnes, puis ses valeurs
 
 
 class TestOrdreNomCourtEtImageArticle(unittest.TestCase):

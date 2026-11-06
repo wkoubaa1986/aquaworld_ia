@@ -618,10 +618,15 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 						+ ((r"\par{\small\itshape " + t(it["nom"]) + "}") if it.get("nom") and not par_nom else ""))
 				return r"\par\smallskip ".join(parts)
 
-			# Case d'angle : l'attribut des lignes en gras, celui des colonnes dessous avec une flèche vers les colonnes.
-			angle = (r"\bfseries\color{aqua} " + t(croise["attribut_lignes"] + " ↓") + r"\par{\color{aqua}\small " + t(croise["attribut_colonnes"] + " →") + "}")
-			blocs["variantes"] += [ZEBRE, r"\begin{longtable}{" + colonnes + "}",
-				r"\toprule\rowcolor{aquafort}" + " & ".join([angle] + [r"\bfseries\color{aqua} " + t(e) for e in croise["entetes"][1:]]) + r"\\\endhead"]
+			# En-tête sur deux lignes (demande 06/11/2026) : une cellule qui chapeaute toutes les colonnes avec le nom de
+			# l'attribut des colonnes (ex. « Marque de membrane »), puis la ligne de ses valeurs ; l'attribut des lignes
+			# titre la première colonne. Tout vient des libellés d'attributs.
+			nb_val = n - 1
+			chapeau = (r"\toprule\rowcolor{aquafort}" + r"\bfseries\color{aqua} " + t(croise["attribut_lignes"]) + " & "
+				+ r"\multicolumn{" + str(nb_val) + r"}{>{\centering\arraybackslash}m{" + f"{sum(largeurs[1:]) + 0.012 * (nb_val - 1):.3f}" + r"\linewidth}}{\bfseries\color{aqua} "
+				+ t(croise["attribut_colonnes"]) + r"}\\")
+			valeurs_ligne = r"\rowcolor{aquafort}" + " & " + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in croise["entetes"][1:]) + r"\\\endhead"
+			blocs["variantes"] += [ZEBRE, r"\begin{longtable}{" + colonnes + "}", chapeau, valeurs_ligne]
 			for ligne in croise["lignes"]:
 				blocs["variantes"].append(t(ligne[0]) + " & " + " & ".join(cellule(items) for items in ligne[1:]) + r"\\")
 			blocs["variantes"].append(r"\bottomrule\end{longtable}")
