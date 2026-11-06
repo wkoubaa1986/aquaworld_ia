@@ -585,7 +585,7 @@ class DocumentsProduit {
   renderDocument() {
     const {doc,contenu:c,contexte:ctx}=this.current,z=this.root.find('.dp-document');
     const info=this.data.documents.find(v=>v.name===doc.name),scope=(value)=>`<option value="">Toute la gamme</option>${ctx.variantes.map(v=>`<option value="${dpEsc(v.name)}" ${value===v.name?'selected':''}>${dpEsc(v.name)}</option>`).join('')}`;
-    z.html(`<div class="dp-actions"><span class="dp-badge">${dpEsc(doc.libelle_langue)} · version ${doc.numero} · ${dpEsc(doc.statut)}</span>${doc.langue==='fr'?'<button class="btn btn-default btn-sm dp-translate">Traduire</button>':''}<button class="btn btn-default btn-sm dp-pdf">Générer le PDF</button><button class="btn btn-primary btn-sm dp-validate">Valider et générer le PDF</button>${[['pdf','Télécharger le PDF'],['source_latex','Source LaTeX'],['archive_latex','LaTeX et images (ZIP)']].filter(([k])=>doc[k]).map(([k,label])=>`<a class="btn btn-default btn-sm" href="${dpUrl(doc[k])}" target="_blank" rel="noopener">${label}</a>`).join('')}</div>
+    z.html(`<div class="dp-actions"><span class="dp-badge">${dpEsc(doc.libelle_langue)} · version ${doc.numero} · ${dpEsc(doc.statut)}</span>${doc.langue==='fr'?'<button class="btn btn-default btn-sm dp-translate">Traduire</button>':''}<button class="btn btn-default btn-sm dp-apercu" title="Compose le document avec vos modifications en cours, sans rien enregistrer ni appel IA">Aperçu</button><button class="btn btn-default btn-sm dp-pdf">Générer le PDF</button><button class="btn btn-primary btn-sm dp-validate">Valider et générer le PDF</button>${[['pdf','Télécharger le PDF'],['source_latex','Source LaTeX'],['archive_latex','LaTeX et images (ZIP)']].filter(([k])=>doc[k]).map(([k,label])=>`<a class="btn btn-default btn-sm" href="${dpUrl(doc[k])}" target="_blank" rel="noopener">${label}</a>`).join('')}</div>
       ${info?.a_actualiser?'<div class="dp-warning" style="margin:12px 0">À actualiser : la marque, la présentation, les articles, les sources ou la version française ont changé depuis cette version.</div>':''}
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
@@ -606,6 +606,7 @@ class DocumentsProduit {
     z.find('.dp-add-carac').on('click',()=>add('caracteristiques',{nom:'',valeur:'',unite:'',article:'',source:'Saisie manuelle'}));
     z.find('.dp-translate').on('click',()=>this.translation());
     z.find('.dp-pdf').on('click',()=>this.lancer('pdf'));
+    z.find('.dp-apercu').on('click',()=>this.apercuDocument());
     z.find('.dp-validate').on('click',()=>this.lancer('valider'));
     z.find('.dp-source-fr').on('click',async e=>{e.preventDefault();if(this.dirty)await this.saveDocument();await this.loadDocument(doc.source_fr);});
     if(!this.data.peut_ecrire)z.find('button,input,textarea,select').prop('disabled',true);
@@ -645,6 +646,17 @@ class DocumentsProduit {
         new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:this.name,is_private:1,allow_multiple:false,restrictions:{allowed_file_types:['.png','.jpg','.jpeg','.webp','.svg']},on_success:f=>appliquer(f.file_url)});
       }});
     d.show();
+  }
+  async apercuDocument() {
+    // Le PDF tel qu'il sortirait maintenant : contenu de l'écran + réglages actuels du dossier, sans enregistrer.
+    if(!this.current)return;
+    const d=new frappe.ui.Dialog({title:'Aperçu du document · '+dpEsc(this.current.doc.libelle_langue)+' · version '+this.current.doc.numero,size:'extra-large',fields:[{fieldtype:'HTML',fieldname:'pages'}]});
+    const zone=d.fields_dict.pages.$wrapper;zone.html('<p class="dp-muted">Composition du document…</p>');d.show();
+    try{
+      if(this.data.peut_ecrire)await this.saveConfig();
+      const r=await dpCall('apercu_document',{name:this.name,document_name:this.current.doc.name,contenu:this.captureDocument()});
+      zone.html(`<p class="dp-muted">${r.total} page${r.total>1?'s':''}${r.total>r.pages.length?' (les '+r.pages.length+' premières affichées)':''} · aperçu non enregistré : utilisez « Enregistrer » puis « Générer le PDF » pour le conserver.</p><div class="dp-apercu-pages">${r.pages.map((p,i)=>`<figure><img src="${p}" alt="Page ${i+1}"><figcaption>Page ${i+1}</figcaption></figure>`).join('')}</div>`);
+    }catch(e){zone.html(`<div class="dp-warning">${dpEsc(e?.message||'La composition a échoué. Vérifiez le message affiché et les images des rubriques.')}</div>`);}
   }
   captureDocument() {
     const c=JSON.parse(JSON.stringify(this.current.contenu)),z=this.root.find('.dp-editor');

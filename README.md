@@ -511,6 +511,11 @@ les corrections sont enregistrées avant de changer d’onglet. Le dernier ongle
 dans la session du navigateur ; un lien se terminant par `/fiche` ou `/manuel` ouvre
 directement le type voulu.
 
+**Aperçu** (étape Relire, bouton à côté de « Générer le PDF », 06/11/2026) : compose le document en
+mémoire à partir du contenu affiché — corrections non enregistrées comprises — avec la marque,
+l’en-tête et la mise en page actuels du dossier, et montre ses pages (20 au plus) dans une fenêtre.
+Rien n’est enregistré, aucun appel IA ; pour conserver le résultat : Enregistrer puis Générer le PDF.
+
 **Image et tableau dans une rubrique** (étape Relire, 06/11/2026) : sous le texte de chaque
 rubrique, **Ajouter une image (graphe, schéma)** choisit une photo du dossier ou importe un fichier
 (PNG, JPG, SVG — par exemple un graphe exporté d’Excel), puis **Disposition** (texte à gauche ·

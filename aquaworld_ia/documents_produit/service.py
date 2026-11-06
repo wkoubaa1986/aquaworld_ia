@@ -466,6 +466,36 @@ def appliquer_entete(v, d):
 
 
 @frappe.whitelist()
+def apercu_document(name, document_name, contenu=None):
+	"""Les pages du PDF composées en mémoire depuis le contenu à l'écran (corrections non enregistrées
+	comprises), avec la marque, l'en-tête et la mise en page actuels du dossier. Rien n'est écrit, aucun appel
+	IA (demande 06/11/2026 : « voir la disposition du document visuellement » avant d'enregistrer)."""
+	import base64
+
+	import pymupdf
+
+	from aquaworld_ia.documents_produit.latex import composer
+	from aquaworld_ia.documents_produit.photos import legendes
+
+	d = dossier(name)
+	v = document(document_name)
+	if v.dossier != name:
+		frappe.throw(_("Choisissez une version de ce dossier."))
+	ctx = _contexte_presentation(v, d)
+	c = S.normaliser(legendes(_json(contenu) if contenu is not None else json.loads(v.contenu_json), json.loads(v.contexte_json), ctx), ctx)
+	for s in c["sections"]:
+		if s.get("image"):
+			C.fichier_lisible(s["image"])
+	_tex, pdf, _zip = composer(c, ctx, v.langue, v.rtl, v.numero, v.statut == "Validé")
+	pages = []
+	with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+		for page in list(doc)[:20]:
+			png = page.get_pixmap(matrix=pymupdf.Matrix(1.4, 1.4), alpha=False).tobytes("png")
+			pages.append("data:image/png;base64," + base64.b64encode(png).decode())
+		return {"pages": pages, "total": len(doc)}
+
+
+@frappe.whitelist()
 def apercu_placement_logo(name, type_document, mise_en_page, document_name=None, contenu=None):
 	"""Première page sans la zone de marque : fond de placement, sans IA ni fichier enregistré."""
 	import base64
