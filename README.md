@@ -670,6 +670,12 @@ des articles ou des documents sélectionnés. Maximum par dossier : 250 variante
 Le rendu utilise un modèle XeLaTeX contrôlé, des textes échappés et des images locales
 rasterisées. L'exécution de commandes est désactivée avec `-no-shell-escape` ; le délai de
 compilation est borné. Voir la [documentation XeTeX](https://tug.ctan.org/info/xetexref/xetex-reference.pdf).
+Les symboles que Noto Sans ne couvre pas (flèches ↔ → ⇒, opérateurs ≤ ≥ ≈ ≠ ∞, coches, étoiles,
+puces géométriques, dingbats) sont composés dans une police de secours trouvée sur le serveur
+par `fc-list` (Noto Sans Symbols2, Noto Sans Symbols, DejaVu Sans, Noto Sans Math, Noto Sans CJK
+SC — DejaVu Sans est présente dans l’image de prod) ; sans aucune, ils sont remplacés par un
+équivalent texte (`↔` → `<->`, `≥` → `>=`, `✓` → `v`…). Avant le 06/11/2026, un « ↔ » écrit par
+l’IA faisait refuser le PDF (« Missing character »).
 L'arabe utilise `bidi` et Noto Naskh Arabic ; les scripts CJK et les principaux autres scripts
 utilisent les familles Noto correspondantes. Une police manquante est signalée sans supprimer
 la traduction enregistrée. La suite `aquaworld_ia.tests.test_documents_produit` contrôle les

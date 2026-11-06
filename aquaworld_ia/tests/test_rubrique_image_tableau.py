@@ -82,3 +82,32 @@ class TestRenduRubrique(unittest.TestCase):
 			self.assertTrue(page.search_for("100 GPD"))
 			self.assertGreater(schema.y0, page.search_for("Installation")[0].y1)
 			self.assertAlmostEqual(schema.width, 0.7 * 174 * 72 / 25.4, delta=1)
+
+
+class TestSymbolesHorsPolice(unittest.TestCase):
+	"""« Missing character: There is no ↔ (U+2194) in font Noto Sans » (06/11/2026) : les symboles que Noto Sans
+	ne couvre pas passent dans une police de secours, ou en texte s'il n'y en a aucune."""
+
+	def tearDown(self):
+		if hasattr(L.police_symboles, "cache"):
+			delattr(L.police_symboles, "cache")
+
+	def test_police_de_secours_ou_repli_texte(self):
+		L.police_symboles.cache = "DejaVu Sans"
+		self.assertEqual(L.texte("A ↔ B ≥ 3 → C"), r"A {\symbolfont ↔} B {\symbolfont ≥} 3 {\symbolfont →} C")
+		self.assertEqual(L.texte("50 % & ±2"), r"50 \% \& ±2")      # ± est dans Noto Sans : inchangé
+		L.police_symboles.cache = None
+		self.assertEqual(L.texte("A ↔ B ≥ 3 → C ✓ ∞"), "A <-> B >= 3 -> C v infini")
+
+	@unittest.skipUnless(shutil.which("xelatex") and shutil.which("fc-list"), "XeLaTeX et fontconfig requis")
+	def test_pdf_avec_fleches_et_operateurs(self):
+		import pymupdf
+
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		c["sections"][0]["texte"] = "Pression ≥ 3 bar ↔ 5 bar → OK ✓"
+		_tex, pdf, _ = L.composer(c, ctx)
+		if L.police_symboles():
+			with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+				for s in ("≥", "↔", "→", "✓"):
+					self.assertTrue(doc[0].search_for(s), s)

@@ -63,13 +63,47 @@ def echapper(s):
 	)
 
 
+# Symboles absents de Noto Sans (flèches, ≤ ≥ ≈ ≠ ∞, formes, coches, dingbats) : l'IA en écrit volontiers
+# (« ↔ », « → », « ≥ 3 bar ») et XeLaTeX signalait « Missing character » — PDF refusé (06/11/2026, AP-M).
+# Ils passent dans une police de secours présente sur le serveur ; sans police, un équivalent texte.
+SYMBOLES = re.compile(r"[\u2190-\u21ff\u2200-\u22ff\u2300-\u23ff\u2460-\u24ff\u2500-\u27bf\u2b00-\u2bff]+")
+POLICES_SYMBOLES = ("Noto Sans Symbols2", "Noto Sans Symbols", "DejaVu Sans", "Noto Sans Math", "Noto Sans CJK SC")
+SYMBOLES_TEXTE = {"↔": "<->", "→": "->", "←": "<-", "⇒": "=>", "⇐": "<=", "⇔": "<=>", "↑": "^", "↓": "v",
+	"≤": "<=", "≥": ">=", "≠": "!=", "≈": "~", "∞": "infini", "✓": "v", "✔": "v", "✗": "x", "✘": "x",
+	"★": "*", "☆": "*", "●": "-", "○": "o", "■": "-", "□": "-", "▪": "-", "►": ">", "▶": ">", "•": "-"}
+
+
+def police_symboles():
+	"""La première police de secours installée qui couvre flèches et opérateurs ; None si aucune. Mise en cache."""
+	if not hasattr(police_symboles, "cache"):
+		police_symboles.cache = None
+		if shutil.which("fc-list"):
+			for famille in POLICES_SYMBOLES:
+				try:
+					sortie = subprocess.run(["fc-list", f":family={famille}:charset=2194 2264", "family"],
+						capture_output=True, text=True, timeout=10).stdout
+				except (OSError, subprocess.SubprocessError):
+					sortie = ""
+				if famille in sortie.splitlines():
+					police_symboles.cache = famille
+					break
+	return police_symboles.cache
+
+
+def symboles(s):
+	"""Les symboles hors Noto Sans en police de secours, ou en texte s'il n'y en a pas."""
+	if police_symboles():
+		return SYMBOLES.sub(lambda m: r"{\symbolfont " + m.group(0) + "}", s)
+	return SYMBOLES.sub(lambda m: "".join(SYMBOLES_TEXTE.get(c, "") for c in m.group(0)), s)
+
+
 def texte(s, rtl=False):
 	if not rtl:
-		return echapper(s)
+		return symboles(echapper(s))
 	# Les références et valeurs latines gardent leur sens de lecture dans un paragraphe RTL.
 	morceaux = re.split(r"([^\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff\n]+)", str(s or ""))
 	return "".join(
-		(r"{\LR{\latinfont " + echapper(v) + "}}") if i % 2 and v.strip() else echapper(v)
+		(r"{\LR{\latinfont " + symboles(echapper(v)) + "}}") if i % 2 and v.strip() else symboles(echapper(v))
 		for i, v in enumerate(morceaux)
 	)
 
@@ -152,6 +186,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	en_tete = en_tete.replace("{087E8B}", "{" + disposition["couleur"][1:] + "}")
 	script = "[Script=Arabic]" if langue.split("-")[0] in ("ar", "fa", "ur") else ""
 	en_tete += "\\setmainfont" + script + "{" + police + "}\n\\newfontfamily\\latinfont{Noto Sans}\n"
+	if police_symboles():
+		en_tete += "\\newfontfamily\\symbolfont{" + police_symboles() + "}\n"
 	if rtl:
 		en_tete += "\\usepackage{bidi}\n"
 	if langue.split("-")[0] in ("zh", "ja", "ko"):
