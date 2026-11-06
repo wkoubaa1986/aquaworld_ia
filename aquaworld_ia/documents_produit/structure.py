@@ -103,6 +103,11 @@ def normaliser(data, contexte):
 	}
 	if not out["titre"]:
 		raise ValueError("Le titre est obligatoire.")
+	# Une ligne de caractéristique sans nom ni valeur (ligne ajoutée puis laissée vide, ou capturée par erreur) ne
+	# compte pas : elle était comptée dans la limite et faisait refuser le document (06/11/2026).
+	if isinstance(data.get("caracteristiques"), list):
+		data = {**data, "caracteristiques": [c for c in data["caracteristiques"]
+			if isinstance(c, dict) and (str(c.get("nom") or "").strip() or str(c.get("valeur") or "").strip())]}
 	for cle, limite in (("sections", 40), ("caracteristiques", 250), ("points_a_verifier", 80)):
 		if not isinstance(data.get(cle, []), list) or len(data.get(cle, [])) > limite:
 			raise ValueError("Liste documentaire invalide : " + cle)

@@ -111,3 +111,18 @@ class TestSymbolesHorsPolice(unittest.TestCase):
 			with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 				for s in ("≥", "↔", "→", "✓"):
 					self.assertTrue(doc[0].search_for(s), s)
+
+
+class TestCaracteristiquesVides(unittest.TestCase):
+	def test_les_lignes_vides_ne_comptent_pas_dans_la_limite(self):
+		"""06/11/2026 : 144 caractéristiques + 135 lignes vides/`{}` capturées par erreur → « Liste documentaire
+		invalide : caracteristiques ». Les vides sont ignorées, les autres gardées."""
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		c["caracteristiques"] = [{"nom": "Débit", "valeur": "75", "unite": "GPD", "article": "", "source": "S1"}] \
+			+ [{"nom": "", "valeur": "", "unite": "", "article": "", "source": ""}] * 200 + [{}] * 60
+		out = S.normaliser(c, ctx)
+		self.assertEqual([x["nom"] for x in out["caracteristiques"]], ["Débit"])
+		c["caracteristiques"] = [{"nom": f"C{i}", "valeur": "1", "unite": "", "article": "", "source": ""} for i in range(251)]
+		with self.assertRaises(ValueError):
+			S.normaliser(c, ctx)
