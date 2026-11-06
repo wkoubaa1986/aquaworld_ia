@@ -521,6 +521,14 @@ les corrections sont enregistrées avant de changer d’onglet. Le dernier ongle
 dans la session du navigateur ; un lien se terminant par `/fiche` ou `/manuel` ouvre
 directement le type voulu.
 
+**Tableau croisé et vignettes** (06/11/2026) : *Tableau des variantes* propose la *liste groupée* ou le
+**tableau croisé** — le premier attribut (ex. membrane, s’il a de 2 à 6 valeurs) en colonnes, l’attribut
+le plus varié (ex. configuration) en lignes, les autres (ex. mixage) en complément dans la cellule avec
+la référence ; 45 variantes tiennent ainsi en 12 lignes × 3 colonnes. *Où placer les vues des variantes*
+gagne **« En vignette dans le tableau des variantes »** : la première vue de chaque variante (12–14 mm)
+dans sa ligne ou sa cellule, sortie des illustrations (ses autres vues y restent). La largeur du tableau
+groupé, qui n’occupait que 78 % de la ligne, est corrigée.
+
 **Lignes colorées** (06/11/2026) : dans tous les tableaux du PDF (caractéristiques, variantes, tableaux
 de rubrique), les lignes alternent deux teintes claires de la couleur des titres (5 % et 13 %) ;
 en-têtes et titres de groupe sont sur une teinte à 22 %, en gras dans la couleur des titres. Changer

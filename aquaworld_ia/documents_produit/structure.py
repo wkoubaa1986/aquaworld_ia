@@ -24,6 +24,7 @@ LIBELLES = dict(
 	brouillon="BROUILLON — À RELIRE",
 	version="Version",
 	sources="Sources documentaires",
+	photo="Photo",
 )
 
 

@@ -159,6 +159,39 @@ def qr_png(url):
 ZEBRE = r"\rowcolors{2}{aquaclair}{aquamoyen}"
 
 
+def plan_tableau_croise(variantes, labels):
+	"""Tableau croisé (demande 06/11/2026 : « si j'ai plusieurs configurations ça ne s'organise pas ») : l'attribut
+	le plus varié en lignes (ex. configuration), le moins varié en colonnes (ex. membrane), les autres attributs
+	en complément dans la cellule avec la référence. PURE.
+	-> {"mode": "croise", "entetes": [attribut_lignes, valeur_col…], "lignes": [[valeur_ligne, [items…]…]…]}
+	item = {"article", "complement"}. None si moins de deux attributs."""
+	noms = []
+	for v in variantes:
+		for a in v.get("attributs", []):
+			if a["nom"] not in noms:
+				noms.append(a["nom"])
+	if len(noms) < 2:
+		return None
+	valeur = lambda v, nom: next((a["valeur"] for a in v.get("attributs", []) if a["nom"] == nom), "")
+	valeurs = {nom: list(dict.fromkeys(valeur(v, nom) for v in variantes)) for nom in noms}
+	# Colonnes : le premier attribut (celui qui groupe la liste, ex. membrane) s'il a de 2 à 6 valeurs, sinon le
+	# moins varié ; lignes : le plus varié des autres (ex. configuration) ; le reste (ex. mixage) dans la cellule.
+	if 2 <= len(valeurs[noms[0]]) <= 6:
+		colonnes = noms[0]
+	else:
+		colonnes = min(noms, key=lambda n: (len(valeurs[n]), noms.index(n)))
+	lignes_attr = max((n for n in noms if n != colonnes), key=lambda n: (len(valeurs[n]), -noms.index(n)))
+	autres = [n for n in noms if n not in (colonnes, lignes_attr)]
+	lignes = []
+	for vl in valeurs[lignes_attr]:
+		cellules = []
+		for vc in valeurs[colonnes]:
+			cellules.append([{"article": v["article"], "complement": " · ".join(valeur(v, n) for n in autres if valeur(v, n))}
+				for v in variantes if valeur(v, lignes_attr) == vl and valeur(v, colonnes) == vc])
+		lignes.append([vl] + cellules)
+	return {"mode": "croise", "entetes": [lignes_attr] + valeurs[colonnes], "lignes": lignes}
+
+
 def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6):
 	"""Le tableau des variantes résumé par caractéristiques (demande 06/11/2026). PURE.
 
@@ -469,11 +502,20 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				+ r"\\"
 			)
 		blocs["caracteristiques"].append(r"\bottomrule\end{longtable}")
-	regrouper = disposition.get("photos_variantes", 0)
+	mode_photos = disposition.get("photos_variantes", 0)
+	regrouper = mode_photos == 1
+	vignettes = mode_photos == 2        # la première vue de chaque variante en vignette dans le tableau
 	photos_variantes = {v["article"]: [] for v in contenu["variantes"]}
 	for i, im in enumerate(ctx.get("images", [])):
-		if i and regrouper and im.get("article") in photos_variantes:
+		if i and (regrouper or vignettes) and im.get("article") in photos_variantes:
 			photos_variantes[im["article"]].append(i)
+	vignette_de = {a: idx[0] for a, idx in photos_variantes.items() if idx} if vignettes else {}
+
+	def vignette(article, hauteur=14):
+		i = vignette_de.get(article)
+		if i is None or i >= len(assets.get("images", [])):
+			return ""
+		return r"\includegraphics[height=" + str(hauteur) + r"mm,width=\linewidth,keepaspectratio]{" + assets["images"][i] + "}"
 	illustrees = [v for v in contenu["variantes"] if photos_variantes[v["article"]]] if regrouper else []
 	tabulees = [v for v in contenu["variantes"] if v not in illustrees]
 	if illustrees:
@@ -487,22 +529,47 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if tabulees:
 		if not illustrees:
 			blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
-		plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels)
-		n = len(plan["entetes"])
-		largeurs = [.2] + [(.78 - .2) / (n - 1)] * (n - 1) if n > 1 else [.98]
-		colonnes = "".join(r">{\raggedright\arraybackslash}p{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs)
-		blocs["variantes"] += [
-			ZEBRE,
-			r"\begin{longtable}{" + colonnes + "}",
-			r"\toprule\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in plan["entetes"]) + r"\\\endhead",
-		]
-		for titre_groupe, lignes in plan["groupes"]:
-			if titre_groupe:
-				blocs["variantes"].append(r"\rowcolor{aquafort}\multicolumn{" + str(n) + r"}{l}{\bfseries\color{aqua} " + t(titre_groupe) + r"}\\")
-			for ligne in lignes:
-				blocs["variantes"].append(" & ".join(t(c) for c in ligne) + r"\\")
-		blocs["variantes"].append(r"\bottomrule\end{longtable}")
-	regroupees = {i for indices in photos_variantes.values() for i in indices}
+		croise = plan_tableau_croise(tabulees, labels) if disposition.get("tableau_variantes") == "croise" else None
+		if croise:
+			n = len(croise["entetes"])
+			largeurs = [.22] + [(.96 - .22) / (n - 1)] * (n - 1)
+			# Colonnes m{} : cellules centrées verticalement, les vignettes ne poussent pas le texte en bas.
+			colonnes = "".join(r">{\raggedright\arraybackslash}m{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs)
+
+			def cellule(items):
+				parts = []
+				for it in items:
+					vue = vignette(it["article"], 12)
+					parts.append((vue + r"\par " if vue else "") + r"\mbox{" + t(it["article"]) + "}"
+						+ ((r"\par{\small " + t(it["complement"]) + "}") if it["complement"] else ""))
+				return r"\par\smallskip ".join(parts)
+
+			blocs["variantes"] += [ZEBRE, r"\begin{longtable}{" + colonnes + "}",
+				r"\toprule\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in croise["entetes"]) + r"\\\endhead"]
+			for ligne in croise["lignes"]:
+				blocs["variantes"].append(t(ligne[0]) + " & " + " & ".join(cellule(items) for items in ligne[1:]) + r"\\")
+			blocs["variantes"].append(r"\bottomrule\end{longtable}")
+		else:
+			plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels)
+			avec_photo = bool(vignette_de) and any(v["article"] in vignette_de for v in tabulees)
+			entetes = ([labels["photo"]] if avec_photo else []) + plan["entetes"]
+			n = len(entetes)
+			largeurs = ([.12] if avec_photo else []) + [.2] + [(.96 - .2 - (.12 if avec_photo else 0)) / (n - 1 - (1 if avec_photo else 0))] * (n - 1 - (1 if avec_photo else 0)) if n > 1 else [.98]
+			colonnes = "".join(r">{\raggedright\arraybackslash}" + ("m" if avec_photo else "p") + "{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs)
+			blocs["variantes"] += [
+				ZEBRE,
+				r"\begin{longtable}{" + colonnes + "}",
+				r"\toprule\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in entetes) + r"\\\endhead",
+			]
+			for titre_groupe, lignes in plan["groupes"]:
+				if titre_groupe:
+					blocs["variantes"].append(r"\rowcolor{aquafort}\multicolumn{" + str(n) + r"}{l}{\bfseries\color{aqua} " + t(titre_groupe) + r"}\\")
+				for ligne in lignes:
+					cellules = ([vignette(ligne[0])] if avec_photo else []) + [t(c) for c in ligne]
+					blocs["variantes"].append(" & ".join(cellules) + r"\\")
+			blocs["variantes"].append(r"\bottomrule\end{longtable}")
+	# Les vues passées en vignette (la première de chaque variante) sortent des illustrations ; les autres y restent.
+	regroupees = set(vignette_de.values()) if vignettes else {i for indices in photos_variantes.values() for i in indices}
 	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]
 	# Le QR peut rejoindre le bloc « Autres illustrations » (demande 06/11/2026) : après la galerie, ou seul
 	# sous le titre du bloc quand il n'y a pas d'autre illustration — le bloc suit alors l'ordre choisi.

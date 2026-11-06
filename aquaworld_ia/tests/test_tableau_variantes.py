@@ -97,3 +97,55 @@ class TestLignesColorees(unittest.TestCase):
 			teintes = [k for k in fonds if k[0] < k[2] and min(k) > 0.7]
 			self.assertGreaterEqual(len(teintes), 3, fonds)
 			self.assertGreaterEqual(sum(fonds[k] for k in teintes), 20)          # une bande par ligne de tableau
+
+
+class TestTableauCroiseEtVignettes(unittest.TestCase):
+	"""06/11/2026 : « si j'ai plusieurs configurations ça ne s'organise pas convenablement ; je préfère que le
+	tableau montre les photos des variantes »."""
+
+	def test_plan_croise(self):
+		_, c = gamme()
+		plan = L.plan_tableau_croise(c["variantes"], c["libelles"])
+		self.assertEqual(plan["entetes"], ["Configuration de filtration", "AquaJad", "DowFilmtec", "Vontron"])
+		self.assertEqual([l[0] for l in plan["lignes"]], ["Classique 5 Stages", "UV 6 Stages", "Alcaline 6 Stages"])
+		cellule = plan["lignes"][0][1]
+		self.assertEqual([it["complement"] for it in cellule], ["Avec mixage", "Sans mixage"])   # l'attribut restant
+		self.assertIsNone(L.plan_tableau_croise([{"article": "X", "nom": "X", "marque": "M", "attributs": [{"nom": "A", "valeur": "1"}]}], c["libelles"]))
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_pdf_croise_et_vignettes_dans_le_tableau(self):
+		import io
+
+		import pymupdf
+		from PIL import Image
+
+		from aquaworld_ia.documents_produit import mise_en_page as M
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (60 * i % 255, 110, 170)).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx, c = gamme()
+		refs = [v["name"] for v in ctx["variantes"]]
+		ctx["images"] = [{"image": "/files/main.png", "legende": "Principale", "article": ""}] + [
+			{"image": f"/files/{r}.png", "legende": r, "article": r} for r in refs[:5]]
+		c = S.normaliser({k: v for k, v in c.items() if k != "legendes"}, ctx)
+		assets = {"images": [f"images/image-{i}.png" for i in range(6)], "dimensions": {}}
+		fichiers = {f"images/image-{i}.png": png(i) for i in range(6)}
+		for mode, hauteur in (("croise", 12), ("liste", 14)):
+			with self.subTest(mode=mode):
+				ctx["mise_en_page"] = M.normaliser({"tableau_variantes": mode, "photos_variantes": 2})
+				pdf, _ = L.compiler(L.source(c, ctx, assets=assets), fichiers)
+				with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+					texte = " ".join(" ".join(p.get_text() for p in doc).split())
+					debut = next(i for i, p in enumerate(doc) if p.search_for("Variantes couvertes"))
+					y = doc[debut].search_for("Variantes couvertes")[0].y1
+					vignettes = [r for i in range(debut, len(doc)) for x in doc[i].get_images()
+						for r in doc[i].get_image_rects(x[0]) if i > debut or r.y0 > y]
+					self.assertEqual(len(vignettes), 5)                                      # une par variante illustrée
+					self.assertLessEqual(max(r.height for r in vignettes), hauteur * 72 / 25.4 + 1)
+					self.assertIn("Avec mixage", texte)
+					self.assertNotIn("Photos et illustrations", texte)                       # les vues sont dans le tableau
+					if mode == "croise":
+						self.assertIn("Configuration de filtration AquaJad DowFilmtec Vontron", texte)   # en-tête croisé
