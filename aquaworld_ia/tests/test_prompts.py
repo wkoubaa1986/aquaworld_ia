@@ -63,3 +63,13 @@ class TestPromptDocumentsProduit(unittest.TestCase):
 		self.assertIn("« annoncé »", systeme)
 		self.assertIn("points_a_verifier", systeme)
 		self.assertIn("ne crée pas de rubrique « Présentation »", systeme)   # le résumé est déjà la présentation
+
+	def test_connaissances_generales_sur_option_seulement(self):
+		import inspect
+
+		from aquaworld_ia.documents_produit import traitement
+
+		src = inspect.getsource(traitement.generer)
+		self.assertIn('if ctx.get("connaissances_generales"):', src)
+		self.assertIn("Connaissances générales", src)
+		self.assertIn("Reste interdit sans source : toute valeur chiffrée", src)

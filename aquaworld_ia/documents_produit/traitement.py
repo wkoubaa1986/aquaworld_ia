@@ -42,6 +42,12 @@ Le champ resume EST la présentation du produit : ne crée pas de rubrique « Pr
 Pour un manuel : présentation, consignes de sécurité documentées, installation, mise en service, utilisation, entretien et dépannage. Ajoute seulement les instructions justifiées par les sources ; signale les rubriques essentielles sans source.
 Les étapes d'utilisation doivent préciser le modèle concerné si elles ne s'appliquent pas à toute la gamme. Le tableau des variantes et les photos sont ajoutés par le système.
 Les consignes de rédaction sont un choix éditorial, jamais une preuve technique. Ne produis pas de code LaTeX ni de HTML."""
+	if ctx.get("connaissances_generales"):
+		# Demande 06/11/2026 (« pourquoi ça ne se génère pas automatiquement ? ») : sans source, l'IA ne remplissait
+		# ni applications ni entretien. Option par dossier, désactivée par défaut : elle décrit alors ce qui est
+		# habituel pour ce type de produit, en le signalant, sans jamais inventer de chiffre, norme ou garantie.
+		system += """
+Le dossier autorise les connaissances générales : quand les sources ne disent rien, décris ce qui est habituel pour ce type de produit (applications, fonctionnement, gestes d'entretien, précautions courantes), au présent et de façon utile au lecteur, en citant « Connaissances générales » comme source de ces passages. Reste interdit sans source : toute valeur chiffrée, fréquence précise, norme, certification, garantie ou procédure propre à ce modèle. Pour chaque rubrique ainsi complétée, ajoute un point_a_verifier qui dit que la rubrique repose sur des connaissances générales à confirmer. Ne titre jamais une rubrique « non documenté » ou « informations manquantes »."""
 	data = chat_json(
 		system,
 		json.dumps({"type_document": genre, "contexte": {k: v for k, v in ctx.items() if k != "entete"}}, ensure_ascii=False),

@@ -13,6 +13,7 @@
   "logo_marque_avec_entete",
   "entete",
   "consignes",
+  "connaissances_generales",
   "mises_en_page",
   "variantes",
   "sources",
@@ -58,6 +59,13 @@
    "fieldname": "consignes",
    "fieldtype": "Small Text",
    "label": "Consignes de rédaction"
+  },
+  {
+   "default": "0",
+   "description": "Sans source, l’IA peut décrire les usages, le fonctionnement et l’entretien habituels de ce type de produit ; ces passages sont signalés à vérifier. Les valeurs chiffrées, normes et garanties restent interdites sans source.",
+   "fieldname": "connaissances_generales",
+   "fieldtype": "Check",
+   "label": "Compléter avec les connaissances générales sur ce type de produit"
   },
   {
    "fieldname": "variantes",

@@ -467,6 +467,16 @@ La **Mise en page** de l’étape Présenter est repliée, avec un résumé sur 
 photos des variantes (avec leur référence ou dans les illustrations, une à trois colonnes)
 s’y trouve, puisqu’il est propre à chaque onglet.
 
+**Compléter avec les connaissances générales sur ce type de produit** (case sous les consignes,
+06/11/2026, désactivée par défaut) : sans source, l’IA laissait vides « Applications » et
+« Entretien » (« non documenté dans les sources fournies ») — c’est la règle « n’invente rien ».
+Cochée, elle décrit ce qui est habituel pour ce type de produit (usages, fonctionnement, gestes
+d’entretien, précautions), cite « Connaissances générales » comme source de ces passages et ajoute
+un point à vérifier par rubrique ainsi complétée ; valeurs chiffrées, fréquences précises, normes,
+certifications et garanties restent interdites sans source. Le réglage est commun aux deux onglets
+et fait partie du contexte des versions (une version rédigée sans l’option est « à actualiser »
+après l’avoir cochée).
+
 Dans **Préparer**, **Choisir les photos des articles** ouvre une
 galerie des images principales et pièces jointes accessibles du parent, des variantes
 cochées et du dossier. Plusieurs vues peuvent être choisies par variante. La suggestion

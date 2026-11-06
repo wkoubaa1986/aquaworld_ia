@@ -356,7 +356,7 @@ def enregistrer(name, data, modified=None):
 		frappe.throw(
 			_("Le dossier a changé. Rechargez-le avant d’enregistrer."), frappe.TimestampMismatchError
 		)
-	for k in ("consignes", "entete", "marque_document", "logo_marque_avec_entete"):
+	for k in ("consignes", "entete", "marque_document", "logo_marque_avec_entete", "connaissances_generales"):
 		if k in data:
 			d.set(k, data[k])
 	if "mises_en_page" in data:

@@ -125,6 +125,9 @@ def contexte(doc, inclure_entete=True, tolerer_logo_absent=False):
 		"images": [],
 		"consignes": doc.consignes or "",
 	}
+	# Clé présente seulement si activée : son absence garde l'empreinte des versions existantes.
+	if doc.get("connaissances_generales"):
+		base["connaissances_generales"] = 1
 	for cle, champ in (("sources", "fichier"), ("images", "image")):
 		for r in doc.get(cle):
 			f = fichier_lisible(r.get(champ))
