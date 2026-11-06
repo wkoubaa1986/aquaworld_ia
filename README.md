@@ -590,6 +590,16 @@ couleur et traits sont réglables. L’aperçu des bandeaux utilise le rendu du 
 à jour après la saisie, sans IA ni enregistrement de fichier. Un bloc sans coordonnées
 est masqué et la pagination est ajoutée automatiquement par le générateur.
 
+Les **coordonnées** comptent jusqu’à quatre blocs côte à côte (06/11/2026) : les blocs 3 et 4
+s’ajoutent avec **Ajouter un bloc** et se retirent (leur contenu est effacé) ; un bloc sans
+coordonnées reste masqué dans le document. Chaque bloc a un titre en gras, une ligne
+**Activité** en italique (facultative, ex. « Ventes, B2B, Partenariats »), ses lignes de
+coordonnées et son **alignement du texte** (gauche, centré, droite). La case **Trait vertical
+entre les blocs** trace, dans la couleur de l’en-tête, un trait à gauche de chaque bloc qui en
+suit un autre (et à gauche du logo quand il est à droite), à la hauteur du texte du bloc : le
+moteur de rendu des bandeaux ignore une bordure posée sur la cellule, le trait est donc porté
+par le bloc lui-même. Les modèles enregistrés avant ces réglages se rendent à l’identique.
+
 **Enregistrer et utiliser** crée un modèle réutilisable et le sélectionne dans le dossier.
 **Modifier visuellement** permet de reprendre les modèles créés avec cet éditeur ;
 **Enregistrer une copie** conserve l’original sous son nom. Le modèle global par défaut

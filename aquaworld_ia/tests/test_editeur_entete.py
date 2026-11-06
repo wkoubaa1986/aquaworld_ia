@@ -34,6 +34,38 @@ class TestConfigurationEntete(unittest.TestCase):
 		with self.assertRaises(ValueError):
 			V.normaliser({})
 
+	def test_quatre_blocs_activite_alignement_et_trait_vertical(self):
+		base = {**V.DEFAUTS, "nom_societe": "AquaWorld",
+			"contact_1": "sales@example.invalid", "activite_contact_1": "Ventes, B2B",
+			"contact_2": "support@example.invalid", "alignement_contact_2": "droite",
+			"contact_3": "Bloc trois", "alignement_contact_3": "centre", "separateur_blocs": 1}
+		haut, _ = V.html(base)
+		self.assertIn("<em>Ventes, B2B</em>", haut)
+		self.assertEqual(haut.count("<td "), 4)                      # marque + trois blocs ; bloc 4 vide omis
+		self.assertEqual(haut.count("border-left:1px solid #08477C"), 3)  # jamais à gauche du premier élément
+		self.assertIn("text-align:right;", haut)
+		self.assertIn("text-align:center;", haut)
+		# Logo à droite : le trait précède la marque, pas le premier bloc.
+		droite, _ = V.html({**base, "disposition": "droite"})
+		self.assertEqual(droite.count("border-left:1px solid #08477C"), 3)
+		self.assertNotIn('<td style="width:25.00%;vertical-align:middle;padding:2px 5px;color:#08477C;font-size:9pt;line-height:1.2;text-align:left;border-left', droite)
+		# Sans trait vertical, rien ne change par rapport aux colonnes classiques.
+		self.assertNotIn("border-left", V.html({**base, "separateur_blocs": 0})[0])
+		for choix in ({"alignement_contact_1": "justify"}, {"separateur_blocs": "1"},
+			{"activite_contact_2": "x" * 121}, {"contact_4": "x" * 351}):
+			with self.subTest(choix=choix), self.assertRaises(ValueError):
+				V.normaliser({**base, **choix})
+
+	def test_ancien_modele_sans_les_nouveaux_champs_se_rend_a_l_identique(self):
+		anciens = ("disposition", "logo", "largeur_logo", "couleur", "taille_texte", "nom_societe", "sous_titre",
+			"titre_contact_1", "contact_1", "titre_contact_2", "contact_2", "pied_page", "trait")
+		ancien = {k: V.DEFAUTS[k] for k in anciens}
+		ancien.update(nom_societe="X", contact_1="a", contact_2="b")
+		haut, _ = V.html(ancien)
+		self.assertEqual(haut.count("<td "), 3)
+		self.assertNotIn("border-left", haut)
+		self.assertNotIn("<em>", haut)
+
 
 class TestEditeurEntete(unittest.TestCase):
 	def setUp(self):
