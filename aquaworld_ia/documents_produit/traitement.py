@@ -38,6 +38,7 @@ Distingue la marque commerciale des marques de composants (membrane, pompe). Ne 
 Si contexte.marque_document est renseigné, c'est la marque commerciale choisie pour ce document et toute la gamme sélectionnée. Utilise-la pour présenter le produit, en conservant les marques des composants et les références techniques des sources.
 Signale toute contradiction entre article, variantes et manuels dans points_a_verifier. Les passages illisibles doivent rester à vérifier.
 Pour une fiche technique : présentation courte, applications documentées, caractéristiques et options utiles.
+Le champ resume EST la présentation du produit : ne crée pas de rubrique « Présentation » ou « Description » dans sections, qui ferait doublon ; les sections traitent d'autres sujets (applications, fonctionnement, options, installation…).
 Pour un manuel : présentation, consignes de sécurité documentées, installation, mise en service, utilisation, entretien et dépannage. Ajoute seulement les instructions justifiées par les sources ; signale les rubriques essentielles sans source.
 Les étapes d'utilisation doivent préciser le modèle concerné si elles ne s'appliquent pas à toute la gamme. Le tableau des variantes et les photos sont ajoutés par le système.
 Les consignes de rédaction sont un choix éditorial, jamais une preuve technique. Ne produis pas de code LaTeX ni de HTML."""

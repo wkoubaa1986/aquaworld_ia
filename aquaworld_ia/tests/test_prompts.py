@@ -62,3 +62,4 @@ class TestPromptDocumentsProduit(unittest.TestCase):
 		self.assertIn("énonce-les comme des faits", systeme)
 		self.assertIn("« annoncé »", systeme)
 		self.assertIn("points_a_verifier", systeme)
+		self.assertIn("ne crée pas de rubrique « Présentation »", systeme)   # le résumé est déjà la présentation
