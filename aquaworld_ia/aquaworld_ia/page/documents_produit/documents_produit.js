@@ -116,17 +116,21 @@ class DocumentsProduit {
   updateBar() {
     const bar=this.root.find('.dp-bar');if(!bar.length)return;
     const modif=this.unsaved(),manuel=this.activeTab==='manuel';
-    bar.find('.dp-bar-state').text(this.busy()?'Traitement en cours…':modif?'Modifications non enregistrées':'Tout est enregistré').toggleClass('dp-bar-dirty',modif&&!this.busy());
-    bar.find('.dp-save-all').prop('disabled',!modif||this.busy()||!this.data.peut_ecrire||!!this.switchingTab);
+    bar.find('.dp-bar-state').text(this.saving?'Enregistrement…':this.busy()?'Traitement en cours…':modif?'Modifications non enregistrées':'Tout est enregistré').toggleClass('dp-bar-dirty',modif&&!this.busy()&&!this.saving);
+    bar.find('.dp-save-all').prop('disabled',!modif||this.busy()||!this.data.peut_ecrire||!!this.switchingTab||!!this.saving).text(this.saving?'Enregistrement…':'Enregistrer');
     const v=this.configValues();
     bar.find('.dp-bar-hint').text(v.sources.length||v.images.length?'':'Sans source ni photo, l’IA part des seules données de l’article.');
     bar.find('[data-generate]').text(manuel?'Créer le manuel':'Créer la fiche technique');
     this.renderSteps();
   }
   async enregistrerTout() {
+    // Un seul enregistrement à la fois : un second clic pendant l'attente créait une seconde version identique
+    // (versions par paires à la même seconde, 06/11/2026). Le bouton est verrouillé et l'état affiché.
+    if(this.saving)return;
+    this.saving=true;this.updateBar();
     try{if(this.dirty)await this.saveDocument();else await this.saveConfig(true);}
     catch(e){if(e?.message!=='Variante non sélectionnée')throw e;}
-    this.updateBar();
+    finally{this.saving=false;this.updateBar();}
   }
   // ---------------------------------------------------------------- aide
   usageGuideBody() {
@@ -486,6 +490,11 @@ class DocumentsProduit {
       images:this.root.find('.dp-image').map((_,el)=>{const z=$(el),im=d.images[+z.attr('data-index')];return {image:im.image,legende:z.find('.dp-caption').val(),article:z.find('.dp-image-scope').val()};}).get()};
   }
   async saveConfig(redraw=false) {
+    if(this.configPromise)return this.configPromise;
+    this.configPromise=this._saveConfig(redraw).finally(()=>{this.configPromise=null;});
+    return this.configPromise;
+  }
+  async _saveConfig(redraw=false) {
     const values=this.configValues();
     if(JSON.stringify(values)===this.lastConfig)return;
     const selection=new Set([this.data.dossier.article,...values.variantes.map(v=>v.article)]);
@@ -676,11 +685,15 @@ class DocumentsProduit {
   }
   async saveDocument() {
     if(!this.current||!this.dirty)return;
-    await this.saveConfig();
-    const r=await dpCall('corriger',{name:this.current.doc.name,contenu:this.captureDocument()});
-    this.current=await dpCall('lire_document',{name:r.name});this.dirty=false;
-    this.data=await dpCall('charger',{name:this.name});this.rendre();
-    frappe.show_alert({message:'Version enregistrée',indicator:'green'});
+    if(this.savePromise)return this.savePromise;   // appels concurrents (clic, changement d'onglet, action) : une seule sauvegarde
+    this.savePromise=(async()=>{
+      await this.saveConfig();
+      const r=await dpCall('corriger',{name:this.current.doc.name,contenu:this.captureDocument()});
+      this.current=await dpCall('lire_document',{name:r.name});this.dirty=false;
+      this.data=await dpCall('charger',{name:this.name});this.rendre();
+      frappe.show_alert({message:'Version enregistrée',indicator:'green'});
+    })().finally(()=>{this.savePromise=null;});
+    return this.savePromise;
   }
   async translation() {
     if(this.dirty)await this.saveDocument();
