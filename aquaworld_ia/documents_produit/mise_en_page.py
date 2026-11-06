@@ -15,7 +15,9 @@ MARQUE_DEFAUTS = {
 	"logo_x": 150, "logo_y": 8,
 }
 PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille", "photo_grande": "",
-	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte"}
+	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
+	"largeur_mosaique": 100}
+# largeur_mosaique : % de la ligne occupé par la mosaïque (grande + colonne) ; en dessous de 100, elle est centrée.
 # largeur_grande : % de la ligne pour la grande photo de la mosaïque. legendes_galerie : 0 masque les légendes des
 # photos (pas celle du QR). legende_alignement / legende_couleur (texte | titres | gris) : présentation des légendes.
 # photos_variantes : 0 = vues des variantes dans les illustrations, 1 = regroupées avec la fiche de chaque variante,
@@ -101,7 +103,7 @@ def normaliser(valeur=None):
 		else:
 			admis = {"photos_variantes": (0, 1, 2), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
 				"style_galerie": ("grille", "mosaique"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
-				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"),
+				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101),
 				"legende_couleur": ("texte", "titres", "gris")}[cle]
 			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur")
 			if (type(v) is not int if not textuel else not isinstance(v, str)) or v not in admis:

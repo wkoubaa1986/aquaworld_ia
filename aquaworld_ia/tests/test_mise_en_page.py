@@ -421,3 +421,37 @@ class TestLegendesEtLargeurGrande(unittest.TestCase):
 		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 2, "legende_alignement": "centre", "legende_couleur": "titres"})
 		tex = L.source(contenu_simple(ctx), ctx, assets=assets)
 		self.assertIn(r"{\centering\color{aqua}\small Vue 1\par}", tex)
+
+
+class TestLargeurMosaique(unittest.TestCase):
+	"""06/11/2026 : « comment je fais pour centrer cette partie » — mosaïque moins large que la ligne, centrée."""
+
+	def test_reglage(self):
+		self.assertEqual(M.normaliser({"largeur_mosaique": 70})["largeur_mosaique"], 70)
+		self.assertNotIn("largeur_mosaique", M.normaliser({"largeur_mosaique": 100}))
+		for mauvais in ({"largeur_mosaique": 49}, {"largeur_mosaique": 101}, {"largeur_mosaique": "70"}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_mosaique_a_70_pour_cent_centree(self):
+		import pymupdf
+		from PIL import Image
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (60 * i % 255, 110, 170)).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(5)]
+		ctx["mise_en_page"] = M.normaliser({"style_galerie": "mosaique", "largeur_mosaique": 70, "largeur_grande": 60, "hauteur_vignettes": 30})
+		assets = {"images": [f"images/image-{i}.png" for i in range(5)], "dimensions": {f"images/image-{i}.png": (400, 300) for i in range(5)}}
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(5)})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = next(p for p in doc if p.search_for("Photos et illustrations"))
+			haut = page.search_for("Photos et illustrations")[0].y1
+			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
+			grande = max(rects, key=lambda r: r.width * r.height)
+			self.assertAlmostEqual(grande.width, 174 * 0.7 * 0.6 * 72 / 25.4, delta=1 * 72 / 25.4)   # 60 % de 70 % de la ligne
+			self.assertGreater(grande.x0, (18 + 15) * 72 / 25.4)                                      # décalée vers le centre

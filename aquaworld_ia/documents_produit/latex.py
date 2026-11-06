@@ -412,15 +412,20 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			espace = 11 if disposition.get("legendes_galerie", 1) else 4  # entre deux petites : légende éventuelle, \par, centrage
 			dims = (assets.get("dimensions") or {}).get(assets["images"][indices[0]])
 			if dims and dims[0] > 0:
-				hauteur_grande = min(174 * part * dims[1] / dims[0], 160)
+				hauteur_grande = min(174 * part * disposition.get("largeur_mosaique", 100) / 100 * dims[1] / dims[0], 160)
 				petite = max(18, min(hauteur, (hauteur_grande - espace * (nb - 1)) / max(1, nb)))
 			else:
 				petite = hauteur
 				hauteur_grande = petite * nb + espace * (nb - 1)
 			grande = photo(indices[0], 1, round(hauteur_grande, 1), portee)
 			colonne = "\n".join([photo(i, 1, round(petite, 1), portee) for i in petites] + ([extra_dans_mosaique] if extra_dans_mosaique else []))
-			tete = [r"\noindent\begin{minipage}[t]{" + f"{part:.2f}" + r"\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
-				+ r"\begin{minipage}[t]{" + f"{0.97 - part:.2f}" + r"\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}\par\medskip"]
+			ligne = (r"\noindent\begin{minipage}[t]{" + f"{part:.2f}" + r"\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
+				+ r"\begin{minipage}[t]{" + f"{0.97 - part:.2f}" + r"\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}")
+			totale = disposition.get("largeur_mosaique", 100) / 100
+			if totale < 1:
+				# Mosaïque moins large que la ligne : centrée, ses proportions internes conservées.
+				ligne = r"\begin{center}\begin{minipage}{" + f"{totale:.2f}" + r"\linewidth}" + ligne + r"\end{minipage}\end{center}"
+			tete = [ligne + r"\par\medskip"]
 			indices = indices[4:]
 			if extra_dans_mosaique:
 				extra = None

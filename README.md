@@ -581,6 +581,16 @@ contenu que lorsqu’elles sont remplies : relire une ancienne version sans y to
 de nouvelle version. L’image doit être un fichier lisible par l’utilisateur (contrôle à
 l’enregistrement et à la composition).
 
+**Réglages dans l’ordre du document** (06/11/2026) : le panneau de mise en page est découpé en blocs
+qui suivent l’ordre choisi — « Titre et marque » (alignement et couleur des titres, zone de marque),
+puis un bloc numéroté par élément (description et photo principale, rubriques, caractéristiques,
+tableau des variantes, autres illustrations) avec, dans son en-tête, les flèches ↑ ↓ (ou le glisser)
+qui réordonnent le document et le panneau à la fois ; le QR code, placé à la position choisie, ferme
+la liste. Chaque bloc porte ses propres réglages (galeries, mosaïque, légendes sous « Autres
+illustrations » ; tableau et vignettes sous « Tableau des variantes »). **Largeur totale de la
+mosaïque** (50–100 % de la ligne) : en dessous de 100, la mosaïque est centrée ; la largeur de la
+grande photo s’exprime en % de la mosaïque.
+
 **Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**
 (photo à gauche et description à droite, 50/50 au premier choix). On peut inverser les côtés
