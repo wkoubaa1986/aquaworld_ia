@@ -97,7 +97,7 @@ def normaliser(valeur=None):
 		qr[cle] = qr[cle].strip()
 	if qr["qr_url"] and not QR_URL.fullmatch(qr["qr_url"]):
 		raise ValueError("L’adresse du QR code doit être un lien internet complet (https://…).")
-	if qr["qr_position"] not in ("avant_titre", "apres_titre", "fin_document"):
+	if qr["qr_position"] not in ("avant_titre", "apres_titre", "fin_document", "illustrations"):
 		raise ValueError("Position du QR code invalide.")
 	if qr["qr_alignement"] not in ("gauche", "centre", "droite"):
 		raise ValueError("Alignement du QR code invalide.")

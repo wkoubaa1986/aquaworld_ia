@@ -514,7 +514,8 @@ disposition ; le PDF final dépend du contenu et de la pagination A4.
 
 **QR code d’un lien internet** (06/11/2026) : dans la mise en page de chaque onglet, saisir
 le lien (https://…, par exemple la page du produit sur le site), une légende affichée sous
-le code, sa position (au-dessus du titre, sous le titre, à la fin du document), son alignement
+le code, sa position (au-dessus du titre, sous le titre, dans « Autres illustrations » après la
+galerie — ou seul sous ce titre s’il n’y a pas d’autre photo —, à la fin du document), son alignement
 et sa taille (15 à 40 mm). Le QR (correction M, noir sur blanc, généré par `segno`) est
 aussi un lien cliquable dans le PDF ; sans lien, rien n’est ajouté. L’aperçu de disposition
 affiche le vrai code (`apercu_qr`), préparé par le serveur dès que le lien est valide.

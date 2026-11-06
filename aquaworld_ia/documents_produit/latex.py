@@ -338,10 +338,15 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		blocs["variantes"].append(r"\bottomrule\end{longtable}")
 	regroupees = {i for indices in photos_variantes.values() for i in indices}
 	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]
-	if illustrations:
-		if regrouper or disposition.get("colonnes_photos", 1) > 1:
+	# Le QR peut rejoindre le bloc « Autres illustrations » (demande 06/11/2026) : après la galerie, ou seul
+	# sous le titre du bloc quand il n'y a pas d'autre illustration — le bloc suit alors l'ordre choisi.
+	qr_illustrations = zone_qr if qr["qr_position"] == "illustrations" else []
+	if illustrations or qr_illustrations:
+		if regrouper or disposition.get("colonnes_photos", 1) > 1 or (qr_illustrations and not illustrations):
 			blocs["illustrations"].append(r"\docsection{" + t(labels["illustrations"]) + "}")
-		blocs["illustrations"].extend(galerie(illustrations))
+		if illustrations:
+			blocs["illustrations"].extend(galerie(illustrations))
+		blocs["illustrations"].extend(qr_illustrations)
 	for cle in disposition["ordre"]:
 		body.extend(blocs[cle])
 	if contenu.get("points_a_verifier"):

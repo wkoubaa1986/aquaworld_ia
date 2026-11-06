@@ -170,7 +170,7 @@ class DocumentsProduit {
   layoutSummary() {
     const m=this.layoutValues(),cote=['gauche','droite'].includes(m.position_photo);
     const marque={libre:'logo placé librement',avant_titre:'logo au-dessus du titre',apres_titre:'logo sous le titre',fin_document:'logo en fin de document',masquee:'zone de marque masquée'}[m.position_marque];
-    const qr=m.qr_url?` · QR code ${{avant_titre:'au-dessus du titre',apres_titre:'sous le titre',fin_document:'en fin de document'}[m.qr_position]}`:'';
+    const qr=m.qr_url?` · QR code ${{avant_titre:'au-dessus du titre',apres_titre:'sous le titre',illustrations:'dans les illustrations',fin_document:'en fin de document'}[m.qr_position]}`:'';
     return `${cote?`2 colonnes · photo à ${m.position_photo}`:`1 colonne · photo ${m.position_photo==='avant'?'au-dessus':'en dessous'}`} · ${marque} · photos des variantes ${m.photos_variantes?'avec leur référence':'dans les illustrations'}${qr}`;
   }
   renderStructure() {
@@ -201,7 +201,7 @@ class DocumentsProduit {
       <p class="dp-muted">Facultatif. Le QR code mène au lien saisi (ex. la page du produit sur votre site) ; la légende s’affiche dessous. Dans le PDF, le code est aussi cliquable.</p>
       <div class="dp-grid"><label class="dp-label">Lien (https://…)<input class="form-control dp-qr-url" type="url" maxlength="500" value="${dpEsc(m.qr_url)}" placeholder="https://www.votresite.com/produit/..."></label>
       <label class="dp-label">Légende sous le QR code<input class="form-control dp-qr-legende" maxlength="120" value="${dpEsc(m.qr_legende)}" placeholder="Ex. Fiche produit en ligne"></label>
-      <label class="dp-label">Position<select class="form-control dp-qr-position">${options({avant_titre:'Au-dessus du titre',apres_titre:'Sous le titre',fin_document:'À la fin du document'},m.qr_position)}</select></label>
+      <label class="dp-label">Position<select class="form-control dp-qr-position">${options({avant_titre:'Au-dessus du titre',apres_titre:'Sous le titre',illustrations:'Dans « Autres illustrations »',fin_document:'À la fin du document'},m.qr_position)}</select></label>
       <label class="dp-label">Alignement<select class="form-control dp-qr-align">${options({gauche:'À gauche',centre:'Centré',droite:'À droite'},m.qr_alignement)}</select></label>
       <label class="dp-label">Taille (mm)<input class="form-control dp-qr-taille" type="number" min="15" max="40" step="1" value="${m.qr_taille}"></label></div>
       <p class="dp-muted dp-qr-status" role="status"></p>
@@ -348,7 +348,8 @@ class DocumentsProduit {
     const variantes=this.configValues().variantes.map(v=>v.article),supp=images.slice(1),communes=supp.filter(p=>!m.photos_variantes||!variantes.includes(p.article));
     const illustrees=variantes.filter(v=>supp.some(p=>p.article===v)),sansPhoto=variantes.length-illustrees.length;
     const apercuVariantes=illustrees.slice(0,3).map(v=>`<div class="dp-design-block"><b>${dpEsc(v)}</b>${grille(supp.filter(p=>p.article===v))}</div>`).join('')+(illustrees.length>3?`<div class="dp-sheet-small">+ ${illustrees.length-3} variantes illustrées dans le PDF</div>`:'')+(sansPhoto?`<div class="dp-design-block">Tableau : ${sansPhoto} variantes sans autre photo</div>`:'');
-    const blocs={presentation,rubriques:`<div class="dp-design-block">${this.activeTab==='manuel'?'Installation · Utilisation<br>Entretien · Dépannage':'Présentation · Applications'}</div>`,caracteristiques:'<div class="dp-sheet-table">Caractéristiques techniques</div>',variantes:m.photos_variantes?apercuVariantes:'<div class="dp-design-block">Tableau des variantes</div>',illustrations:communes.length?`<div class="dp-design-block">Autres illustrations${grille(communes)}</div>`:'<div class="dp-design-block">Autres illustrations</div>'};
+    const qrIllustrations=m.qr_position==='illustrations'?zoneQr:'';
+    const blocs={presentation,rubriques:`<div class="dp-design-block">${this.activeTab==='manuel'?'Installation · Utilisation<br>Entretien · Dépannage':'Présentation · Applications'}</div>`,caracteristiques:'<div class="dp-sheet-table">Caractéristiques techniques</div>',variantes:m.photos_variantes?apercuVariantes:'<div class="dp-design-block">Tableau des variantes</div>',illustrations:`<div class="dp-design-block">Autres illustrations${communes.length?grille(communes):''}${qrIllustrations}</div>`};
     this.root.find('.dp-layout-preview').html(`<div class="dp-sheet dp-design-sheet" aria-label="Aperçu de la mise en page"><div class="dp-sheet-header">${entete?'En-tête : '+dpEsc(entete):'Document A4'}</div>${zones('avant_titre')}<div class="dp-sheet-title" style="color:${couleur};text-align:${align}">${dpEsc(titre)}</div><div class="dp-sheet-small" style="text-align:${align}">${dpEsc(marque.name)} · ${dpEsc(ctx.article.name)}</div>${zones('apres_titre')}<div class="dp-design-blocks" style="--dp-accent:${couleur}">${m.ordre.map(k=>`<div data-preview-block="${k}">${blocs[k]}</div>`).join('')}</div>${zones('fin_document')}<div class="dp-sheet-footer">Pied de page et numéro de page</div></div>`);
   }
   // ---------------------------------------------------------------- variantes (étape 1)

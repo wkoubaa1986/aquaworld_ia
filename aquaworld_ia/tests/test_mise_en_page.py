@@ -149,10 +149,22 @@ class TestMiseEnPage(unittest.TestCase):
 					else:
 						self.assertAlmostEqual(qr.x1, page.rect.width - 18 * 72 / 25.4, delta=1)
 					self.assertEqual(qr.y1 < titre.y0, position == "avant_titre")
+		# Dans « Autres illustrations », sans autre photo : le bloc n'a que son titre et le QR, à sa place dans l'ordre.
+		ctx["mise_en_page"] = M.normaliser({"qr_url": url, "qr_legende": "Fiche produit en ligne", "qr_position": "illustrations",
+			"ordre": ["presentation", "illustrations", "rubriques", "caracteristiques", "variantes"]})
+		_, pdf, _ = L.composer(contenu_simple(ctx), ctx)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = doc[0]
+			qr = page.get_image_rects(page.get_images()[0][0])[0]
+			libelle = contenu_simple(ctx)["libelles"]["illustrations"]
+			titre_bloc = page.search_for(libelle)[0]
+			self.assertLess(titre_bloc.y1, qr.y0)
+			self.assertLess(qr.y1, page.search_for("Utilisation")[0].y0)   # avant les rubriques, comme l'ordre le demande
 		ctx["mise_en_page"] = M.normaliser({"qr_legende": "Sans lien"})
 		_, pdf, _ = L.composer(contenu_simple(ctx), ctx)
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 			self.assertTrue(all(not p.get_images() for p in doc))
+			self.assertFalse(doc[0].search_for(libelle))
 
 	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
 	def test_positions_pdf_et_ordre(self):
