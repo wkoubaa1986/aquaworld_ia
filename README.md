@@ -437,7 +437,37 @@ Un dossier appartient à l'article parent et définit les variantes couvertes, l
 (PDF ou photos de pages) et les illustrations. Les manuels existants et les pièces jointes
 aux articles peuvent être réutilisés. Une page de PDF peut devenir une illustration.
 
-Dans **Sources, photos et variantes**, **Choisir les photos des articles** ouvre une
+### Disposition de la page d’un dossier (06/11/2026)
+
+La page suit l’ordre du travail, en quatre étapes affichées dans une colonne à gauche
+(bandeau horizontal sur téléphone) : **1 Préparer** (consignes, variantes, sources, photos),
+**2 Présenter** (marque et logo, en-tête, mise en page), **3 Rédiger** (modèle IA, coûts,
+commandes de génération) et **4 Relire et produire** (versions, corrections, traduction, PDF).
+Une seule étape est visible à la fois ; chaque étape de la colonne indique ce qui est fait
+(✔), manquant (✖) ou facultatif (–) : variantes cochées, sources, photos, logo, en-tête,
+mise en page, versions rédigées, points à vérifier, versions validées. Ces indications
+suivent la saisie en cours, avant même l’enregistrement. À l’ouverture, la page s’ouvre
+sur **Relire et produire** quand l’onglet a déjà une version, sinon sur **Préparer** ; la
+dernière étape visitée est mémorisée dans la session du navigateur.
+
+Une barre fixe en bas de page porte l’état (« Tout est enregistré » ou « Modifications non
+enregistrées »), le bouton unique **Enregistrer** — qui sauve le dossier, la mise en page et
+les corrections de la version en cours — et la commande **Créer la fiche technique** /
+**Créer le manuel** de l’onglet actif. Ces commandes, comme **Créer les deux** à l’étape
+Rédiger, enregistrent d’abord ce qui a changé ; une génération ouvre l’étape Relire.
+Le bouton **Guide** en haut ouvre le mode d’emploi de l’onglet dans une fenêtre.
+
+Les **variantes couvertes** sont présentées en tableau : une colonne par attribut (le premier
+attribut, par exemple la membrane, groupe les lignes avec une case par groupe), la référence,
+un filtre, **Toutes** / **Aucune**. Les variantes sans attribut gardent une ligne référence / nom.
+À l’étape **Relire et produire**, l’éditeur de la version et l’aperçu PDF sont côte à côte sur
+grand écran, l’aperçu restant visible pendant la relecture ; ils se superposent sous 1 100 px.
+La **Mise en page** de l’étape Présenter est repliée, avec un résumé sur une ligne
+(colonnes, position de la photo, zone de marque, photos des variantes) ; le réglage des
+photos des variantes (avec leur référence ou dans les illustrations, une à trois colonnes)
+s’y trouve, puisqu’il est propre à chaque onglet.
+
+Dans **Préparer**, **Choisir les photos des articles** ouvre une
 galerie des images principales et pièces jointes accessibles du parent, des variantes
 cochées et du dossier. Plusieurs vues peuvent être choisies par variante. La suggestion
 reprend les photos principales distinctes des articles qui n’ont pas déjà une vue
@@ -462,19 +492,16 @@ d’abord une nouvelle rédaction avec cette variante. Une variante décochée n
 jamais silencieusement ses photos à toute la gamme.
 
 Chaque dossier comporte deux onglets : **Fiche technique** et **Manuel d’utilisation**.
-Chacun affiche sa commande de génération, son modèle IA, ses versions et ses traductions.
-Une note HTML **Comment utiliser cet onglet ?**, placée sous son titre, s’ouvre et se
-referme au clic ou au clavier. Le guide est adapté à la fiche ou au manuel : préparation
-avec ou sans PDF source, choix du modèle, rédaction, relecture, validation et traduction.
-Il explique aussi le logo et son placement libre, les en-têtes et pieds de page en image
-ou HTML, les colonnes photo/description, les versions et les coûts. L’ouverture de la
-note est conservée séparément pour chaque onglet pendant la navigation dans la page.
-La marque, l’en-tête, les sources, les photos et les variantes sont partagés ; les corrections
-sont enregistrées avant de changer d’onglet. **Créer les deux** reste accessible en haut.
-Le dernier onglet est mémorisé dans la session du navigateur ; un lien se terminant par
-`/fiche` ou `/manuel` ouvre directement le type voulu.
+Chacun a sa commande de génération, son modèle IA, sa mise en page, ses versions et ses
+traductions. Le **Guide** est adapté à la fiche ou au manuel : préparation avec ou sans PDF
+source, choix du modèle, rédaction, relecture, validation et traduction, logo et placement
+libre, en-têtes et pieds de page, colonnes photo/description, versions et coûts.
+La marque, l’en-tête, les consignes, les sources, les photos et les variantes sont partagés ;
+les corrections sont enregistrées avant de changer d’onglet. Le dernier onglet est mémorisé
+dans la session du navigateur ; un lien se terminant par `/fiche` ou `/manuel` ouvre
+directement le type voulu.
 
-**Mise en page personnalisée** permet de définir une disposition différente par onglet
+**Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**
 (photo à gauche et description à droite, 50/50 au premier choix). On peut inverser les côtés
 et ajuster la répartition ; les autres blocs gardent toute la largeur. Les réglages incluent
