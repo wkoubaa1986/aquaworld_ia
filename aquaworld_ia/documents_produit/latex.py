@@ -606,8 +606,16 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			# Première colonne à gauche, cellules de variantes centrées (image, libellé, complément).
 			colonnes = r">{\raggedright\arraybackslash}m{" + f"{largeurs[0]:.3f}" + r"\linewidth}" + "".join(
 				r">{\centering\arraybackslash}m{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs[1:])
-			par_nom = disposition.get("libelle_croise") == "nom"
-			noms_variantes = {v["article"]: v.get("nom", "") for v in tabulees}
+			mode_libelle = disposition.get("libelle_croise", "nom_sans_parent")
+			par_nom = mode_libelle in ("nom", "nom_sans_parent")
+			parent_nom = ctx["article"].get("item_name", "")
+
+			def sans_parent(nom):
+				"""Le nom de la variante sans celui de l'article parent (« Osmoseur…, AquaJad, Classique 5 Stages »)."""
+				reste = nom.replace(parent_nom, "", 1) if parent_nom and nom.startswith(parent_nom) else nom
+				return reste.strip(" ,;·|/-") or nom
+
+			noms_variantes = {v["article"]: (sans_parent(v.get("nom", "")) if mode_libelle == "nom_sans_parent" else v.get("nom", "")) for v in tabulees}
 			# Une couleur par valeur de l'attribut restant (ex. avec / sans mixage), carré devant la référence et légende
 			# sous le tableau (demande 06/11/2026) — au lieu de répéter le texte dans chaque cellule.
 			complements = list(dict.fromkeys(it["complement"] for ligne in croise["lignes"] for items in ligne[1:] for it in items if it["complement"]))
@@ -622,6 +630,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 					vue = vignette(it["article"], 12)
 					libelle = (noms_variantes.get(it["article"]) or it["article"]) if par_nom else it["article"]
 					parts.append((vue + r"\par " if vue else "") + pastille(it["complement"]) + (t(libelle) if par_nom else r"\mbox{" + t(libelle) + "}")
+						# Le texte du complément reste (demande 06/11/2026), sauf s'il figure déjà dans le nom affiché.
+						+ ((r"\par{\small\bfseries\color[HTML]{" + couleur_de[it["complement"]] + "} " + t(it["complement"]) + "}") if it["complement"] and it["complement"] not in libelle else "")
 						+ ((r"\par{\small\itshape " + t(it["nom"]) + "}") if it.get("nom") and not par_nom else ""))
 				return r"\par\smallskip ".join(parts)
 

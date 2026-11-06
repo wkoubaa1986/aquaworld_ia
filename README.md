@@ -600,11 +600,12 @@ mosaïque** (50–100 % de la ligne) : en dessous de 100, la mosaïque est centr
 grande photo s’exprime en % de la mosaïque. Les petites gardent la hauteur de vignette réglée ; la grande prend la hauteur de la colonne et
 s’y centre verticalement (une grande très large et basse — un logo — écrasait les petites auparavant).
 **Tableau croisé** : cellules de variantes centrées (image, libellé, complément), libellé au choix
-(*Référence* ou *Nom complet de la variante*, réglage « Libellé dans le tableau croisé »), et le reste
+(réglage « Libellé dans le tableau croisé » : *Nom de la variante sans le nom du produit* — par défaut, ex.
+« AquaJad, Classique 5 Stages, Sans mixage » —, *Nom complet* ou *Référence*), et le reste
 des attributs (ex. avec / sans mixage) signalé par **une couleur par valeur** : un carré de couleur
 devant la référence et une **légende sous le tableau** (« Système de mélange : ■ Sans mixage ■ Avec
-mixage »), au lieu de répéter le texte dans chaque cellule ; palette de huit couleurs, combinaisons
-colorées si plusieurs attributs restent (06/11/2026).
+mixage ») ; le texte de la valeur reste sous le libellé, dans sa couleur, sauf s’il figure déjà dans le
+nom affiché ; palette de huit couleurs, combinaisons colorées si plusieurs attributs restent (06/11/2026).
 
 **Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**
