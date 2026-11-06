@@ -601,7 +601,10 @@ grande photo s’exprime en % de la mosaïque. Les petites gardent la hauteur de
 s’y centre verticalement (une grande très large et basse — un logo — écrasait les petites auparavant).
 **Tableau croisé** : cellules de variantes centrées (image, libellé, complément), libellé au choix
 (*Référence* ou *Nom complet de la variante*, réglage « Libellé dans le tableau croisé »), et le reste
-des attributs (ex. avec / sans mixage) en gras rouge (06/11/2026).
+des attributs (ex. avec / sans mixage) signalé par **une couleur par valeur** : un carré de couleur
+devant la référence et une **légende sous le tableau** (« Système de mélange : ■ Sans mixage ■ Avec
+mixage »), au lieu de répéter le texte dans chaque cellule ; palette de huit couleurs, combinaisons
+colorées si plusieurs attributs restent (06/11/2026).
 
 **Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**

@@ -176,6 +176,8 @@ def qr_png(url):
 # Lignes des tableaux colorées en alternance (demande 06/11/2026) : deux teintes de la couleur des titres (5 % et
 # 13 %), en-têtes et titres de groupe à 22 % — la palette suit donc la couleur choisie dans la mise en page.
 ZEBRE = r"\rowcolors{2}{aquaclair}{aquamoyen}"
+# Couleurs des valeurs de l'attribut restant dans le tableau croisé (carré + légende) : lisibles sur fond clair.
+PALETTE_CROISE = ("C00000", "1F5FBF", "2E7D32", "E65100", "6A1B9A", "00838F", "6D4C41", "546E7A")
 
 
 def cle_attributs(v, ordre):
@@ -236,7 +238,7 @@ def plan_tableau_croise(variantes, labels, ordre=None):
 	# La case d'angle nomme les deux attributs (demande 06/11/2026 : « configuration / marque de membrane, pour
 	# qu'ils comprennent ») : « Configuration de filtration / Marque de membrane », toujours d'après les attributs.
 	return {"mode": "croise", "entetes": [lignes_attr + " / " + colonnes] + valeurs[colonnes], "lignes": lignes,
-		"attribut_lignes": lignes_attr, "attribut_colonnes": colonnes}
+		"attribut_lignes": lignes_attr, "attribut_colonnes": colonnes, "autres": autres}
 
 
 def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6):
@@ -606,15 +608,20 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				r">{\centering\arraybackslash}m{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs[1:])
 			par_nom = disposition.get("libelle_croise") == "nom"
 			noms_variantes = {v["article"]: v.get("nom", "") for v in tabulees}
+			# Une couleur par valeur de l'attribut restant (ex. avec / sans mixage), carré devant la référence et légende
+			# sous le tableau (demande 06/11/2026) — au lieu de répéter le texte dans chaque cellule.
+			complements = list(dict.fromkeys(it["complement"] for ligne in croise["lignes"] for items in ligne[1:] for it in items if it["complement"]))
+			couleur_de = {c: PALETTE_CROISE[i % len(PALETTE_CROISE)] for i, c in enumerate(complements)}
+
+			def pastille(complement):
+				return (r"{\color[HTML]{" + couleur_de[complement] + "}" + t("■") + "} ") if complement else ""
 
 			def cellule(items):
 				parts = []
 				for it in items:
 					vue = vignette(it["article"], 12)
 					libelle = (noms_variantes.get(it["article"]) or it["article"]) if par_nom else it["article"]
-					parts.append((vue + r"\par " if vue else "") + (t(libelle) if par_nom else r"\mbox{" + t(libelle) + "}")
-						# Le reste des attributs (ex. avec / sans mixage) en gras rouge : c'est ce qui distingue deux variantes d'une même cellule.
-						+ ((r"\par{\small\bfseries\color[HTML]{C00000} " + t(it["complement"]) + "}") if it["complement"] else "")
+					parts.append((vue + r"\par " if vue else "") + pastille(it["complement"]) + (t(libelle) if par_nom else r"\mbox{" + t(libelle) + "}")
 						+ ((r"\par{\small\itshape " + t(it["nom"]) + "}") if it.get("nom") and not par_nom else ""))
 				return r"\par\smallskip ".join(parts)
 
@@ -630,6 +637,10 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			for ligne in croise["lignes"]:
 				blocs["variantes"].append(t(ligne[0]) + " & " + " & ".join(cellule(items) for items in ligne[1:]) + r"\\")
 			blocs["variantes"].append(r"\bottomrule\end{longtable}")
+			if complements:
+				legende_attr = " · ".join(croise["autres"]) if croise.get("autres") else ""
+				blocs["variantes"].append(r"\vspace{-6pt}{\small " + (t(legende_attr + " : ") if legende_attr else "")
+					+ r"\quad ".join(pastille(c) + t(c) for c in complements) + r"}\par\medskip")
 		else:
 			plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels)
 			avec_photo = vignettes and any(v["article"] in vignette_de or v["article"] in (assets.get("variantes") or {}) for v in tabulees)

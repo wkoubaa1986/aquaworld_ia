@@ -149,6 +149,13 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 					self.assertIn("Avec mixage", texte)
 					self.assertNotIn("Photos et illustrations", texte)                       # les vues sont dans le tableau
 					if mode == "croise":
+						# Une couleur par valeur de l'attribut restant : carré devant la référence, légende sous le tableau,
+						# et le texte « Sans mixage » n'est plus répété dans chaque cellule.
+						import re
+						self.assertRegex(texte, r"Système de mélange : ■\s*Avec mixage ■\s*Sans mixage")
+						self.assertEqual(texte.count("Sans mixage"), 1)
+						self.assertGreaterEqual(len(re.findall(r"■\s*AP-M-", texte)), 12)
+					if mode == "croise":
 						self.assertIn("Configuration de filtration Marque de membrane AquaJad DowFilmtec Vontron", texte)   # chapeau de l'attribut des colonnes, puis ses valeurs
 
 
