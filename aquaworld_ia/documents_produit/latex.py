@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+
+from PIL import Image
 from pathlib import Path
 
 import frappe
@@ -342,11 +344,35 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		"""Les photos `indices` en galerie ; `extra` (LaTeX) devient une vignette de plus, en dernier — le QR
 		prend ainsi la case libre de la grille au lieu de pendre sous la galerie (demande 06/11/2026)."""
 		colonnes = disposition.get("colonnes_photos", 1)
-		if colonnes == 1:
-			return [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices] + ([extra] if extra else [])
 		hauteur = disposition.get("hauteur_vignettes", 55)
+		tete = []
+		if disposition.get("style_galerie") == "mosaique" and len(indices) >= 2:
+			# Mosaïque : la première photo en grand à gauche (hauteur des trois petites), jusqu'à trois petites empilées
+			# à droite ; le reste de la galerie suit en grille.
+			petites = indices[1:4]
+			# Les petites et leurs légendes (~7 mm chacune) font la hauteur de la grande. Quand les dimensions de la
+			# grande sont connues (composer les fournit), sa hauteur réelle à 62 % de la largeur fixe celle des
+			# petites, pour que les bas s'alignent ; sinon la grande suit la colonne des petites.
+			dims = (assets.get("dimensions") or {}).get(assets["images"][indices[0]])
+			if dims and dims[0] > 0:
+				# Entre deux petites : légende, \par et marges du centrage ≈ 11 mm (mesuré sur le PDF).
+				hauteur_grande = min(108 * dims[1] / dims[0], 160)
+				petite = max(18, min(hauteur, (hauteur_grande - 11 * (len(petites) - 1)) / len(petites)))
+			else:
+				petite = hauteur
+				hauteur_grande = petite * len(petites) + 11 * (len(petites) - 1)
+			grande = photo(indices[0], 1, round(hauteur_grande, 1), portee)
+			colonne = "\n".join(photo(i, 1, round(petite, 1), portee) for i in petites)
+			tete = [r"\noindent\begin{minipage}[t]{0.62\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
+				+ r"\begin{minipage}[t]{0.35\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}\par\medskip"]
+			indices = indices[4:]
+			if not indices and not extra:
+				return tete
+			colonnes = max(colonnes, 2)
+		if colonnes == 1:
+			return tete + [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices] + ([extra] if extra else [])
 		contenus = [photo(i, 1, hauteur, portee) for i in indices] + ([extra] if extra else [])
-		lignes = []
+		lignes = list(tete)
 		for debut in range(0, len(contenus), colonnes):
 			cellules = [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}"
 				+ r"\linewidth}\vspace{0pt}\small " + cellule + r"\end{minipage}"
@@ -545,10 +571,16 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 			fichiers[name] = bandeau["png"]
 			assets["entete"][cle] = {k: v for k, v in bandeau.items() if k != "png"}
 			assets["entete"][cle]["fichier"] = name
+	assets["dimensions"] = {}
 	for i, im in enumerate(ctx.get("images", [])):
 		name = f"images/image-{i}.png"
 		fichiers[name] = image_png(C.octets(im["image"]))
 		assets["images"].append(name)
+		try:
+			with Image.open(io.BytesIO(fichiers[name])) as pil:
+				assets["dimensions"][name] = pil.size     # (largeur, hauteur) px : mosaïque de la galerie
+		except Exception:
+			pass
 	assets["sections"] = {}
 	for i, s in enumerate(contenu.get("sections", [])):
 		if s.get("image"):

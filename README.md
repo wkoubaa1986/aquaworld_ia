@@ -490,7 +490,11 @@ Choisir la **Photo principale**, saisir les légendes et régler l’ordre avec 
 On peut regrouper les autres vues avec la référence et les attributs de leur variante,
 et afficher les galeries sur une à quatre colonnes, avec la hauteur des vignettes (25–90 mm,
 55 par défaut) pour les galeries à plusieurs colonnes — trois ou quatre par ligne à 30–40 mm
-font tenir une douzaine de photos sur une page (06/11/2026). Les vues communes apparaissent
+font tenir une douzaine de photos sur une page (06/11/2026). **Disposition des galeries** :
+*Grille régulière*, ou *Une grande photo + trois petites à côté* (mosaïque, 06/11/2026) : la première
+photo de la galerie en grand à gauche (62 % de la largeur), les trois suivantes empilées à droite,
+leur hauteur calculée d’après les proportions réelles de la grande pour aligner les bas ; les photos
+suivantes continuent en grille (au moins deux colonnes). Avec une seule autre photo, galerie ordinaire. Les vues communes apparaissent
 dans les illustrations ; les variantes sans autre vue restent dans un tableau compact.
 Les dispositions sont propres à chaque onglet ; les images choisies
 sont communes au dossier, limitées à 20. Retirer une vue ne supprime pas le fichier joint.

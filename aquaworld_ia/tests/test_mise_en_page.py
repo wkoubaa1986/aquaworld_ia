@@ -300,3 +300,47 @@ class TestGalerieCompacte(unittest.TestCase):
 			self.assertEqual(len(rects), 12)
 			self.assertLessEqual(max(r.height for r in rects), 32 * 72 / 25.4 + 1)
 			self.assertEqual(len({round(r.y0) for r in rects}), 3)              # trois lignes de quatre
+
+
+class TestGalerieMosaique(unittest.TestCase):
+	"""06/11/2026 : « une grosse photo et 3 à côté en grille » — style_galerie = mosaique."""
+
+	def test_reglage(self):
+		self.assertEqual(M.normaliser({"style_galerie": "mosaique"})["style_galerie"], "mosaique")
+		self.assertNotIn("style_galerie", M.normaliser({"style_galerie": "grille"}))
+		for mauvais in ({"style_galerie": "libre"}, {"style_galerie": 1}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_grande_a_gauche_trois_petites_a_droite_puis_grille(self):
+		import pymupdf
+		from PIL import Image
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (60 * i % 255, 110, 170)).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(8)]
+		ctx["mise_en_page"] = M.normaliser({"style_galerie": "mosaique", "hauteur_vignettes": 32, "colonnes_photos": 3})
+		assets = {"images": [f"images/image-{i}.png" for i in range(8)], "dimensions": {f"images/image-{i}.png": (400, 300) for i in range(8)}}
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(8)})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = next(p for p in doc if p.search_for("Vue 1"))
+			haut = page.search_for("Photos et illustrations")[0].y1
+			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
+			grande = max(rects, key=lambda r: r.width * r.height)
+			self.assertAlmostEqual(grande.x0, 18 * 72 / 25.4, delta=1)                     # à gauche
+			self.assertAlmostEqual(grande.width, 0.62 * 174 * 72 / 25.4, delta=1 * 72 / 25.4)
+			petites = [r for r in rects if r.x0 > grande.x1 - 1 and r.y0 < grande.y1]
+			self.assertEqual(len(petites), 3)                                               # trois empilées à droite
+			self.assertLess(abs(max(r.y1 for r in petites) - grande.y1), 4 * 72 / 25.4)     # bas alignés (± 4 mm)
+			self.assertEqual(len([r for r in rects if r.y0 > grande.y1 + 5]), 3)            # vues 5 à 7 en grille dessous
+		# Avec une seule autre photo, pas de mosaïque : galerie ordinaire.
+		ctx["images"] = ctx["images"][:2]
+		assets = {"images": assets["images"][:2], "dimensions": {}}
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(2)})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			self.assertTrue(any(p.search_for("Vue 1") for p in doc))
