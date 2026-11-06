@@ -14,7 +14,7 @@ MARQUE_DEFAUTS = {
 	"largeur_logo": 32, "afficher_nom_marque": 0,
 	"logo_x": 150, "logo_y": 8,
 }
-PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1}
+PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55}   # hauteur en mm des vignettes des galeries à plusieurs colonnes
 # QR code d'un lien internet (demande utilisateur 06/11/2026 : « le lien du produit en QR code sur mon site »),
 # avec une légende sous le code. Absent du PDF tant que l'adresse est vide.
 QR_DEFAUTS = {"qr_url": "", "qr_legende": "", "qr_position": "fin_document", "qr_alignement": "droite", "qr_taille": 22}
@@ -84,7 +84,8 @@ def normaliser(valeur=None):
 			resultat[cle] = valeur_marque
 	for cle, defaut in PHOTOS_DEFAUTS.items():
 		v = valeur.get(cle, defaut)
-		if type(v) is not int or v not in ((0, 1) if cle == "photos_variantes" else (1, 2, 3)):
+		admis = {"photos_variantes": (0, 1), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91)}[cle]
+		if type(v) is not int or v not in admis:
 			raise ValueError("Présentation des photos invalide.")
 		if v == defaut:
 			resultat.pop(cle, None)

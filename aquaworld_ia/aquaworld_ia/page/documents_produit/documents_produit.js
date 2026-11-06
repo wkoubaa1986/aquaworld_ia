@@ -24,7 +24,7 @@ const DP_CONSIGNES = [
   {nom:'Manuel d’entretien détaillé', texte:'Manuel orienté entretien et dépannage. Détailler chaque opération d’entretien pas à pas (remplacement des cartouches, désinfection, contrôle des fuites), avec la fréquence et les signes qui indiquent qu’elle est nécessaire. Prévoir une rubrique de dépannage sous forme « symptôme → cause probable → action ». Rappeler les consignes de sécurité documentées avant toute intervention.'},
   {nom:'Export / traduction', texte:'Document destiné à être traduit en plusieurs langues. Phrases courtes et sans tournures idiomatiques, vocabulaire technique standard, unités internationales (bar, L/h, mm). Éviter les références propres au marché local (normes ou services locaux) sauf si elles sont dans les sources.'},
 ];
-const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
+const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,hauteur_vignettes:55,qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
 
 class DocumentsProduit {
@@ -196,7 +196,9 @@ class DocumentsProduit {
       <label class="dp-label">Hauteur maximale de la photo (mm)<input class="form-control dp-layout-height" type="number" min="20" max="120" step="1" value="${m.hauteur_photo}"></label>
       <label class="dp-label">Couleur des titres<input class="form-control dp-layout-color" type="color" value="${m.couleur}" style="width:90px;height:36px"></label></div>
       <h3 style="margin-top:18px">Photos des variantes</h3>
-      <div class="dp-grid"><label class="dp-label">Où placer les vues des variantes<select class="form-control dp-photo-group"><option value="1">Avec la référence et les caractéristiques de chaque variante</option><option value="0">Dans les illustrations à la fin</option></select></label><label class="dp-label">Galeries de photos<select class="form-control dp-photo-columns"><option value="1">Une photo par ligne</option><option value="2">Deux photos par ligne</option><option value="3">Trois photos par ligne</option></select></label></div>
+      <div class="dp-grid"><label class="dp-label">Où placer les vues des variantes<select class="form-control dp-photo-group"><option value="1">Avec la référence et les caractéristiques de chaque variante</option><option value="0">Dans les illustrations à la fin</option></select></label><label class="dp-label">Galeries de photos<select class="form-control dp-photo-columns"><option value="1">Une photo par ligne</option><option value="2">Deux photos par ligne</option><option value="3">Trois photos par ligne</option><option value="4">Quatre photos par ligne</option></select></label>
+      <label class="dp-label">Hauteur des vignettes (mm) · galeries à plusieurs colonnes<input class="form-control dp-photo-hauteur" type="number" min="25" max="90" step="1" value="${m.hauteur_vignettes}"></label></div>
+      <p class="dp-muted">Pour tenir sur une page : trois ou quatre photos par ligne et des vignettes de 30 à 40 mm.</p>
       <h3 style="margin-top:18px">QR code d’un lien internet</h3>
       <p class="dp-muted">Facultatif. Le QR code mène au lien saisi (ex. la page du produit sur votre site) ; la légende s’affiche dessous. Dans le PDF, le code est aussi cliquable.</p>
       <div class="dp-grid"><label class="dp-label">Lien (https://…)<input class="form-control dp-qr-url" type="url" maxlength="500" value="${dpEsc(m.qr_url)}" placeholder="https://www.votresite.com/produit/..."></label>
@@ -238,7 +240,7 @@ class DocumentsProduit {
     });
     z.find('.dp-reset-layout').on('click',()=>{this.layouts[this.activeTab]=dpLayoutDefault();this.renderStructure();this.layoutChanged();this.showState(this.data.dossier);});
     z.find('.dp-photo-group').val(String(m.photos_variantes));z.find('.dp-photo-columns').val(String(m.colonnes_photos));
-    z.find('.dp-photo-group,.dp-photo-columns').on('change',()=>{this.layouts[this.activeTab]={...this.layoutValues(),photos_variantes:Number(z.find('.dp-photo-group').val()),colonnes_photos:Number(z.find('.dp-photo-columns').val())};this.renderLayoutPreview();this.layoutChanged();});
+    z.find('.dp-photo-group,.dp-photo-columns,.dp-photo-hauteur').on('input change',()=>{const h=Math.max(25,Math.min(90,Math.round(Number(z.find('.dp-photo-hauteur').val())||55)));this.layouts[this.activeTab]={...this.layoutValues(),photos_variantes:Number(z.find('.dp-photo-group').val()),colonnes_photos:Number(z.find('.dp-photo-columns').val()),hauteur_vignettes:h};this.renderLayoutPreview();this.layoutChanged();});
     this.renderColumnChoices();this.renderLayoutOrder();this.renderLayoutPreview();
   }
   renderColumnChoices() {
@@ -351,7 +353,8 @@ class DocumentsProduit {
     const parties=['avant','gauche'].includes(m.position_photo)?[photo,description]:[description,photo];
     const ratio=m.position_photo==='gauche'?largeur:100-largeur;
     const presentation=`<div class="dp-design-presentation ${cote?'dp-design-columns':''}" style="${cote?`grid-template-columns:minmax(0,${ratio}fr) minmax(0,${100-ratio}fr)`:''}">${parties.join('')}</div>`;
-    const grille=(photos,extra='')=>`<div class="dp-photo-mini-grid" style="grid-template-columns:repeat(${m.colonnes_photos},minmax(0,1fr))">${photos.map(p=>`<img src="${dpUrl(p.image)}" alt="${dpEsc(p.legende)}">`).join('')}${extra}</div>`;
+    const hVignette=m.colonnes_photos>1?Math.round(m.hauteur_vignettes*0.9):55;
+    const grille=(photos,extra='')=>`<div class="dp-photo-mini-grid" style="grid-template-columns:repeat(${m.colonnes_photos},minmax(0,1fr))">${photos.map(p=>`<img src="${dpUrl(p.image)}" alt="${dpEsc(p.legende)}" style="height:${hVignette}px">`).join('')}${extra}</div>`;
     const variantes=this.configValues().variantes.map(v=>v.article),supp=images.slice(1),communes=supp.filter(p=>!m.photos_variantes||!variantes.includes(p.article));
     const illustrees=variantes.filter(v=>supp.some(p=>p.article===v)),sansPhoto=variantes.length-illustrees.length;
     const apercuVariantes=illustrees.slice(0,3).map(v=>`<div class="dp-design-block"><b>${dpEsc(v)}</b>${grille(supp.filter(p=>p.article===v))}</div>`).join('')+(illustrees.length>3?`<div class="dp-sheet-small">+ ${illustrees.length-3} variantes illustrées dans le PDF</div>`:'')+(sansPhoto?`<div class="dp-design-block">Tableau : ${sansPhoto} variantes sans autre photo</div>`:'');

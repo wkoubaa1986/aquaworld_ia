@@ -152,6 +152,56 @@ def qr_png(url):
 	return buffer.getvalue()
 
 
+def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6):
+	"""Le tableau des variantes résumé par caractéristiques (demande 06/11/2026). PURE.
+
+	- une colonne par attribut de variante (membrane, configuration, mixage…) au lieu d'une phrase
+	  « nom : valeur ; nom : valeur » par ligne ;
+	- les caractéristiques techniques propres à une variante (portée = cette variante) deviennent des colonnes
+	  (les plus renseignées d'abord, `max_caracteristiques` au plus) ;
+	- au-delà de `seuil_groupes` variantes et avec au moins deux attributs, les lignes sont regroupées par la
+	  valeur du premier attribut (titre de groupe, colonne retirée) ;
+	- la marque n'est une colonne que si elle varie ; sans attribut, le nom de la variante tient lieu de configuration.
+	-> {"entetes": [...], "groupes": [(titre ou "", [[cellules]...]) ...]}
+	"""
+	if not variantes:
+		return {"entetes": [labels["reference"]], "groupes": []}
+	noms = []
+	for v in variantes:
+		for a in v.get("attributs", []):
+			if a["nom"] not in noms:
+				noms.append(a["nom"])
+	valeur = lambda v, nom: next((a["valeur"] for a in v.get("attributs", []) if a["nom"] == nom), "")
+	marques = {v.get("marque", "") for v in variantes}
+	# Caractéristiques pivotées : nom -> {article: "valeur unité"}, les plus renseignées d'abord.
+	pivot = {}
+	for c in caracteristiques:
+		if c.get("article") and c.get("nom"):
+			pivot.setdefault(c["nom"], {})[c["article"]] = (c.get("valeur", "") + (" " + c["unite"] if c.get("unite") else "")).strip()
+	colonnes_carac = sorted(pivot, key=lambda k: (-len(pivot[k]), k))[:max_caracteristiques]
+	grouper = len(variantes) > seuil_groupes and len(noms) >= 2 and len({valeur(v, noms[0]) for v in variantes}) >= 2
+	attributs_colonnes = noms[1:] if grouper else noms
+	entetes = [labels["reference"]] + ([labels["marque"]] if len(marques) > 1 else []) + attributs_colonnes
+	if not noms:
+		entetes.append(labels["configuration"])
+	entetes += colonnes_carac
+	def ligne(v):
+		cellules = [v["article"]] + ([v.get("marque", "")] if len(marques) > 1 else []) + [valeur(v, nom) for nom in attributs_colonnes]
+		if not noms:
+			cellules.append(v.get("nom", ""))
+		cellules += [pivot[nom].get(v["article"], "") for nom in colonnes_carac]
+		return cellules
+	if not grouper:
+		return {"entetes": entetes, "groupes": [("", [ligne(v) for v in variantes])]}
+	groupes = []
+	for v in variantes:
+		cle = valeur(v, noms[0])
+		if not groupes or groupes[-1][0] != noms[0] + " : " + cle:
+			groupes.append((noms[0] + " : " + cle, []))
+		groupes[-1][1].append(ligne(v))
+	return {"entetes": entetes, "groupes": groupes}
+
+
 def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=None):
 	assets = assets or {}
 	disposition = M.normaliser(ctx.get("mise_en_page"))
@@ -294,7 +344,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		colonnes = disposition.get("colonnes_photos", 1)
 		if colonnes == 1:
 			return [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices] + ([extra] if extra else [])
-		contenus = [photo(i, 1, 55, portee) for i in indices] + ([extra] if extra else [])
+		hauteur = disposition.get("hauteur_vignettes", 55)
+		contenus = [photo(i, 1, hauteur, portee) for i in indices] + ([extra] if extra else [])
 		lignes = []
 		for debut in range(0, len(contenus), colonnes):
 			cellules = [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}"
@@ -324,7 +375,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	def tableau_rubrique(lignes):
 		"""Tableau saisi dans une rubrique : première ligne en gras, colonnes de même largeur, lignes fines."""
 		n = len(lignes[0])
-		colonnes = ("p{" + f"{(1 - .03 * (n - 1)) / n:.3f}" + r"\linewidth}") * n
+		colonnes = (r">{\raggedright\arraybackslash}p{" + f"{(1 - .03 * (n - 1)) / n:.3f}" + r"\linewidth}") * n
 		tex = [r"\begin{longtable}{" + colonnes + "}", r"\toprule"]
 		tex.append(" & ".join(r"\bfseries " + t(c) for c in lignes[0]) + r"\\\midrule\endhead")
 		tex += [" & ".join(t(c) for c in ligne) + r"\\\addlinespace" for ligne in lignes[1:]]
@@ -394,17 +445,19 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if tabulees:
 		if not illustrees:
 			blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
+		plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels)
+		n = len(plan["entetes"])
+		largeurs = [.2] + [(.78 - .2) / (n - 1)] * (n - 1) if n > 1 else [.98]
+		colonnes = "".join(r">{\raggedright\arraybackslash}p{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs)
 		blocs["variantes"] += [
-			r"\begin{longtable}{p{.31\linewidth}p{.61\linewidth}}",
-			r"\toprule "
-			+ t(labels["reference"])
-			+ " & "
-			+ t(labels["configuration"])
-			+ r"\\\midrule\endhead",
+			r"\begin{longtable}{" + colonnes + "}",
+			r"\toprule " + " & ".join(r"\bfseries " + t(e) for e in plan["entetes"]) + r"\\\midrule\endhead",
 		]
-		for v in tabulees:
-			config = "; ".join(a["nom"] + " : " + a["valeur"] for a in v["attributs"])
-			blocs["variantes"].append(t(v["article"]) + " & " + t(v["marque"] + " — " + config) + r"\\\addlinespace")
+		for titre_groupe, lignes in plan["groupes"]:
+			if titre_groupe:
+				blocs["variantes"].append(r"\multicolumn{" + str(n) + r"}{l}{\bfseries\color{aqua} " + t(titre_groupe) + r"}\\\addlinespace")
+			for ligne in lignes:
+				blocs["variantes"].append(" & ".join(t(c) for c in ligne) + r"\\\addlinespace")
 		blocs["variantes"].append(r"\bottomrule\end{longtable}")
 	regroupees = {i for indices in photos_variantes.values() for i in indices}
 	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]

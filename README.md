@@ -488,7 +488,9 @@ et restent modifiables. **Importer des photos** accepte plusieurs fichiers.
 
 Choisir la **Photo principale**, saisir les légendes et régler l’ordre avec les flèches.
 On peut regrouper les autres vues avec la référence et les attributs de leur variante,
-et afficher les galeries sur une, deux ou trois colonnes. Les vues communes apparaissent
+et afficher les galeries sur une à quatre colonnes, avec la hauteur des vignettes (25–90 mm,
+55 par défaut) pour les galeries à plusieurs colonnes — trois ou quatre par ligne à 30–40 mm
+font tenir une douzaine de photos sur une page (06/11/2026). Les vues communes apparaissent
 dans les illustrations ; les variantes sans autre vue restent dans un tableau compact.
 Les dispositions sont propres à chaque onglet ; les images choisies
 sont communes au dossier, limitées à 20. Retirer une vue ne supprime pas le fichier joint.
@@ -510,6 +512,13 @@ La marque, l’en-tête, les consignes, les sources, les photos et les variantes
 les corrections sont enregistrées avant de changer d’onglet. Le dernier onglet est mémorisé
 dans la session du navigateur ; un lien se terminant par `/fiche` ou `/manuel` ouvre
 directement le type voulu.
+
+**Tableau des variantes** (06/11/2026) : une colonne par attribut (membrane, configuration,
+mélange…) au lieu d’une phrase « nom : valeur ; … » par ligne ; les caractéristiques techniques
+propres à une variante deviennent des colonnes (les trois plus renseignées au plus) ; au-delà de
+six variantes avec au moins deux attributs, les lignes sont regroupées sous un titre par valeur du
+premier attribut (ex. « Marque de membrane : AquaJad »), cette colonne étant alors retirée. La
+marque commerciale n’apparaît que si elle varie ; sans attribut, le nom tient lieu de configuration.
 
 **Aperçu** (étape Relire, bouton à côté de « Générer le PDF », 06/11/2026) : compose le document en
 mémoire à partir du contenu affiché — corrections non enregistrées comprises — avec la marque,

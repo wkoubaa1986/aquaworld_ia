@@ -265,3 +265,38 @@ class TestMiseEnPage(unittest.TestCase):
 		c.update(titre="دليل الاستخدام", resume="جهاز لتنقية المياه ecoPurium")
 		pdf, _ = L.compiler(L.source(c, ctx, langue="ar", rtl=True, assets={"images": ["images/image-0.png"]}), {"images/image-0.png": im.getvalue()})
 		self.assertTrue(pdf.startswith(b"%PDF"))
+
+
+class TestGalerieCompacte(unittest.TestCase):
+	"""06/11/2026 : « une partie photos plus petite, en grille, pour tenir sur une seule page »."""
+
+	def test_quatre_colonnes_et_hauteur_des_vignettes(self):
+		d = M.normaliser({"colonnes_photos": 4, "hauteur_vignettes": 32})
+		self.assertEqual((d["colonnes_photos"], d["hauteur_vignettes"]), (4, 32))
+		self.assertNotIn("hauteur_vignettes", M.normaliser({"hauteur_vignettes": 55}))   # défaut retiré
+		for mauvais in ({"colonnes_photos": 5}, {"hauteur_vignettes": 24}, {"hauteur_vignettes": 91}, {"hauteur_vignettes": 40.0}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_douze_photos_sur_une_page(self):
+		import pymupdf
+		from PIL import Image
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (40 * i % 255, 120, 180)).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(13)]
+		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 4, "hauteur_vignettes": 32})
+		assets = {"images": [f"images/image-{i}.png" for i in range(13)]}
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(13)})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = next(p for p in doc if p.search_for("Vue 12"))
+			self.assertTrue(page.search_for("Vue 1"))                            # les 12 vignettes sur la même page
+			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0])]
+			self.assertEqual(len(rects), 12)
+			self.assertLessEqual(max(r.height for r in rects), 32 * 72 / 25.4 + 1)
+			self.assertEqual(len({round(r.y0) for r in rects}), 3)              # trois lignes de quatre
