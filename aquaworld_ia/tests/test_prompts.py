@@ -48,3 +48,17 @@ class TestConsigneDuFond(unittest.TestCase):
 		p = prompt_fond(None, "Sel")
 		self.assertNotIn("takes precedence", p)
 		self.assertIn("No product, no objects, no people", p)
+
+
+class TestPromptDocumentsProduit(unittest.TestCase):
+	def test_les_donnees_de_l_article_sont_des_faits(self):
+		"""06/11/2026 : la fiche disait « annoncé avec pompe et socle métallique » — le nom de l'article est
+		une donnée de l'entreprise, pas une source à nuancer. La prudence reste pour ce qui manque."""
+		import inspect
+
+		from aquaworld_ia.documents_produit import traitement
+
+		systeme = inspect.getsource(traitement.generer)
+		self.assertIn("énonce-les comme des faits", systeme)
+		self.assertIn("« annoncé »", systeme)
+		self.assertIn("points_a_verifier", systeme)
