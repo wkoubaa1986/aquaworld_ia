@@ -369,16 +369,25 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	body.extend(zones("apres_titre"))
 	blocs = {cle: [] for cle in M.ORDRE}
 
+	# Légendes des photos : masquables (pas celle du QR), alignées et colorées selon la mise en page (06/11/2026).
+	legende_style = {"gauche": r"\raggedright", "centre": r"\centering", "droite": r"\raggedleft"}[disposition.get("legende_alignement", "gauche")]
+	legende_couleur = {"texte": "", "titres": r"\color{aqua}", "gris": r"\color{gray}"}[disposition.get("legende_couleur", "texte")]
+
+	def legende(texte_legende):
+		if not texte_legende or not disposition.get("legendes_galerie", 1):
+			return ""
+		return r"{" + legende_style + legende_couleur + r"\small " + t(texte_legende) + r"\par}"
+
 	def photo(index, largeur, hauteur, portee=True):
 		lignes = [
 			r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
 			+ r"\linewidth,height=" + str(hauteur) + "mm,keepaspectratio]{"
 			+ assets["images"][index] + r"}\end{center}",
-			t(contenu["legendes"][index]) + r"\par",
+			legende(contenu["legendes"][index]),
 		]
-		if portee and ctx["images"][index].get("article"):
-			lignes.append(t(labels["portee"] + " : " + ctx["images"][index]["article"]) + r"\par")
-		return "\n".join(lignes)
+		if portee and ctx["images"][index].get("article") and disposition.get("legendes_galerie", 1):
+			lignes.append(legende(labels["portee"] + " : " + ctx["images"][index]["article"]))
+		return "\n".join(x for x in lignes if x)
 
 	def galerie(indices, portee=True, extra=None):
 		"""Les photos `indices` en galerie ; `extra` (LaTeX) devient une vignette de plus, en dernier — le QR
@@ -399,18 +408,19 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			# Les petites et leurs légendes font la hauteur de la grande. Quand les dimensions de la grande sont
 			# connues (composer les fournit), sa hauteur réelle à 62 % de la largeur fixe celle des petites, pour
 			# que les bas s'alignent ; sinon la grande suit la colonne des petites.
+			part = disposition.get("largeur_grande", 62) / 100          # part de la ligne pour la grande photo
+			espace = 11 if disposition.get("legendes_galerie", 1) else 4  # entre deux petites : légende éventuelle, \par, centrage
 			dims = (assets.get("dimensions") or {}).get(assets["images"][indices[0]])
 			if dims and dims[0] > 0:
-				# Entre deux petites : légende, \par et marges du centrage ≈ 11 mm (mesuré sur le PDF).
-				hauteur_grande = min(108 * dims[1] / dims[0], 160)
-				petite = max(18, min(hauteur, (hauteur_grande - 11 * (nb - 1)) / max(1, nb)))
+				hauteur_grande = min(174 * part * dims[1] / dims[0], 160)
+				petite = max(18, min(hauteur, (hauteur_grande - espace * (nb - 1)) / max(1, nb)))
 			else:
 				petite = hauteur
-				hauteur_grande = petite * nb + 11 * (nb - 1)
+				hauteur_grande = petite * nb + espace * (nb - 1)
 			grande = photo(indices[0], 1, round(hauteur_grande, 1), portee)
 			colonne = "\n".join([photo(i, 1, round(petite, 1), portee) for i in petites] + ([extra_dans_mosaique] if extra_dans_mosaique else []))
-			tete = [r"\noindent\begin{minipage}[t]{0.62\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
-				+ r"\begin{minipage}[t]{0.35\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}\par\medskip"]
+			tete = [r"\noindent\begin{minipage}[t]{" + f"{part:.2f}" + r"\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
+				+ r"\begin{minipage}[t]{" + f"{0.97 - part:.2f}" + r"\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}\par\medskip"]
 			indices = indices[4:]
 			if extra_dans_mosaique:
 				extra = None

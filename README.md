@@ -498,7 +498,10 @@ suivantes continuent en grille (au moins deux colonnes). **Grande photo de la mo
 photo en grand (sinon la première de la galerie) ; le QR code placé dans les illustrations compte
 comme une petite vignette (il complète la colonne s’il y a moins de trois autres photos). La photo
 principale (★) reste dans le bloc de présentation et ne fait pas partie de la galerie. Avec une
-seule autre photo et pas de QR, galerie ordinaire. Les vues communes apparaissent
+seule autre photo et pas de QR, galerie ordinaire. **Largeur de la grande photo** (30–75 % de la
+ligne, 62 par défaut) règle la mosaïque pour tenir sur une page. **Légendes des photos** (06/11/2026) :
+affichées ou masquées (la légende du QR reste), alignement (gauche, centrées, droite) et couleur
+(comme le texte, couleur des titres, gris) — réglages par onglet, dans la mise en page. Les vues communes apparaissent
 dans les illustrations ; les variantes sans autre vue restent dans un tableau compact.
 Les dispositions sont propres à chaque onglet ; les images choisies
 sont communes au dossier, limitées à 20. Retirer une vue ne supprime pas le fichier joint.

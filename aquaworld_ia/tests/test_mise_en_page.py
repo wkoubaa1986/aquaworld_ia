@@ -377,3 +377,47 @@ class TestGalerieMosaique(unittest.TestCase):
 			self.assertTrue(abs(legende.x0 - grande.x0) < 30 and legende.y0 > grande.y1 - 1)   # la 3e photo est la grande
 			self.assertEqual(len([r for r in rects if r.x0 > grande.x1 - 1 and r.y0 < grande.y1 + 2]), 3)   # 2 photos + QR
 			self.assertEqual(len([r for r in rects if r.y0 > grande.y1 + 5]), 0)                             # rien dessous
+
+
+class TestLegendesEtLargeurGrande(unittest.TestCase):
+	"""06/11/2026 : « travailler la taille des photos pour tenir sur la première page, enlever les légendes des
+	photos sauf celle du QR, changer le centrage et la couleur des légendes »."""
+
+	def test_reglages(self):
+		d = M.normaliser({"largeur_grande": 45, "legendes_galerie": 0, "legende_alignement": "centre", "legende_couleur": "titres"})
+		self.assertEqual((d["largeur_grande"], d["legendes_galerie"], d["legende_alignement"], d["legende_couleur"]), (45, 0, "centre", "titres"))
+		self.assertEqual(sorted(k for k in M.normaliser({"legendes_galerie": 1, "largeur_grande": 62}) if k.startswith(("legende", "largeur_g"))), [])
+		for mauvais in ({"largeur_grande": 29}, {"largeur_grande": 76}, {"legendes_galerie": 2}, {"legende_alignement": "justifie"}, {"legende_couleur": "#FF0000"}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_pdf_legendes_masquees_sauf_qr_et_grande_a_45_pour_cent(self):
+		import pymupdf
+		from PIL import Image
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (60 * i % 255, 110, 170)).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(5)]
+		url = "https://example.invalid/?p=1"
+		assets = {"images": [f"images/image-{i}.png" for i in range(5)], "dimensions": {f"images/image-{i}.png": (400, 300) for i in range(5)}, "qr": "images/qr.png"}
+		fichiers = {f"images/image-{i}.png": png(i) for i in range(5)}
+		fichiers["images/qr.png"] = L.qr_png(url)
+		ctx["mise_en_page"] = M.normaliser({"style_galerie": "mosaique", "largeur_grande": 45, "legendes_galerie": 0,
+			"qr_url": url, "qr_position": "illustrations", "qr_legende": "Voir en ligne"})
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), fichiers)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			texte = " ".join(" ".join(p.get_text() for p in doc).split())
+			self.assertNotIn("Vue 1", texte)                                  # légendes des photos masquées
+			self.assertIn("Voir en ligne", texte)                             # celle du QR reste
+			page = next(p for p in doc if p.search_for("Photos et illustrations"))
+			haut = page.search_for("Photos et illustrations")[0].y1
+			grande = max((r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut), key=lambda r: r.width * r.height)
+			self.assertAlmostEqual(grande.width, 0.45 * 174 * 72 / 25.4, delta=1 * 72 / 25.4)
+		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 2, "legende_alignement": "centre", "legende_couleur": "titres"})
+		tex = L.source(contenu_simple(ctx), ctx, assets=assets)
+		self.assertIn(r"{\centering\color{aqua}\small Vue 1\par}", tex)

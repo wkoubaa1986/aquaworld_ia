@@ -15,7 +15,9 @@ MARQUE_DEFAUTS = {
 	"logo_x": 150, "logo_y": 8,
 }
 PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille", "photo_grande": "",
-	"tableau_variantes": "liste"}
+	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte"}
+# largeur_grande : % de la ligne pour la grande photo de la mosaïque. legendes_galerie : 0 masque les légendes des
+# photos (pas celle du QR). legende_alignement / legende_couleur (texte | titres | gris) : présentation des légendes.
 # photos_variantes : 0 = vues des variantes dans les illustrations, 1 = regroupées avec la fiche de chaque variante,
 # 2 = vignette dans le tableau des variantes. tableau_variantes : « liste » groupée par le premier attribut, ou
 # « croise » = attribut le plus varié en lignes × attribut le moins varié en colonnes (demande 06/11/2026).
@@ -98,8 +100,11 @@ def normaliser(valeur=None):
 			v = v.strip()
 		else:
 			admis = {"photos_variantes": (0, 1, 2), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
-				"style_galerie": ("grille", "mosaique"), "tableau_variantes": ("liste", "croise")}[cle]
-			if (type(v) is not int if cle not in ("style_galerie", "tableau_variantes") else not isinstance(v, str)) or v not in admis:
+				"style_galerie": ("grille", "mosaique"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
+				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"),
+				"legende_couleur": ("texte", "titres", "gris")}[cle]
+			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur")
+			if (type(v) is not int if not textuel else not isinstance(v, str)) or v not in admis:
 				raise ValueError("Présentation des photos invalide.")
 		if v == defaut:
 			resultat.pop(cle, None)
