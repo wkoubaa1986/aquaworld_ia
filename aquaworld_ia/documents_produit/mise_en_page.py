@@ -14,7 +14,7 @@ MARQUE_DEFAUTS = {
 	"largeur_logo": 32, "afficher_nom_marque": 0,
 	"logo_x": 150, "logo_y": 8,
 }
-PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille"}
+PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille", "photo_grande": ""}
 # hauteur_vignettes : mm des vignettes des galeries à plusieurs colonnes. style_galerie : « grille » régulière, ou
 # « mosaique » = une grande photo à gauche et jusqu'à trois petites empilées à droite (demande 06/11/2026), les
 # suivantes en grille.
@@ -87,10 +87,16 @@ def normaliser(valeur=None):
 			resultat[cle] = valeur_marque
 	for cle, defaut in PHOTOS_DEFAUTS.items():
 		v = valeur.get(cle, defaut)
-		admis = {"photos_variantes": (0, 1), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
-			"style_galerie": ("grille", "mosaique")}[cle]
-		if (type(v) is not int if cle != "style_galerie" else not isinstance(v, str)) or v not in admis:
-			raise ValueError("Présentation des photos invalide.")
+		if cle == "photo_grande":
+			# La photo en grand de la mosaïque (fichier de la galerie) ; vide = la première de la galerie.
+			if not isinstance(v, str) or len(v) > 500 or (v and not re.fullmatch(r"/(?:private/)?files/[^\s\"'<>]+", v)):
+				raise ValueError("Photo de la mosaïque invalide.")
+			v = v.strip()
+		else:
+			admis = {"photos_variantes": (0, 1), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
+				"style_galerie": ("grille", "mosaique")}[cle]
+			if (type(v) is not int if cle != "style_galerie" else not isinstance(v, str)) or v not in admis:
+				raise ValueError("Présentation des photos invalide.")
 		if v == defaut:
 			resultat.pop(cle, None)
 		else:

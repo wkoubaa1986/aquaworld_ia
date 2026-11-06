@@ -344,3 +344,36 @@ class TestGalerieMosaique(unittest.TestCase):
 		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(2)})
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 			self.assertTrue(any(p.search_for("Vue 1") for p in doc))
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_grande_designee_et_qr_comme_petite(self):
+		"""06/11/2026 : « pourquoi le QR n'est pas considéré comme une image, comment changer qui est quoi »."""
+		import pymupdf
+		from PIL import Image
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (60 * i % 255, 110, 170)).save(b, format="PNG")
+			return b.getvalue()
+
+		self.assertEqual(M.normaliser({"photo_grande": "/files/3.png"})["photo_grande"], "/files/3.png")
+		with self.assertRaises(ValueError):
+			M.normaliser({"photo_grande": "https://x/y.png"})
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(4)]
+		url = "https://example.invalid/?p=1"
+		ctx["mise_en_page"] = M.normaliser({"style_galerie": "mosaique", "hauteur_vignettes": 32, "photo_grande": "/files/3.png",
+			"qr_url": url, "qr_position": "illustrations", "qr_legende": "Voir en ligne"})
+		assets = {"images": [f"images/image-{i}.png" for i in range(4)], "dimensions": {f"images/image-{i}.png": (400, 300) for i in range(4)}, "qr": "images/qr.png"}
+		fichiers = {f"images/image-{i}.png": png(i) for i in range(4)}
+		fichiers["images/qr.png"] = L.qr_png(url)
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), fichiers)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = next(p for p in doc if p.search_for("Voir en ligne"))
+			haut = page.search_for("Photos et illustrations")[0].y1
+			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
+			grande = max(rects, key=lambda r: r.width * r.height)
+			legende = page.search_for("Vue 3")[0]
+			self.assertTrue(abs(legende.x0 - grande.x0) < 30 and legende.y0 > grande.y1 - 1)   # la 3e photo est la grande
+			self.assertEqual(len([r for r in rects if r.x0 > grande.x1 - 1 and r.y0 < grande.y1 + 2]), 3)   # 2 photos + QR
+			self.assertEqual(len([r for r in rects if r.y0 > grande.y1 + 5]), 0)                             # rien dessous

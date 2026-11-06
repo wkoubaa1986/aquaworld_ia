@@ -494,7 +494,11 @@ font tenir une douzaine de photos sur une page (06/11/2026). **Disposition des g
 *Grille régulière*, ou *Une grande photo + trois petites à côté* (mosaïque, 06/11/2026) : la première
 photo de la galerie en grand à gauche (62 % de la largeur), les trois suivantes empilées à droite,
 leur hauteur calculée d’après les proportions réelles de la grande pour aligner les bas ; les photos
-suivantes continuent en grille (au moins deux colonnes). Avec une seule autre photo, galerie ordinaire. Les vues communes apparaissent
+suivantes continuent en grille (au moins deux colonnes). **Grande photo de la mosaïque** désigne la
+photo en grand (sinon la première de la galerie) ; le QR code placé dans les illustrations compte
+comme une petite vignette (il complète la colonne s’il y a moins de trois autres photos). La photo
+principale (★) reste dans le bloc de présentation et ne fait pas partie de la galerie. Avec une
+seule autre photo et pas de QR, galerie ordinaire. Les vues communes apparaissent
 dans les illustrations ; les variantes sans autre vue restent dans un tableau compact.
 Les dispositions sont propres à chaque onglet ; les images choisies
 sont communes au dossier, limitées à 20. Retirer une vue ne supprime pas le fichier joint.

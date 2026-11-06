@@ -353,26 +353,34 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		colonnes = disposition.get("colonnes_photos", 1)
 		hauteur = disposition.get("hauteur_vignettes", 55)
 		tete = []
-		if disposition.get("style_galerie") == "mosaique" and len(indices) >= 2:
-			# Mosaïque : la première photo en grand à gauche (hauteur des trois petites), jusqu'à trois petites empilées
-			# à droite ; le reste de la galerie suit en grille.
+		if disposition.get("style_galerie") == "mosaique" and len(indices) + (1 if extra else 0) >= 2 and indices:
+			# Mosaïque : la photo désignée (photo_grande, sinon la première) en grand à gauche, jusqu'à trois petites
+			# empilées à droite — le QR des illustrations compte comme une petite ; le reste suit en grille.
+			voulue = disposition.get("photo_grande") or ""
+			images_ctx = ctx.get("images", [])
+			grande_i = next((i for i in indices if voulue and i < len(images_ctx) and images_ctx[i].get("image") == voulue), indices[0])
+			indices = [grande_i] + [i for i in indices if i != grande_i]
 			petites = indices[1:4]
-			# Les petites et leurs légendes (~7 mm chacune) font la hauteur de la grande. Quand les dimensions de la
-			# grande sont connues (composer les fournit), sa hauteur réelle à 62 % de la largeur fixe celle des
-			# petites, pour que les bas s'alignent ; sinon la grande suit la colonne des petites.
+			extra_dans_mosaique = extra if extra and len(petites) < 3 else None
+			nb = len(petites) + (1 if extra_dans_mosaique else 0)
+			# Les petites et leurs légendes font la hauteur de la grande. Quand les dimensions de la grande sont
+			# connues (composer les fournit), sa hauteur réelle à 62 % de la largeur fixe celle des petites, pour
+			# que les bas s'alignent ; sinon la grande suit la colonne des petites.
 			dims = (assets.get("dimensions") or {}).get(assets["images"][indices[0]])
 			if dims and dims[0] > 0:
 				# Entre deux petites : légende, \par et marges du centrage ≈ 11 mm (mesuré sur le PDF).
 				hauteur_grande = min(108 * dims[1] / dims[0], 160)
-				petite = max(18, min(hauteur, (hauteur_grande - 11 * (len(petites) - 1)) / len(petites)))
+				petite = max(18, min(hauteur, (hauteur_grande - 11 * (nb - 1)) / max(1, nb)))
 			else:
 				petite = hauteur
-				hauteur_grande = petite * len(petites) + 11 * (len(petites) - 1)
+				hauteur_grande = petite * nb + 11 * (nb - 1)
 			grande = photo(indices[0], 1, round(hauteur_grande, 1), portee)
-			colonne = "\n".join(photo(i, 1, round(petite, 1), portee) for i in petites)
+			colonne = "\n".join([photo(i, 1, round(petite, 1), portee) for i in petites] + ([extra_dans_mosaique] if extra_dans_mosaique else []))
 			tete = [r"\noindent\begin{minipage}[t]{0.62\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
 				+ r"\begin{minipage}[t]{0.35\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}\par\medskip"]
 			indices = indices[4:]
+			if extra_dans_mosaique:
+				extra = None
 			if not indices and not extra:
 				return tete
 			colonnes = max(colonnes, 2)
@@ -500,7 +508,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	# sous le titre du bloc quand il n'y a pas d'autre illustration — le bloc suit alors l'ordre choisi.
 	qr_illustrations = "\n".join(zone_qr) if qr["qr_position"] == "illustrations" and zone_qr else None
 	if illustrations or qr_illustrations:
-		if regrouper or disposition.get("colonnes_photos", 1) > 1 or (qr_illustrations and not illustrations):
+		if regrouper or disposition.get("colonnes_photos", 1) > 1 or disposition.get("style_galerie") == "mosaique" or (qr_illustrations and not illustrations):
 			blocs["illustrations"].append(r"\docsection{" + t(labels["illustrations"]) + "}")
 		blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
 	for cle in disposition["ordre"]:
