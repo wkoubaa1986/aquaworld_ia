@@ -71,3 +71,29 @@ class TestRenduTableauVariantes(unittest.TestCase):
 			self.assertIn("Système de mélange", texte)
 			self.assertIn("75 GPD", texte)
 			self.assertNotIn("Marque de membrane : AquaJad; ", texte)        # l'ancienne phrase « nom : valeur ; … »
+
+
+@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+class TestLignesColorees(unittest.TestCase):
+	"""06/11/2026 : lignes des tableaux colorées en alternance, deux teintes de la couleur des titres."""
+
+	def test_trois_teintes_derivees_de_la_couleur_des_titres(self):
+		import pymupdf
+
+		from aquaworld_ia.documents_produit import mise_en_page as M
+
+		ctx, c = gamme()
+		c["sections"][0]["tableau"] = [["Étages", "Débit"], ["5", "75 GPD"], ["6", "100 GPD"]]
+		ctx["mise_en_page"] = M.normaliser({"couleur": "#1F5FBF"})
+		_tex, pdf, _ = L.composer(c, ctx)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			fonds = {}
+			for page in doc:
+				for d in page.get_drawings():
+					if d.get("fill") and tuple(d["fill"]) != (1.0, 1.0, 1.0):
+						cle = tuple(round(x, 2) for x in d["fill"])
+						fonds[cle] = fonds.get(cle, 0) + 1
+			# Trois teintes (5 %, 13 %, 22 %) d'un bleu : rouge < bleu dans chacune, toutes claires.
+			teintes = [k for k in fonds if k[0] < k[2] and min(k) > 0.7]
+			self.assertGreaterEqual(len(teintes), 3, fonds)
+			self.assertGreaterEqual(sum(fonds[k] for k in teintes), 20)          # une bande par ligne de tableau

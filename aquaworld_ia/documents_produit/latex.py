@@ -154,6 +154,11 @@ def qr_png(url):
 	return buffer.getvalue()
 
 
+# Lignes des tableaux colorées en alternance (demande 06/11/2026) : deux teintes de la couleur des titres (5 % et
+# 13 %), en-têtes et titres de groupe à 22 % — la palette suit donc la couleur choisie dans la mise en page.
+ZEBRE = r"\rowcolors{2}{aquaclair}{aquamoyen}"
+
+
 def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6):
 	"""Le tableau des variantes résumé par caractéristiques (demande 06/11/2026). PURE.
 
@@ -225,6 +230,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \usepackage{fancyhdr}
 \usepackage{hyperref}
 \definecolor{aqua}{HTML}{087E8B}
+\colorlet{aquafort}{aqua!22}\colorlet{aquamoyen}{aqua!13}\colorlet{aquaclair}{aqua!5}
+\renewcommand{\arraystretch}{1.3}
 \hypersetup{hidelinks}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
@@ -402,9 +409,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		"""Tableau saisi dans une rubrique : première ligne en gras, colonnes de même largeur, lignes fines."""
 		n = len(lignes[0])
 		colonnes = (r">{\raggedright\arraybackslash}p{" + f"{(1 - .03 * (n - 1)) / n:.3f}" + r"\linewidth}") * n
-		tex = [r"\begin{longtable}{" + colonnes + "}", r"\toprule"]
-		tex.append(" & ".join(r"\bfseries " + t(c) for c in lignes[0]) + r"\\\midrule\endhead")
-		tex += [" & ".join(t(c) for c in ligne) + r"\\\addlinespace" for ligne in lignes[1:]]
+		tex = [ZEBRE, r"\begin{longtable}{" + colonnes + "}", r"\toprule"]
+		tex.append(r"\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(c) for c in lignes[0]) + r"\\\endhead")
+		tex += [" & ".join(t(c) for c in ligne) + r"\\" for ligne in lignes[1:]]
 		tex.append(r"\bottomrule\end{longtable}")
 		return "\n".join(tex)
 
@@ -435,10 +442,11 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if contenu["caracteristiques"]:
 		blocs["caracteristiques"] += [
 			r"\docsection{" + t(labels["caracteristiques"]) + "}",
-			r"\begin{longtable}{p{.27\linewidth}p{.42\linewidth}p{.19\linewidth}}",
-			r"\toprule "
-			+ " & ".join(t(labels[k]) for k in ("parametre", "valeur", "portee"))
-			+ r"\\\midrule\endhead",
+			ZEBRE,
+			r"\begin{longtable}{>{\raggedright\arraybackslash}p{.27\linewidth}>{\raggedright\arraybackslash}p{.42\linewidth}>{\raggedright\arraybackslash}p{.19\linewidth}}",
+			r"\toprule\rowcolor{aquafort}"
+			+ " & ".join(r"\bfseries\color{aqua} " + t(labels[k]) for k in ("parametre", "valeur", "portee"))
+			+ r"\\\endhead",
 		]
 		for c in contenu["caracteristiques"]:
 			blocs["caracteristiques"].append(
@@ -450,7 +458,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 						c["article"] or labels["commun"],
 					]
 				)
-				+ r"\\\addlinespace"
+				+ r"\\"
 			)
 		blocs["caracteristiques"].append(r"\bottomrule\end{longtable}")
 	regrouper = disposition.get("photos_variantes", 0)
@@ -476,14 +484,15 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		largeurs = [.2] + [(.78 - .2) / (n - 1)] * (n - 1) if n > 1 else [.98]
 		colonnes = "".join(r">{\raggedright\arraybackslash}p{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs)
 		blocs["variantes"] += [
+			ZEBRE,
 			r"\begin{longtable}{" + colonnes + "}",
-			r"\toprule " + " & ".join(r"\bfseries " + t(e) for e in plan["entetes"]) + r"\\\midrule\endhead",
+			r"\toprule\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in plan["entetes"]) + r"\\\endhead",
 		]
 		for titre_groupe, lignes in plan["groupes"]:
 			if titre_groupe:
-				blocs["variantes"].append(r"\multicolumn{" + str(n) + r"}{l}{\bfseries\color{aqua} " + t(titre_groupe) + r"}\\\addlinespace")
+				blocs["variantes"].append(r"\rowcolor{aquafort}\multicolumn{" + str(n) + r"}{l}{\bfseries\color{aqua} " + t(titre_groupe) + r"}\\")
 			for ligne in lignes:
-				blocs["variantes"].append(" & ".join(t(c) for c in ligne) + r"\\\addlinespace")
+				blocs["variantes"].append(" & ".join(t(c) for c in ligne) + r"\\")
 		blocs["variantes"].append(r"\bottomrule\end{longtable}")
 	regroupees = {i for indices in photos_variantes.values() for i in indices}
 	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]

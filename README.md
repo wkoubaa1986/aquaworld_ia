@@ -517,6 +517,11 @@ les corrections sont enregistrées avant de changer d’onglet. Le dernier ongle
 dans la session du navigateur ; un lien se terminant par `/fiche` ou `/manuel` ouvre
 directement le type voulu.
 
+**Lignes colorées** (06/11/2026) : dans tous les tableaux du PDF (caractéristiques, variantes, tableaux
+de rubrique), les lignes alternent deux teintes claires de la couleur des titres (5 % et 13 %) ;
+en-têtes et titres de groupe sont sur une teinte à 22 %, en gras dans la couleur des titres. Changer
+la couleur dans la mise en page change donc toute la palette ; interligne des tableaux à 1,3.
+
 **Tableau des variantes** (06/11/2026) : une colonne par attribut (membrane, configuration,
 mélange…) au lieu d’une phrase « nom : valeur ; … » par ligne ; les caractéristiques techniques
 propres à une variante deviennent des colonnes (les trois plus renseignées au plus) ; au-delà de
