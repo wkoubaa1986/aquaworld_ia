@@ -590,7 +590,8 @@ class DocumentsProduit {
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
       <div class="dp-review ${doc.pdf?'dp-review-split':''}"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation</label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
-      <div class="dp-sections">${c.sections.map((s,i)=>`<div class="dp-section" data-index="${i}"><div class="dp-section-title"><input class="form-control dp-section-name" value="${dpEsc(s.titre)}" placeholder="Titre de la rubrique"><button class="btn btn-xs btn-default dp-remove-section">×</button></div><div class="dp-scope"><select class="form-control input-sm dp-section-scope">${scope(s.article)}</select><input class="form-control input-sm dp-section-source" value="${dpEsc(s.source)}" placeholder="Source : S1 p.3, Article…"></div><textarea class="form-control dp-section-text">${dpEsc(s.texte)}</textarea></div>`).join('')}</div>
+      <div class="dp-sections">${c.sections.map((s,i)=>`<div class="dp-section" data-index="${i}"><div class="dp-section-title"><input class="form-control dp-section-name" value="${dpEsc(s.titre)}" placeholder="Titre de la rubrique"><button class="btn btn-xs btn-default dp-remove-section">×</button></div><div class="dp-scope"><select class="form-control input-sm dp-section-scope">${scope(s.article)}</select><input class="form-control input-sm dp-section-source" value="${dpEsc(s.source)}" placeholder="Source : S1 p.3, Article…"></div><textarea class="form-control dp-section-text">${dpEsc(s.texte)}</textarea>
+      <div class="dp-section-extras">${this.sectionImageHtml(s)}${this.sectionTableHtml(s)}</div></div>`).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
       <label class="dp-label">Caractéristiques techniques</label><div class="dp-table-wrap"><table class="dp-table"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
@@ -601,6 +602,7 @@ class DocumentsProduit {
     z.find('.dp-remove-section,.dp-remove-carac').on('click',e=>{$(e.currentTarget).closest('.dp-section,tr').remove();this.dirty=true;this.updateBar();});
     const add=(key,row)=>{this.current.contenu=this.captureDocument();this.current.contenu[key].push(row);this.renderDocument();this.dirty=true;this.updateBar();};
     z.find('.dp-add-section').on('click',()=>add('sections',{titre:'Nouvelle rubrique',texte:'',article:'',source:'Saisie manuelle'}));
+    this.bindSectionExtras(z);
     z.find('.dp-add-carac').on('click',()=>add('caracteristiques',{nom:'',valeur:'',unite:'',article:'',source:'Saisie manuelle'}));
     z.find('.dp-translate').on('click',()=>this.translation());
     z.find('.dp-pdf').on('click',()=>this.lancer('pdf'));
@@ -609,10 +611,48 @@ class DocumentsProduit {
     if(!this.data.peut_ecrire)z.find('button,input,textarea,select').prop('disabled',true);
     this.showState(this.data.dossier);
   }
+  // ---- image et tableau d'une rubrique (graphe / schéma à côté du texte, tableau sous le texte ; demande 06/11/2026)
+  sectionImageHtml(s) {
+    if(!s.image)return '<button type="button" class="btn btn-default btn-xs dp-si-add">Ajouter une image (graphe, schéma)</button>';
+    const cote=['droite','gauche'].includes(s.image_position||'droite');
+    return `<div class="dp-section-image" data-image="${dpEsc(s.image)}"><a href="${dpUrl(s.image)}" target="_blank" rel="noopener"><img src="${dpUrl(s.image)}" alt="Image de la rubrique"></a><div class="dp-grid"><label class="dp-label">Disposition<select class="form-control input-sm dp-si-position">${[['droite','Texte à gauche · image à droite'],['gauche','Image à gauche · texte à droite'],['dessous','Image sous le texte'],['dessus','Image au-dessus du texte']].map(([v,l])=>`<option value="${v}" ${(s.image_position||'droite')===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="dp-label">Largeur de l’image (%)<input class="form-control input-sm dp-si-largeur" type="number" min="20" max="${cote?60:100}" step="1" value="${s.image_largeur||40}"></label><label class="dp-label dp-full">Légende<input class="form-control input-sm dp-si-legende" maxlength="300" value="${dpEsc(s.image_legende||'')}" placeholder="Ex. Débit selon le nombre d’étages"></label></div><button type="button" class="btn btn-default btn-xs dp-si-remove">Retirer l’image</button></div>`;
+  }
+  sectionTableHtml(s) {
+    const rows=s.tableau||[];
+    if(!rows.length)return '<button type="button" class="btn btn-default btn-xs dp-st-add">Ajouter un tableau</button>';
+    return `<div class="dp-section-table"><div class="dp-table-wrap"><table class="dp-table dp-st"><tbody>${rows.map((row,r)=>`<tr>${row.map(cell=>`<td><input class="form-control input-sm" value="${dpEsc(cell)}" placeholder="${r?'':'En-tête'}" ${r?'':'style="font-weight:600"'}></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="dp-actions"><button type="button" class="btn btn-default btn-xs dp-st-row">+ Ligne</button><button type="button" class="btn btn-default btn-xs dp-st-row-del" ${rows.length>1?'':'disabled'}>− Ligne</button><button type="button" class="btn btn-default btn-xs dp-st-col" ${rows[0].length<8?'':'disabled'}>+ Colonne</button><button type="button" class="btn btn-default btn-xs dp-st-col-del" ${rows[0].length>1?'':'disabled'}>− Colonne</button><button type="button" class="btn btn-default btn-xs dp-st-remove">Retirer le tableau</button><span class="dp-muted">Première ligne = en-têtes. Le tableau se place sous le texte de la rubrique.</span></div></div>`;
+  }
+  bindSectionExtras(z) {
+    const index=el=>+$(el).closest('.dp-section').attr('data-index');
+    const modifier=(el,fn)=>{this.current.contenu=this.captureDocument();fn(this.current.contenu.sections[index(el)]);this.renderDocument();this.dirty=true;this.updateBar();};
+    z.find('.dp-si-add').on('click',e=>this.choisirImageRubrique(url=>modifier(e.currentTarget,s=>{s.image=url;s.image_position='droite';s.image_largeur=40;s.image_legende='';})));
+    z.find('.dp-si-remove').on('click',e=>modifier(e.currentTarget,s=>{delete s.image;delete s.image_position;delete s.image_largeur;delete s.image_legende;}));
+    z.find('.dp-si-position').on('change',e=>{const cote=['droite','gauche'].includes(e.target.value),l=$(e.target).closest('.dp-section-image').find('.dp-si-largeur');l.attr('max',cote?60:100);if(cote&&Number(l.val())>60)l.val(60);});
+    z.find('.dp-st-add').on('click',e=>modifier(e.currentTarget,s=>{s.tableau=[['Colonne 1','Colonne 2'],['','']];}));
+    z.find('.dp-st-remove').on('click',e=>modifier(e.currentTarget,s=>{delete s.tableau;}));
+    z.find('.dp-st-row').on('click',e=>modifier(e.currentTarget,s=>{s.tableau.push(s.tableau[0].map(()=>''));}));
+    z.find('.dp-st-row-del').on('click',e=>modifier(e.currentTarget,s=>{if(s.tableau.length>1)s.tableau.pop();}));
+    z.find('.dp-st-col').on('click',e=>modifier(e.currentTarget,s=>{if(s.tableau[0].length<8)s.tableau.forEach(r=>r.push(''));}));
+    z.find('.dp-st-col-del').on('click',e=>modifier(e.currentTarget,s=>{if(s.tableau[0].length>1)s.tableau.forEach(r=>r.pop());}));
+  }
+  choisirImageRubrique(appliquer) {
+    const images=this.data.dossier.images||[];
+    const options=images.map(im=>({label:(im.legende||im.image.split('/').pop())+(im.article?' · '+im.article:''),value:im.image}));
+    options.push({label:'Importer un nouveau fichier (PNG, JPG, SVG)…',value:'__import'});
+    const d=new frappe.ui.Dialog({title:'Image de la rubrique',fields:[{fieldtype:'Select',fieldname:'choix',label:'Image',options,default:options[0].value,reqd:1},{fieldtype:'HTML',fieldname:'info',options:'<p class="text-muted small">Un graphe exporté (Excel, etc.), un schéma ou une photo. L’image est posée à côté du texte de la rubrique ; vous réglez ensuite sa disposition, sa largeur et sa légende.</p>'}],
+      primary_action_label:'Utiliser cette image',primary_action:v=>{d.hide();
+        if(v.choix!=='__import')return appliquer(v.choix);
+        new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:this.name,is_private:1,allow_multiple:false,restrictions:{allowed_file_types:['.png','.jpg','.jpeg','.webp','.svg']},on_success:f=>appliquer(f.file_url)});
+      }});
+    d.show();
+  }
   captureDocument() {
     const c=JSON.parse(JSON.stringify(this.current.contenu)),z=this.root.find('.dp-editor');
     c.titre=z.find('.dp-title').val();c.resume=z.find('.dp-summary').val();
-    c.sections=z.find('.dp-section').map((_,el)=>{const q=$(el);return {titre:q.find('.dp-section-name').val(),texte:q.find('.dp-section-text').val(),article:q.find('.dp-section-scope').val(),source:q.find('.dp-section-source').val()};}).get();
+    c.sections=z.find('.dp-section').map((_,el)=>{const q=$(el),s={titre:q.find('.dp-section-name').val(),texte:q.find('.dp-section-text').val(),article:q.find('.dp-section-scope').val(),source:q.find('.dp-section-source').val()};
+      const im=q.find('.dp-section-image');if(im.length){s.image=im.attr('data-image');s.image_position=im.find('.dp-si-position').val();s.image_largeur=Math.max(20,Math.min(100,Math.round(Number(im.find('.dp-si-largeur').val())||40)));s.image_legende=im.find('.dp-si-legende').val();}
+      const rows=q.find('.dp-st tr');if(rows.length)s.tableau=rows.map((_,tr)=>[$(tr).find('input').map((_,inp)=>inp.value).get()]).get();
+      return s;}).get();
     c.caracteristiques=z.find('.dp-table tbody tr').map((_,el)=>{const r={};$(el).find('[data-key]').each((_,f)=>r[$(f).attr('data-key')]=$(f).val());return r;}).get();
     c.points_a_verifier=(z.find('.dp-checks').val()||'').split('\n').map(s=>s.trim()).filter(Boolean);
     c.legendes=z.find('.dp-doc-caption').map((_,el)=>el.value).get();return c;

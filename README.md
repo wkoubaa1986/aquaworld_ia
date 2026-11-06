@@ -511,6 +511,19 @@ les corrections sont enregistrées avant de changer d’onglet. Le dernier ongle
 dans la session du navigateur ; un lien se terminant par `/fiche` ou `/manuel` ouvre
 directement le type voulu.
 
+**Image et tableau dans une rubrique** (étape Relire, 06/11/2026) : sous le texte de chaque
+rubrique, **Ajouter une image (graphe, schéma)** choisit une photo du dossier ou importe un fichier
+(PNG, JPG, SVG — par exemple un graphe exporté d’Excel), puis **Disposition** (texte à gauche ·
+image à droite, image à gauche · texte à droite, image sous le texte, image au-dessus), largeur
+(20–60 % en colonne, jusqu’à 100 % dessous/dessus) et légende. **Ajouter un tableau** ouvre une
+grille (première ligne = en-têtes, jusqu’à 8 colonnes et 40 lignes, + / − ligne et colonne) placée
+sous le texte. Dans le PDF, l’image à côté du texte est composée en deux colonnes alignées en
+haut (`paracol`), le tableau avec des lignes fines et l’en-tête en gras ; les légendes et les
+cellules sont traduites avec la version, valeurs et unités protégées. Ces clés n’existent dans le
+contenu que lorsqu’elles sont remplies : relire une ancienne version sans y toucher ne crée pas
+de nouvelle version. L’image doit être un fichier lisible par l’utilisateur (contrôle à
+l’enregistrement et à la composition).
+
 **Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**
 (photo à gauche et description à droite, 50/50 au premier choix). On peut inverser les côtés

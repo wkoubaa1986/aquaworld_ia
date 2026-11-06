@@ -285,11 +285,40 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	else:
 		image = photo(0, largeur, disposition["hauteur_photo"])
 		blocs["presentation"] = [image, resume] if position == "avant" else [resume, image]
-	for s in contenu["sections"]:
+	def tableau_rubrique(lignes):
+		"""Tableau saisi dans une rubrique : première ligne en gras, colonnes de même largeur, lignes fines."""
+		n = len(lignes[0])
+		colonnes = ("p{" + f"{(1 - .03 * (n - 1)) / n:.3f}" + r"\linewidth}") * n
+		tex = [r"\begin{longtable}{" + colonnes + "}", r"\toprule"]
+		tex.append(" & ".join(r"\bfseries " + t(c) for c in lignes[0]) + r"\\\midrule\endhead")
+		tex += [" & ".join(t(c) for c in ligne) + r"\\\addlinespace" for ligne in lignes[1:]]
+		tex.append(r"\bottomrule\end{longtable}")
+		return "\n".join(tex)
+
+	for i, s in enumerate(contenu["sections"]):
 		blocs["rubriques"].append(r"\docsection{" + t(s["titre"]) + "}")
 		if s.get("article"):
 			blocs["rubriques"].append(r"{\small " + t(labels["portee"] + " : " + s["article"]) + r"}\par")
-		blocs["rubriques"].append(t(s["texte"]) + r"\par")
+		corps = t(s["texte"]) + r"\par"
+		fichier = (assets.get("sections") or {}).get(i)
+		if s.get("image") and fichier:
+			# Image de rubrique (graphe, schéma) : à côté du texte en deux colonnes, ou au-dessus / en dessous.
+			legende = (r"{\small " + t(s.get("image_legende", "")) + r"}\par") if s.get("image_legende") else ""
+			largeur = s.get("image_largeur", 40) / 100
+			if s["image_position"] in ("droite", "gauche"):
+				image = (r"\begin{center}\includegraphics[width=\linewidth,height=90mm,keepaspectratio]{" + fichier
+					+ r"}\end{center}" + legende)
+				gauche, droite = (corps, image) if s["image_position"] == "droite" else (image, corps)
+				ratio = 1 - largeur if s["image_position"] == "droite" else largeur
+				corps = "\n".join([r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
+					r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}"])
+			else:
+				image = (r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
+					+ r"\linewidth,height=120mm,keepaspectratio]{" + fichier + r"}\end{center}" + legende)
+				corps = image + "\n" + corps if s["image_position"] == "dessus" else corps + "\n" + image
+		blocs["rubriques"].append(corps)
+		if s.get("tableau"):
+			blocs["rubriques"].append(tableau_rubrique(s["tableau"]))
 	if contenu["caracteristiques"]:
 		blocs["caracteristiques"] += [
 			r"\docsection{" + t(labels["caracteristiques"]) + "}",
@@ -375,7 +404,7 @@ def compiler(tex, fichiers):
 		(p / "images").mkdir()
 		(p / "document.tex").write_text(tex, encoding="utf-8")
 		for name, b in fichiers.items():
-			if not re.fullmatch(r"images/(?:logo|qr|image-[0-9]+|entete-(?:haut|bas))\.png", name):
+			if not re.fullmatch(r"images/(?:logo|qr|image-[0-9]+|section-[0-9]+|entete-(?:haut|bas))\.png", name):
 				raise ValueError("Nom de fichier LaTeX invalide.")
 			(p / name).write_bytes(b)
 		env = {**os.environ, "openin_any": "p", "openout_any": "p", "shell_escape": "f", "TEXMFOUTPUT": temp}
@@ -431,6 +460,12 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 		name = f"images/image-{i}.png"
 		fichiers[name] = image_png(C.octets(im["image"]))
 		assets["images"].append(name)
+	assets["sections"] = {}
+	for i, s in enumerate(contenu.get("sections", [])):
+		if s.get("image"):
+			name = f"images/section-{i}.png"
+			fichiers[name] = image_png(C.octets(s["image"]))
+			assets["sections"][i] = name
 	url_qr = M.qr_valide(M.normaliser(ctx.get("mise_en_page")))
 	if url_qr:
 		fichiers["images/qr.png"] = qr_png(url_qr)

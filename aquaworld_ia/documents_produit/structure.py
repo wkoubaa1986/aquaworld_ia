@@ -41,6 +41,47 @@ def texte(value, limite=12000):
 	return value.strip().replace("\x00", "")
 
 
+IMAGE_RUBRIQUE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
+POSITIONS_IMAGE = ("droite", "gauche", "dessous", "dessus")
+TABLEAU_MAX = (40, 8)   # lignes, colonnes
+
+
+def rubrique(s, portee):
+	"""Une rubrique : titre, texte, portée, source — et, si l'utilisateur les a posés, une image (graphe, schéma)
+	avec sa disposition, et un tableau (première ligne = en-têtes). Les clés image/tableau n'apparaissent que
+	remplies : une version antérieure relue sans changement garde la même empreinte (demande 06/11/2026)."""
+	if not isinstance(s, dict):
+		raise ValueError("Rubrique invalide.")
+	out = {
+		"titre": texte(s.get("titre", ""), 200),
+		"texte": texte(s.get("texte", "")),
+		"article": portee(s.get("article")),
+		"source": texte(s.get("source", ""), 600),
+	}
+	image = texte(s.get("image", "") or "", 500)
+	if image:
+		if not IMAGE_RUBRIQUE.fullmatch(image):
+			raise ValueError("L’image d’une rubrique doit être un fichier de l’outil.")
+		position = s.get("image_position", "droite")
+		if position not in POSITIONS_IMAGE:
+			raise ValueError("Disposition de l’image de rubrique invalide.")
+		largeur = s.get("image_largeur", 40)
+		maximum = 60 if position in ("droite", "gauche") else 100
+		if isinstance(largeur, bool) or not isinstance(largeur, int) or not 20 <= largeur <= maximum:
+			raise ValueError(f"La largeur de l’image doit être un entier entre 20 et {maximum} %.")
+		out.update(image=image, image_position=position, image_largeur=largeur,
+			image_legende=texte(s.get("image_legende", "") or "", 300))
+	tableau = s.get("tableau") or []
+	if tableau:
+		if not isinstance(tableau, list) or len(tableau) > TABLEAU_MAX[0] or not all(isinstance(r, list) for r in tableau):
+			raise ValueError("Tableau de rubrique invalide.")
+		largeurs = {len(r) for r in tableau}
+		if len(largeurs) != 1 or not 1 <= largeurs.pop() <= TABLEAU_MAX[1]:
+			raise ValueError(f"Un tableau a au plus {TABLEAU_MAX[1]} colonnes, identiques sur chaque ligne.")
+		out["tableau"] = [[texte("" if c is None else (str(c) if isinstance(c, (int, float)) and not isinstance(c, bool) else c), 300) for c in r] for r in tableau]
+	return out
+
+
 def normaliser(data, contexte):
 	if not isinstance(data, dict):
 		raise ValueError("Le contenu du document est invalide.")
@@ -66,14 +107,7 @@ def normaliser(data, contexte):
 		if not isinstance(data.get(cle, []), list) or len(data.get(cle, [])) > limite:
 			raise ValueError("Liste documentaire invalide : " + cle)
 	for s in data.get("sections", []):
-		out["sections"].append(
-			{
-				"titre": texte(s.get("titre", ""), 200),
-				"texte": texte(s.get("texte", "")),
-				"article": portee(s.get("article")),
-				"source": texte(s.get("source", ""), 600),
-			}
-		)
+		out["sections"].append(rubrique(s, portee))
 	for c in data.get("caracteristiques", []):
 		out["caracteristiques"].append(
 			{
@@ -131,6 +165,11 @@ def champs_traduisibles(contenu):
 	for cle, champs in (("sections", ("titre", "texte")), ("caracteristiques", ("nom", "valeur"))):
 		for i, _row in enumerate(contenu[cle]):
 			paths += [(cle, i, k) for k in champs]
+	for i, s in enumerate(contenu["sections"]):
+		if s.get("image"):
+			paths.append(("sections", i, "image_legende"))
+		for r, ligne in enumerate(s.get("tableau") or []):
+			paths += [("sections", i, "tableau", r, c) for c in range(len(ligne))]
 	paths += [("points_a_verifier", i) for i in range(len(contenu["points_a_verifier"]))]
 	paths += [("legendes", i) for i in range(len(contenu["legendes"]))]
 	for i, v in enumerate(contenu["variantes"]):

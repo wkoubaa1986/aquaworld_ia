@@ -416,6 +416,9 @@ def corriger(name, contenu):
 	v = document(name, "write")
 	ctx = json.loads(v.contexte_json)
 	contenu = S.normaliser(_json(contenu), ctx)
+	for s in contenu["sections"]:
+		if s.get("image"):
+			C.fichier_lisible(s["image"])   # image de rubrique : un fichier lisible par l'utilisateur, sinon refus
 	if S.empreinte(contenu) == S.empreinte(json.loads(v.contenu_json)):
 		return {"name": v.name}
 	nouv = nouvelle_version(
