@@ -159,7 +159,31 @@ def qr_png(url):
 ZEBRE = r"\rowcolors{2}{aquaclair}{aquamoyen}"
 
 
-def plan_tableau_croise(variantes, labels):
+def cle_attributs(v, ordre):
+	"""Clé de tri d'une variante : rang de chaque valeur d'attribut dans l'ordre ERPNext (inconnu → après). PURE."""
+	cle = []
+	for a in v.get("attributs", []):
+		valeurs = (ordre or {}).get(a["nom"]) or []
+		cle.append(valeurs.index(a["valeur"]) if a["valeur"] in valeurs else len(valeurs) + 1)
+	return cle
+
+
+def trier_variantes(variantes, ordre):
+	"""Variantes dans l'ordre des attributs de la gamme (stable : sans ordre connu, l'ordre d'origine). PURE."""
+	return sorted(variantes, key=lambda v: cle_attributs(v, ordre)) if ordre else list(variantes)
+
+
+def nom_court(nom, nom_parent, attributs):
+	"""Ce que le nom de la variante dit de plus que l'article parent et ses attributs (souvent rien). PURE."""
+	reste = nom or ""
+	for morceau in [nom_parent or ""] + [a.get("valeur", "") for a in attributs or []]:
+		if morceau:
+			reste = reste.replace(morceau, "")
+	reste = re.sub(r"\s*[,;·|/-]+\s*", " ", reste).strip(" ,;·|/-")
+	return re.sub(r"\s{2,}", " ", reste)
+
+
+def plan_tableau_croise(variantes, labels, ordre=None):
 	"""Tableau croisé (demande 06/11/2026 : « si j'ai plusieurs configurations ça ne s'organise pas ») : l'attribut
 	le plus varié en lignes (ex. configuration), le moins varié en colonnes (ex. membrane), les autres attributs
 	en complément dans la cellule avec la référence. PURE.
@@ -173,6 +197,7 @@ def plan_tableau_croise(variantes, labels):
 	if len(noms) < 2:
 		return None
 	valeur = lambda v, nom: next((a["valeur"] for a in v.get("attributs", []) if a["nom"] == nom), "")
+	variantes = trier_variantes(variantes, ordre)
 	valeurs = {nom: list(dict.fromkeys(valeur(v, nom) for v in variantes)) for nom in noms}
 	# Colonnes : le premier attribut (celui qui groupe la liste, ex. membrane) s'il a de 2 à 6 valeurs, sinon le
 	# moins varié ; lignes : le plus varié des autres (ex. configuration) ; le reste (ex. mixage) dans la cellule.
@@ -186,8 +211,8 @@ def plan_tableau_croise(variantes, labels):
 	for vl in valeurs[lignes_attr]:
 		cellules = []
 		for vc in valeurs[colonnes]:
-			cellules.append([{"article": v["article"], "complement": " · ".join(valeur(v, n) for n in autres if valeur(v, n))}
-				for v in variantes if valeur(v, lignes_attr) == vl and valeur(v, colonnes) == vc])
+			cellules.append([{"article": v["article"], "complement": " · ".join(valeur(v, n) for n in autres if valeur(v, n)),
+				"nom": v.get("nom_court", "")} for v in variantes if valeur(v, lignes_attr) == vl and valeur(v, colonnes) == vc])
 		lignes.append([vl] + cellules)
 	# La case d'angle nomme les deux attributs (demande 06/11/2026 : « configuration / marque de membrane, pour
 	# qu'ils comprennent ») : « Configuration de filtration / Marque de membrane », toujours d'après les attributs.
@@ -531,11 +556,19 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 
 	def vignette(article, hauteur=14):
 		i = vignette_de.get(article)
-		if i is None or i >= len(assets.get("images", [])):
+		if i is not None and i < len(assets.get("images", [])):
+			fichier = assets["images"][i]
+		else:
+			# Repli : l'image de la fiche article de la variante (composer la fournit en mode vignettes).
+			fichier = (assets.get("variantes") or {}).get(article)
+		if not fichier or not vignettes:
 			return ""
-		return r"\includegraphics[height=" + str(hauteur) + r"mm,width=\linewidth,keepaspectratio]{" + assets["images"][i] + "}"
+		return r"\includegraphics[height=" + str(hauteur) + r"mm,width=\linewidth,keepaspectratio]{" + fichier + "}"
 	illustrees = [v for v in contenu["variantes"] if photos_variantes[v["article"]]] if regrouper else []
-	tabulees = [v for v in contenu["variantes"] if v not in illustrees]
+	ordre = ctx.get("ordre_attributs") or {}
+	tabulees = trier_variantes([v for v in contenu["variantes"] if v not in illustrees], ordre)
+	for v in tabulees:
+		v["nom_court"] = nom_court(v.get("nom", ""), ctx["article"].get("item_name", ""), v.get("attributs", []))
 	if illustrees:
 		blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
 		for v in illustrees:
@@ -547,7 +580,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if tabulees:
 		if not illustrees:
 			blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
-		croise = plan_tableau_croise(tabulees, labels) if disposition.get("tableau_variantes") == "croise" else None
+		croise = plan_tableau_croise(tabulees, labels, ordre) if disposition.get("tableau_variantes") == "croise" else None
 		if croise:
 			n = len(croise["entetes"])
 			largeurs = [.22] + [(.96 - .22) / (n - 1)] * (n - 1)
@@ -559,7 +592,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				for it in items:
 					vue = vignette(it["article"], 12)
 					parts.append((vue + r"\par " if vue else "") + r"\mbox{" + t(it["article"]) + "}"
-						+ ((r"\par{\small " + t(it["complement"]) + "}") if it["complement"] else ""))
+						+ ((r"\par{\small " + t(it["complement"]) + "}") if it["complement"] else "")
+						+ ((r"\par{\small\itshape " + t(it["nom"]) + "}") if it.get("nom") else ""))
 				return r"\par\smallskip ".join(parts)
 
 			# Case d'angle : l'attribut des lignes en gras, celui des colonnes dessous avec une flèche vers les colonnes.
@@ -571,7 +605,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			blocs["variantes"].append(r"\bottomrule\end{longtable}")
 		else:
 			plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels)
-			avec_photo = bool(vignette_de) and any(v["article"] in vignette_de for v in tabulees)
+			avec_photo = vignettes and any(v["article"] in vignette_de or v["article"] in (assets.get("variantes") or {}) for v in tabulees)
 			entetes = ([labels["photo"]] if avec_photo else []) + plan["entetes"]
 			n = len(entetes)
 			largeurs = ([.12] if avec_photo else []) + [.2] + [(.96 - .2 - (.12 if avec_photo else 0)) / (n - 1 - (1 if avec_photo else 0))] * (n - 1 - (1 if avec_photo else 0)) if n > 1 else [.98]
@@ -623,7 +657,7 @@ def compiler(tex, fichiers):
 		(p / "images").mkdir()
 		(p / "document.tex").write_text(tex, encoding="utf-8")
 		for name, b in fichiers.items():
-			if not re.fullmatch(r"images/(?:logo|qr|image-[0-9]+|section-[0-9]+|entete-(?:haut|bas))\.png", name):
+			if not re.fullmatch(r"images/(?:logo|qr|image-[0-9]+|section-[0-9]+|variante-[0-9]+|entete-(?:haut|bas))\.png", name):
 				raise ValueError("Nom de fichier LaTeX invalide.")
 			(p / name).write_bytes(b)
 		env = {**os.environ, "openin_any": "p", "openout_any": "p", "shell_escape": "f", "TEXMFOUTPUT": temp}
@@ -675,6 +709,21 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 			fichiers[name] = bandeau["png"]
 			assets["entete"][cle] = {k: v for k, v in bandeau.items() if k != "png"}
 			assets["entete"][cle]["fichier"] = name
+	ctx = dict(ctx)
+	if "ordre_attributs" not in ctx:
+		noms = list(dict.fromkeys(a["nom"] for v in ctx.get("variantes", []) for a in v.get("attributs", [])))
+		ctx["ordre_attributs"] = C.ordre_attributs(noms) if noms else {}
+	if M.normaliser(ctx.get("mise_en_page")).get("photos_variantes") == 2:
+		# Vignettes du tableau : l'image de la fiche article de chaque variante sert de repli.
+		assets["variantes"] = {}
+		for i, v in enumerate(ctx.get("variantes", [])):
+			if v.get("image"):
+				try:
+					name = f"images/variante-{i}.png"
+					fichiers[name] = image_png(C.octets(v["image"]))
+					assets["variantes"][v["name"]] = name
+				except Exception:
+					continue
 	assets["dimensions"] = {}
 	for i, im in enumerate(ctx.get("images", [])):
 		name = f"images/image-{i}.png"

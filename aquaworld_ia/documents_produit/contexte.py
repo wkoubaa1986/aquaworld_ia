@@ -294,3 +294,18 @@ def lien_woocommerce(article):
 		if url:
 			return {"url": url, "serveur": r.woocommerce_server, "id": int(r.woocommerce_id)}
 	return {}
+
+
+def ordre_attributs(noms):
+	"""{attribut: [valeurs dans l'ordre défini dans ERPNext (Item Attribute Value.idx)]} — pour trier variantes,
+	lignes et colonnes des tableaux dans l'ordre de la gamme et non d'apparition (demande 06/11/2026). {} sans base."""
+	resultat = {}
+	try:
+		for nom in noms:
+			valeurs = frappe.get_all("Item Attribute Value", filters={"parent": nom, "parenttype": "Item Attribute"},
+				fields=["attribute_value"], order_by="idx asc", pluck="attribute_value")
+			if valeurs:
+				resultat[nom] = valeurs
+	except Exception:
+		return {}
+	return resultat

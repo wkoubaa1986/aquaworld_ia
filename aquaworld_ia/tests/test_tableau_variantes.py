@@ -150,3 +150,56 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 					self.assertNotIn("Photos et illustrations", texte)                       # les vues sont dans le tableau
 					if mode == "croise":
 						self.assertIn("Configuration de filtration ↓ Marque de membrane → AquaJad DowFilmtec Vontron", texte)   # case d'angle : les deux attributs
+
+
+class TestOrdreNomCourtEtImageArticle(unittest.TestCase):
+	"""06/11/2026 : « organiser par rapport à l'ordre des attributs ; mettre dans le tableau croisé l'image de la
+	variante et le nom »."""
+
+	def test_tri_selon_l_ordre_erpnext_des_valeurs(self):
+		_, c = gamme()
+		ordre = {"Configuration de filtration": ["Classique 5 Stages", "Alcaline 6 Stages", "UV 6 Stages"],
+			"Marque de membrane": ["AquaJad", "Vontron", "DowFilmtec"]}
+		plan = L.plan_tableau_croise(c["variantes"], c["libelles"], ordre)
+		self.assertEqual(plan["entetes"][1:], ["AquaJad", "Vontron", "DowFilmtec"])
+		self.assertEqual([l[0] for l in plan["lignes"]], ["Classique 5 Stages", "Alcaline 6 Stages", "UV 6 Stages"])
+		self.assertEqual([it["complement"] for it in plan["lignes"][0][1]], ["Avec mixage", "Sans mixage"])
+		# Sans ordre connu : ordre d'apparition inchangé.
+		self.assertEqual([l[0] for l in L.plan_tableau_croise(c["variantes"], c["libelles"])["lignes"]][0], "Classique 5 Stages")
+		tries = L.trier_variantes(c["variantes"], ordre)
+		self.assertEqual(tries[0]["article"], "AP-M-AQ-5-AM-Cl")
+		self.assertEqual(tries[-1]["article"], "AP-M-DO-6-SM-UV")
+
+	def test_nom_court(self):
+		attrs = [{"nom": "a", "valeur": "AquaJad"}, {"nom": "b", "valeur": "Classique 5 Stages"}, {"nom": "c", "valeur": "Sans mixage"}]
+		self.assertEqual(L.nom_court("Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Classique 5 Stages, Sans mixage",
+			"Osmoseur Domestique, avec pompe, socle métallique", attrs), "")
+		self.assertEqual(L.nom_court("Osmoseur Domestique, AquaJad, Classique 5 Stages, Sans mixage, édition Pro",
+			"Osmoseur Domestique", attrs), "édition Pro")
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_image_de_l_article_variante_en_repli_dans_le_tableau(self):
+		import io
+
+		import pymupdf
+		from PIL import Image
+
+		from aquaworld_ia.documents_produit import mise_en_page as M
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (400, 300), (60 * i % 255, 110, 170)).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx, c = gamme()
+		c["sections"] = []
+		ctx["mise_en_page"] = M.normaliser({"tableau_variantes": "croise", "photos_variantes": 2})
+		refs = [v["name"] for v in ctx["variantes"]][:4]
+		assets = {"images": [], "dimensions": {}, "variantes": {r: f"images/variante-{i}.png" for i, r in enumerate(refs)}}
+		pdf, _ = L.compiler(L.source(c, ctx, assets=assets), {f"images/variante-{i}.png": png(i) for i in range(4)})
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = next(p for p in doc if p.search_for("Variantes couvertes"))
+			y = page.search_for("Variantes couvertes")[0].y1
+			vignettes = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > y]
+			self.assertEqual(len(vignettes), 4)
+			self.assertLessEqual(max(r.height for r in vignettes), 12 * 72 / 25.4 + 1)

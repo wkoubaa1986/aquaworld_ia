@@ -528,7 +528,11 @@ directement le type voulu.
 **tableau croisé** — le premier attribut (ex. membrane, s’il a de 2 à 6 valeurs) en colonnes, l’attribut
 le plus varié (ex. configuration) en lignes, les autres (ex. mixage) en complément dans la cellule avec
 la référence ; 45 variantes tiennent ainsi en 12 lignes × 3 colonnes. La case d’angle nomme les deux
-attributs d’après leurs libellés (« Configuration de filtration ↓ / Marque de membrane → »). *Où placer les vues des variantes*
+attributs d’après leurs libellés (« Configuration de filtration ↓ / Marque de membrane → »). Lignes,
+colonnes et variantes suivent l’**ordre des valeurs d’attribut défini dans ERPNext** (Item Attribute
+Value), pas l’ordre d’apparition ; en mode vignettes, une variante sans photo du dossier montre
+**l’image de sa fiche article**, et le nom de la variante n’est ajouté dans la cellule que s’il dit
+quelque chose de plus que le parent et les attributs (06/11/2026). *Où placer les vues des variantes*
 gagne **« En vignette dans le tableau des variantes »** : la première vue de chaque variante (12–14 mm)
 dans sa ligne ou sa cellule, sortie des illustrations (ses autres vues y restent). La largeur du tableau
 groupé, qui n’occupait que 78 % de la ligne, est corrigée.
