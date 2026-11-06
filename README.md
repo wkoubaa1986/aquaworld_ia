@@ -527,7 +527,8 @@ directement le type voulu.
 **Tableau croisé et vignettes** (06/11/2026) : *Tableau des variantes* propose la *liste groupée* ou le
 **tableau croisé** — le premier attribut (ex. membrane, s’il a de 2 à 6 valeurs) en colonnes, l’attribut
 le plus varié (ex. configuration) en lignes, les autres (ex. mixage) en complément dans la cellule avec
-la référence ; 45 variantes tiennent ainsi en 12 lignes × 3 colonnes. *Où placer les vues des variantes*
+la référence ; 45 variantes tiennent ainsi en 12 lignes × 3 colonnes. La case d’angle nomme les deux
+attributs d’après leurs libellés (« Configuration de filtration ↓ / Marque de membrane → »). *Où placer les vues des variantes*
 gagne **« En vignette dans le tableau des variantes »** : la première vue de chaque variante (12–14 mm)
 dans sa ligne ou sa cellule, sortie des illustrations (ses autres vues y restent). La largeur du tableau
 groupé, qui n’occupait que 78 % de la ligne, est corrigée.

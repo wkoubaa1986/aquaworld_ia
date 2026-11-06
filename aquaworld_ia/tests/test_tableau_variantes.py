@@ -106,7 +106,8 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 	def test_plan_croise(self):
 		_, c = gamme()
 		plan = L.plan_tableau_croise(c["variantes"], c["libelles"])
-		self.assertEqual(plan["entetes"], ["Configuration de filtration", "AquaJad", "DowFilmtec", "Vontron"])
+		self.assertEqual(plan["entetes"], ["Configuration de filtration / Marque de membrane", "AquaJad", "DowFilmtec", "Vontron"])
+		self.assertEqual((plan["attribut_lignes"], plan["attribut_colonnes"]), ("Configuration de filtration", "Marque de membrane"))
 		self.assertEqual([l[0] for l in plan["lignes"]], ["Classique 5 Stages", "UV 6 Stages", "Alcaline 6 Stages"])
 		cellule = plan["lignes"][0][1]
 		self.assertEqual([it["complement"] for it in cellule], ["Avec mixage", "Sans mixage"])   # l'attribut restant
@@ -148,4 +149,4 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 					self.assertIn("Avec mixage", texte)
 					self.assertNotIn("Photos et illustrations", texte)                       # les vues sont dans le tableau
 					if mode == "croise":
-						self.assertIn("Configuration de filtration AquaJad DowFilmtec Vontron", texte)   # en-tête croisé
+						self.assertIn("Configuration de filtration ↓ Marque de membrane → AquaJad DowFilmtec Vontron", texte)   # case d'angle : les deux attributs

@@ -189,7 +189,10 @@ def plan_tableau_croise(variantes, labels):
 			cellules.append([{"article": v["article"], "complement": " · ".join(valeur(v, n) for n in autres if valeur(v, n))}
 				for v in variantes if valeur(v, lignes_attr) == vl and valeur(v, colonnes) == vc])
 		lignes.append([vl] + cellules)
-	return {"mode": "croise", "entetes": [lignes_attr] + valeurs[colonnes], "lignes": lignes}
+	# La case d'angle nomme les deux attributs (demande 06/11/2026 : « configuration / marque de membrane, pour
+	# qu'ils comprennent ») : « Configuration de filtration / Marque de membrane », toujours d'après les attributs.
+	return {"mode": "croise", "entetes": [lignes_attr + " / " + colonnes] + valeurs[colonnes], "lignes": lignes,
+		"attribut_lignes": lignes_attr, "attribut_colonnes": colonnes}
 
 
 def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6):
@@ -559,8 +562,10 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 						+ ((r"\par{\small " + t(it["complement"]) + "}") if it["complement"] else ""))
 				return r"\par\smallskip ".join(parts)
 
+			# Case d'angle : l'attribut des lignes en gras, celui des colonnes dessous avec une flèche vers les colonnes.
+			angle = (r"\bfseries\color{aqua} " + t(croise["attribut_lignes"] + " ↓") + r"\par{\color{aqua}\small " + t(croise["attribut_colonnes"] + " →") + "}")
 			blocs["variantes"] += [ZEBRE, r"\begin{longtable}{" + colonnes + "}",
-				r"\toprule\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in croise["entetes"]) + r"\\\endhead"]
+				r"\toprule\rowcolor{aquafort}" + " & ".join([angle] + [r"\bfseries\color{aqua} " + t(e) for e in croise["entetes"][1:]]) + r"\\\endhead"]
 			for ligne in croise["lignes"]:
 				blocs["variantes"].append(t(ligne[0]) + " & " + " & ".join(cellule(items) for items in ligne[1:]) + r"\\")
 			blocs["variantes"].append(r"\bottomrule\end{longtable}")
