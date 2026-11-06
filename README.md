@@ -512,6 +512,14 @@ variantes, autres illustrations) se déplacent par glisser-déposer ou avec les 
 L’en-tête, le titre et le pied de page conservent leurs emplacements. L’aperçu montre la
 disposition ; le PDF final dépend du contenu et de la pagination A4.
 
+**QR code d’un lien internet** (06/11/2026) : dans la mise en page de chaque onglet, saisir
+le lien (https://…, par exemple la page du produit sur le site), une légende affichée sous
+le code, sa position (au-dessus du titre, sous le titre, à la fin du document), son alignement
+et sa taille (15 à 40 mm). Le QR (correction M, noir sur blanc, généré par `segno`) est
+aussi un lien cliquable dans le PDF ; sans lien, rien n’est ajouté. L’aperçu de disposition
+affiche le vrai code (`apercu_qr`), préparé par le serveur dès que le lien est valide.
+Comme tout réglage de mise en page, il s’applique en générant le PDF d’une version.
+
 La **Zone de marque** affiche le logo sélectionné dans l’aperçu, avec un choix de position
 au-dessus du titre, sous le titre ou à la fin du document. Elle peut être masquée, alignée
 à gauche, au centre ou à droite, avec une largeur maximale de logo entre 10 et 70 mm et

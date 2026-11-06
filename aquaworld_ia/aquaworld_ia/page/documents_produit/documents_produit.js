@@ -24,7 +24,7 @@ const DP_CONSIGNES = [
   {nom:'Manuel d’entretien détaillé', texte:'Manuel orienté entretien et dépannage. Détailler chaque opération d’entretien pas à pas (remplacement des cartouches, désinfection, contrôle des fuites), avec la fréquence et les signes qui indiquent qu’elle est nécessaire. Prévoir une rubrique de dépannage sous forme « symptôme → cause probable → action ». Rappeler les consignes de sécurité documentées avant toute intervention.'},
   {nom:'Export / traduction', texte:'Document destiné à être traduit en plusieurs langues. Phrases courtes et sans tournures idiomatiques, vocabulaire technique standard, unités internationales (bar, L/h, mm). Éviter les références propres au marché local (normes ou services locaux) sauf si elles sont dans les sources.'},
 ];
-const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1});
+const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
 
 class DocumentsProduit {
@@ -170,7 +170,8 @@ class DocumentsProduit {
   layoutSummary() {
     const m=this.layoutValues(),cote=['gauche','droite'].includes(m.position_photo);
     const marque={libre:'logo placé librement',avant_titre:'logo au-dessus du titre',apres_titre:'logo sous le titre',fin_document:'logo en fin de document',masquee:'zone de marque masquée'}[m.position_marque];
-    return `${cote?`2 colonnes · photo à ${m.position_photo}`:`1 colonne · photo ${m.position_photo==='avant'?'au-dessus':'en dessous'}`} · ${marque} · photos des variantes ${m.photos_variantes?'avec leur référence':'dans les illustrations'}`;
+    const qr=m.qr_url?` · QR code ${{avant_titre:'au-dessus du titre',apres_titre:'sous le titre',fin_document:'en fin de document'}[m.qr_position]}`:'';
+    return `${cote?`2 colonnes · photo à ${m.position_photo}`:`1 colonne · photo ${m.position_photo==='avant'?'au-dessus':'en dessous'}`} · ${marque} · photos des variantes ${m.photos_variantes?'avec leur référence':'dans les illustrations'}${qr}`;
   }
   renderStructure() {
     const z=this.root.find('.dp-layout'),m=this.layoutValues();
@@ -196,20 +197,31 @@ class DocumentsProduit {
       <label class="dp-label">Couleur des titres<input class="form-control dp-layout-color" type="color" value="${m.couleur}" style="width:90px;height:36px"></label></div>
       <h3 style="margin-top:18px">Photos des variantes</h3>
       <div class="dp-grid"><label class="dp-label">Où placer les vues des variantes<select class="form-control dp-photo-group"><option value="1">Avec la référence et les caractéristiques de chaque variante</option><option value="0">Dans les illustrations à la fin</option></select></label><label class="dp-label">Galeries de photos<select class="form-control dp-photo-columns"><option value="1">Une photo par ligne</option><option value="2">Deux photos par ligne</option><option value="3">Trois photos par ligne</option></select></label></div>
+      <h3 style="margin-top:18px">QR code d’un lien internet</h3>
+      <p class="dp-muted">Facultatif. Le QR code mène au lien saisi (ex. la page du produit sur votre site) ; la légende s’affiche dessous. Dans le PDF, le code est aussi cliquable.</p>
+      <div class="dp-grid"><label class="dp-label">Lien (https://…)<input class="form-control dp-qr-url" type="url" maxlength="500" value="${dpEsc(m.qr_url)}" placeholder="https://www.votresite.com/produit/..."></label>
+      <label class="dp-label">Légende sous le QR code<input class="form-control dp-qr-legende" maxlength="120" value="${dpEsc(m.qr_legende)}" placeholder="Ex. Fiche produit en ligne"></label>
+      <label class="dp-label">Position<select class="form-control dp-qr-position">${options({avant_titre:'Au-dessus du titre',apres_titre:'Sous le titre',fin_document:'À la fin du document'},m.qr_position)}</select></label>
+      <label class="dp-label">Alignement<select class="form-control dp-qr-align">${options({gauche:'À gauche',centre:'Centré',droite:'À droite'},m.qr_alignement)}</select></label>
+      <label class="dp-label">Taille (mm)<input class="form-control dp-qr-taille" type="number" min="15" max="40" step="1" value="${m.qr_taille}"></label></div>
+      <p class="dp-muted dp-qr-status" role="status"></p>
       <h3 style="margin-top:18px">Ordre des blocs</h3><div class="dp-layout-order"></div>
       <div class="dp-actions" style="margin-top:14px"><button class="btn btn-default btn-sm dp-reset-layout">Disposition initiale</button></div>
       <p class="dp-muted dp-layout-status" role="status" style="margin-top:10px">La mise en page s’applique en générant le PDF d’une version, sans nouvelle rédaction IA.</p>
       </div><div><div class="dp-layout-preview"></div><p class="dp-muted" style="margin-top:12px">Aperçu de disposition : les blocs sans contenu sont omis du PDF.</p></div></div>`);
-    z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y').on('input change',()=>{
+    z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
       const position=z.find('.dp-layout-position').val(),maximum=['gauche','droite'].includes(position)?55:80;
       const borne=(selector,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selector).val())||def)));
       const largeur=borne('.dp-layout-width',20,maximum,65);
       if(Number(z.find('.dp-layout-width').val())>maximum)z.find('.dp-layout-width').val(largeur);
       z.find('.dp-layout-width').attr('max',maximum);
-      this.layouts[this.activeTab]={...this.layoutValues(),position_photo:position,largeur_photo:largeur,hauteur_photo:borne('.dp-layout-height',20,120,65),alignement_titre:z.find('.dp-layout-title-align').val(),couleur:z.find('.dp-layout-color').val(),position_marque:z.find('.dp-layout-brand-position').val(),alignement_marque:z.find('.dp-layout-brand-align').val(),largeur_logo:borne('.dp-layout-logo-width',10,70,32),afficher_nom_marque:z.find('.dp-layout-brand-name').prop('checked')?1:0,logo_x:Number(z.find('.dp-logo-x').val())||0,logo_y:Number(z.find('.dp-logo-y').val())||0};
+      this.layouts[this.activeTab]={...this.layoutValues(),position_photo:position,largeur_photo:largeur,hauteur_photo:borne('.dp-layout-height',20,120,65),alignement_titre:z.find('.dp-layout-title-align').val(),couleur:z.find('.dp-layout-color').val(),position_marque:z.find('.dp-layout-brand-position').val(),alignement_marque:z.find('.dp-layout-brand-align').val(),largeur_logo:borne('.dp-layout-logo-width',10,70,32),afficher_nom_marque:z.find('.dp-layout-brand-name').prop('checked')?1:0,logo_x:Number(z.find('.dp-logo-x').val())||0,logo_y:Number(z.find('.dp-logo-y').val())||0,
+        qr_url:(z.find('.dp-qr-url').val()||'').trim(),qr_legende:(z.find('.dp-qr-legende').val()||'').trim().slice(0,120),qr_position:z.find('.dp-qr-position').val(),qr_alignement:z.find('.dp-qr-align').val(),qr_taille:borne('.dp-qr-taille',15,40,22)};
       this.clampLogoPosition();
+      if($(e.target).hasClass('dp-qr-url'))this.loadQrPreview();
       this.renderColumnChoices();this.renderLayoutPreview();this.layoutChanged();
     });
+    this.loadQrPreview();
     z.find('.dp-enable-free-logo').on('click',()=>{z.find('.dp-layout-brand-position').val('libre').trigger('change');this.root.find('.dp-free-sheet')[0]?.scrollIntoView({behavior:'smooth',block:'center'});this.loadFreeBackground();});
     z.find('[data-columns]').on('click',e=>{
       const deux=$(e.currentTarget).attr('data-columns')==='2',cote=['gauche','droite'].includes(this.layoutValues().position_photo);
@@ -229,6 +241,20 @@ class DocumentsProduit {
     this.root.find('.dp-column-proportions').text(cote?`Deux colonnes : photo ${m.largeur_photo} % · description ${100-m.largeur_photo} %.`:'Une colonne : la photo et la description se suivent sur la page.');
   }
   layoutValues() { return {...dpLayoutDefault(),...(this.layouts?.[this.activeTab]||{})}; }
+  // Le QR de l'aperçu vient du serveur (même générateur que le PDF), avec un délai pour ne pas l'appeler à chaque frappe.
+  loadQrPreview() {
+    clearTimeout(this.qrTimer);
+    const url=this.layoutValues().qr_url,statut=this.root.find('.dp-qr-status');
+    if(!url){this.qrPreview=null;statut.text('Sans lien, aucun QR code n’est ajouté au document.');this.renderLayoutPreview();return;}
+    if(!/^https?:\/\/\S+$/.test(url)){this.qrPreview=null;statut.text('Le lien doit commencer par http:// ou https:// et ne pas contenir d’espace.');this.renderLayoutPreview();return;}
+    if(this.qrPreview?.url===url)return;
+    statut.text('Préparation du QR code…');
+    this.qrTimer=setTimeout(async()=>{
+      try{const r=await dpCall('apercu_qr',{name:this.name,url});if(this.layoutValues().qr_url!==url)return;this.qrPreview={url,image:r.image};statut.text('QR code prêt : il mène à '+url);}
+      catch{this.qrPreview=null;statut.text('Ce lien n’est pas accepté. Vérifiez son adresse.');}
+      this.renderLayoutPreview();
+    },500);
+  }
   canMoveLogo() { return this.data.peut_ecrire&&!this.switchingTab&&!this.busy(); }
   clampLogoPosition() {
     const m=this.layoutValues(),height=m.largeur_logo*18/32+(m.afficher_nom_marque?8:0);
@@ -247,7 +273,7 @@ class DocumentsProduit {
   }
   freeBackgroundKey() {
     const m=this.layoutValues(),configuration={...this.configValues()};delete configuration.mises_en_page;
-    const mise_en_page={};['position_photo','largeur_photo','hauteur_photo','alignement_titre','couleur','ordre'].forEach(k=>mise_en_page[k]=m[k]);
+    const mise_en_page={};['position_photo','largeur_photo','hauteur_photo','alignement_titre','couleur','ordre','qr_url','qr_legende','qr_position','qr_alignement','qr_taille'].forEach(k=>mise_en_page[k]=m[k]);
     return JSON.stringify({name:this.name,type:this.activeTab,document:this.current?.doc.name,contenu:this.root.find('.dp-editor').length?this.captureDocument():this.current?.contenu,configuration,mise_en_page});
   }
   async loadFreeBackground() {
@@ -307,6 +333,9 @@ class DocumentsProduit {
     }
     const contenuMarque=logo?`<img class="dp-design-brand-logo" src="${logo}" alt="Logo ${dpEsc(marque.name)}" style="width:${m.largeur_logo*1.8}px;max-height:${m.largeur_logo*18/32*1.8}px">`:logoAutorise?`<span class="dp-design-brand-placeholder">${this.brandLoading?'Chargement du logo…':'Logo '+dpEsc(marque.name||'de marque')+' à ajouter'}</span>`:'';
     const zoneMarque=m.position_marque!=='masquee'&&(contenuMarque||m.afficher_nom_marque)?`<div class="dp-design-brand" data-brand-position="${m.position_marque}" style="text-align:${alignMarque}">${contenuMarque}${m.afficher_nom_marque?`<strong class="dp-design-brand-name">${dpEsc(marque.name)}</strong>`:''}</div>`:'';
+    const alignQr={gauche:'left',centre:'center',droite:'right'}[m.qr_alignement],tailleQr=m.qr_taille*1.8;
+    const zoneQr=m.qr_url?`<div class="dp-design-qr" style="text-align:${alignQr}">${this.qrPreview?.url===m.qr_url&&this.qrPreview.image?`<img src="${this.qrPreview.image}" alt="QR code vers ${dpEsc(m.qr_url)}" style="width:${tailleQr}px;height:${tailleQr}px">`:`<span class="dp-design-brand-placeholder" style="display:inline-flex;width:${tailleQr}px;height:${tailleQr}px;align-items:center;justify-content:center">QR</span>`}${m.qr_legende?`<small style="display:block">${dpEsc(m.qr_legende)}</small>`:''}</div>`:'';
+    const zones=p=>(m.position_marque===p?zoneMarque:'')+(m.qr_position===p?zoneQr:'');
     const titre=this.root.find('.dp-title').val()??c?.titre??this.typeActif(),resume=this.root.find('.dp-summary').val()??c?.resume??'Description du produit, rédigée à partir des informations disponibles.';
     const couleur=/^#[0-9a-f]{6}$/i.test(m.couleur)?m.couleur:'#087E8B',align={gauche:'left',centre:'center',droite:'right'}[m.alignement_titre];
     const cote=['gauche','droite'].includes(m.position_photo),largeur=Math.min(cote?55:80,m.largeur_photo),hauteur=Math.min(120,m.hauteur_photo)*1.4;
@@ -320,7 +349,7 @@ class DocumentsProduit {
     const illustrees=variantes.filter(v=>supp.some(p=>p.article===v)),sansPhoto=variantes.length-illustrees.length;
     const apercuVariantes=illustrees.slice(0,3).map(v=>`<div class="dp-design-block"><b>${dpEsc(v)}</b>${grille(supp.filter(p=>p.article===v))}</div>`).join('')+(illustrees.length>3?`<div class="dp-sheet-small">+ ${illustrees.length-3} variantes illustrées dans le PDF</div>`:'')+(sansPhoto?`<div class="dp-design-block">Tableau : ${sansPhoto} variantes sans autre photo</div>`:'');
     const blocs={presentation,rubriques:`<div class="dp-design-block">${this.activeTab==='manuel'?'Installation · Utilisation<br>Entretien · Dépannage':'Présentation · Applications'}</div>`,caracteristiques:'<div class="dp-sheet-table">Caractéristiques techniques</div>',variantes:m.photos_variantes?apercuVariantes:'<div class="dp-design-block">Tableau des variantes</div>',illustrations:communes.length?`<div class="dp-design-block">Autres illustrations${grille(communes)}</div>`:'<div class="dp-design-block">Autres illustrations</div>'};
-    this.root.find('.dp-layout-preview').html(`<div class="dp-sheet dp-design-sheet" aria-label="Aperçu de la mise en page"><div class="dp-sheet-header">${entete?'En-tête : '+dpEsc(entete):'Document A4'}</div>${m.position_marque==='avant_titre'?zoneMarque:''}<div class="dp-sheet-title" style="color:${couleur};text-align:${align}">${dpEsc(titre)}</div><div class="dp-sheet-small" style="text-align:${align}">${dpEsc(marque.name)} · ${dpEsc(ctx.article.name)}</div>${m.position_marque==='apres_titre'?zoneMarque:''}<div class="dp-design-blocks" style="--dp-accent:${couleur}">${m.ordre.map(k=>`<div data-preview-block="${k}">${blocs[k]}</div>`).join('')}</div>${m.position_marque==='fin_document'?zoneMarque:''}<div class="dp-sheet-footer">Pied de page et numéro de page</div></div>`);
+    this.root.find('.dp-layout-preview').html(`<div class="dp-sheet dp-design-sheet" aria-label="Aperçu de la mise en page"><div class="dp-sheet-header">${entete?'En-tête : '+dpEsc(entete):'Document A4'}</div>${zones('avant_titre')}<div class="dp-sheet-title" style="color:${couleur};text-align:${align}">${dpEsc(titre)}</div><div class="dp-sheet-small" style="text-align:${align}">${dpEsc(marque.name)} · ${dpEsc(ctx.article.name)}</div>${zones('apres_titre')}<div class="dp-design-blocks" style="--dp-accent:${couleur}">${m.ordre.map(k=>`<div data-preview-block="${k}">${blocs[k]}</div>`).join('')}</div>${zones('fin_document')}<div class="dp-sheet-footer">Pied de page et numéro de page</div></div>`);
   }
   // ---------------------------------------------------------------- variantes (étape 1)
   variantTable(selected) {

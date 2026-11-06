@@ -260,6 +260,18 @@ def enregistrer_logo_marque(name, marque, fichier):
 
 
 @frappe.whitelist()
+def apercu_qr(name, url):
+	"""Le QR d'un lien pour l'aperçu de mise en page (SVG en data URI), sans rien enregistrer."""
+	import segno
+
+	dossier(name)
+	url = M.normaliser({"qr_url": url}).get("qr_url", "")
+	if not url:
+		return {"image": ""}
+	return {"image": segno.make(url, error="m").svg_data_uri(scale=4, border=2)}
+
+
+@frappe.whitelist()
 def apercu_entete(name, entete):
 	import base64
 

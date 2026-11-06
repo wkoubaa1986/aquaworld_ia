@@ -15,6 +15,15 @@ MARQUE_DEFAUTS = {
 	"logo_x": 150, "logo_y": 8,
 }
 PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1}
+# QR code d'un lien internet (demande utilisateur 06/11/2026 : « le lien du produit en QR code sur mon site »),
+# avec une légende sous le code. Absent du PDF tant que l'adresse est vide.
+QR_DEFAUTS = {"qr_url": "", "qr_legende": "", "qr_position": "fin_document", "qr_alignement": "droite", "qr_taille": 22}
+QR_URL = re.compile(r"https?://[A-Za-z0-9](?:[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]*)")
+
+
+def qr_valide(disposition):
+	"""L'adresse du QR si la disposition en porte une (déjà normalisée), sinon ''."""
+	return (disposition or {}).get("qr_url", "")
 
 
 def hauteur_zone_marque(disposition):
@@ -30,7 +39,7 @@ def normaliser(valeur=None):
 		"position_photo": "apres", "largeur_photo": 65, "hauteur_photo": 65,
 		"alignement_titre": "gauche", "couleur": "#087E8B", "ordre": list(ORDRE),
 	}
-	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS) | set(PHOTOS_DEFAUTS)):
+	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS) | set(PHOTOS_DEFAUTS) | set(QR_DEFAUTS)):
 		raise ValueError("Réglage de mise en page inconnu.")
 	resultat = {**defauts, **copy.deepcopy(valeur)}
 	if resultat["position_photo"] not in ("avant", "apres", "gauche", "droite"):
@@ -78,6 +87,25 @@ def normaliser(valeur=None):
 		if type(v) is not int or v not in ((0, 1) if cle == "photos_variantes" else (1, 2, 3)):
 			raise ValueError("Présentation des photos invalide.")
 		if v == defaut:
+			resultat.pop(cle, None)
+		else:
+			resultat[cle] = v
+	qr = {**QR_DEFAUTS, **{k: v for k, v in valeur.items() if k in QR_DEFAUTS}}
+	for cle, limite in (("qr_url", 500), ("qr_legende", 120)):
+		if not isinstance(qr[cle], str) or len(qr[cle]) > limite:
+			raise ValueError(f"{cle} doit être un texte de {limite} caractères au maximum.")
+		qr[cle] = qr[cle].strip()
+	if qr["qr_url"] and not QR_URL.fullmatch(qr["qr_url"]):
+		raise ValueError("L’adresse du QR code doit être un lien internet complet (https://…).")
+	if qr["qr_position"] not in ("avant_titre", "apres_titre", "fin_document"):
+		raise ValueError("Position du QR code invalide.")
+	if qr["qr_alignement"] not in ("gauche", "centre", "droite"):
+		raise ValueError("Alignement du QR code invalide.")
+	t = qr["qr_taille"]
+	if isinstance(t, bool) or not isinstance(t, int) or not 15 <= t <= 40:
+		raise ValueError("La taille du QR code doit être un entier entre 15 et 40 mm.")
+	for cle, v in qr.items():
+		if v == QR_DEFAUTS[cle]:
 			resultat.pop(cle, None)
 		else:
 			resultat[cle] = v

@@ -109,6 +109,15 @@ def image_png(octets):
 			)
 
 
+def qr_png(url):
+	"""QR (correction M, noir sur blanc) d'un lien, en PNG net : 10 px par module, marge de 2 modules."""
+	import segno
+
+	buffer = io.BytesIO()
+	segno.make(url, error="m").save(buffer, kind="png", scale=10, border=2)
+	return buffer.getvalue()
+
+
 def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=None):
 	assets = assets or {}
 	disposition = M.normaliser(ctx.get("mise_en_page"))
@@ -205,8 +214,21 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				zone_marque.append(r"{\bfseries " + t(nom_marque) + r"}\par")
 	if zone_marque:
 		zone_marque = [r"\begingroup" + alignement[marque["alignement_marque"]], *zone_marque, r"\endgroup"]
-	if marque["position_marque"] == "avant_titre":
-		body.extend(zone_marque)
+	# QR code d'un lien internet, légende dessous ; l'image est aussi un lien cliquable dans le PDF.
+	qr = {**M.QR_DEFAUTS, **disposition}
+	zone_qr = []
+	if qr["qr_url"] and assets.get("qr"):
+		url_tex = qr["qr_url"].replace("\\", "").replace("%", r"\%").replace("#", r"\#")
+		image = r"\includegraphics[width=" + str(qr["qr_taille"]) + "mm]{" + assets["qr"] + "}"
+		zone_qr = [r"\begingroup" + alignement[qr["qr_alignement"]], r"\href{" + url_tex + "}{" + image + r"}\par"]
+		if qr["qr_legende"]:
+			zone_qr.append(r"{\small " + t(qr["qr_legende"]) + r"}\par")
+		zone_qr.append(r"\endgroup")
+
+	def zones(position):
+		return (zone_marque if marque["position_marque"] == position else []) + (zone_qr if qr["qr_position"] == position else [])
+
+	body.extend(zones("avant_titre"))
 	body.append(r"\begingroup" + alignement[disposition["alignement_titre"]])
 	body += [
 		r"{\LARGE\bfseries\color{aqua} " + t(contenu["titre"]) + r"}\par",
@@ -216,8 +238,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if not valide:
 		body.append(r"{\color{red}\bfseries " + t(labels["brouillon"]) + r"}\par")
 	body.append(r"\endgroup")
-	if marque["position_marque"] == "apres_titre":
-		body.extend(zone_marque)
+	body.extend(zones("apres_titre"))
 	blocs = {cle: [] for cle in M.ORDRE}
 
 	def photo(index, largeur, hauteur, portee=True):
@@ -332,8 +353,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			t("S{} — {}{}".format(i + 1, s["nom"], (" — " + s["pages"]) if s["pages"] else "")) + r"\par"
 			for i, s in enumerate(ctx["sources"])
 		]
-	if marque["position_marque"] == "fin_document":
-		body.extend(zone_marque)
+	body.extend(zones("fin_document"))
 	body.append(r"\end{document}")
 	return "\n".join(body)
 
@@ -347,7 +367,7 @@ def compiler(tex, fichiers):
 		(p / "images").mkdir()
 		(p / "document.tex").write_text(tex, encoding="utf-8")
 		for name, b in fichiers.items():
-			if not re.fullmatch(r"images/(?:logo|image-[0-9]+|entete-(?:haut|bas))\.png", name):
+			if not re.fullmatch(r"images/(?:logo|qr|image-[0-9]+|entete-(?:haut|bas))\.png", name):
 				raise ValueError("Nom de fichier LaTeX invalide.")
 			(p / name).write_bytes(b)
 		env = {**os.environ, "openin_any": "p", "openout_any": "p", "shell_escape": "f", "TEXMFOUTPUT": temp}
@@ -403,6 +423,10 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 		name = f"images/image-{i}.png"
 		fichiers[name] = image_png(C.octets(im["image"]))
 		assets["images"].append(name)
+	url_qr = M.qr_valide(M.normaliser(ctx.get("mise_en_page")))
+	if url_qr:
+		fichiers["images/qr.png"] = qr_png(url_qr)
+		assets["qr"] = "images/qr.png"
 	tex = source(contenu, ctx, langue, bool(rtl), numero, valide, assets)
 	pdf, archive = compiler(tex, fichiers)
 	return tex, pdf, archive

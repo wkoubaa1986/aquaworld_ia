@@ -109,6 +109,51 @@ class TestMiseEnPage(unittest.TestCase):
 						self.assertGreater(logo.y0, page.search_for("Variantes couvertes")[0].y1)
 				self.assertIn(r"{\bfseries ecoPurium}\par", tex)
 
+	def test_qr_code_validation_et_defauts(self):
+		base = M.normaliser({"qr_url": "https://example.invalid/p/AP-M?x=1#top", "qr_legende": " Fiche en ligne ", "qr_taille": 30})
+		self.assertEqual(base["qr_legende"], "Fiche en ligne")
+		self.assertEqual(base["qr_taille"], 30)
+		self.assertNotIn("qr_position", base)          # valeur par défaut retirée : ne périme pas les versions
+		self.assertEqual(M.qr_valide(base), "https://example.invalid/p/AP-M?x=1#top")
+		self.assertEqual(M.qr_valide(M.normaliser({"qr_legende": "x"})), "")
+		for mauvais in ({"qr_url": "ftp://x"}, {"qr_url": "javascript:alert(1)"}, {"qr_url": "https://x.com/a b"},
+			{"qr_url": "x" * 501}, {"qr_taille": 50}, {"qr_taille": 22.5}, {"qr_position": "libre"},
+			{"qr_alignement": "justifie"}, {"qr_legende": "x" * 121}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_qr_code_positions_legende_et_lien_cliquable(self):
+		import pymupdf
+
+		ctx = contexte_simple()
+		url = "https://example.invalid/produit/AP-M?x=1#top"
+		for position, alignement in (("fin_document", "droite"), ("avant_titre", "gauche"), ("apres_titre", "centre")):
+			with self.subTest(position=position):
+				ctx["mise_en_page"] = M.normaliser({"qr_url": url, "qr_legende": "Fiche produit en ligne",
+					"qr_position": position, "qr_alignement": alignement, "qr_taille": 25})
+				tex, pdf, _ = L.composer(contenu_simple(ctx), ctx)
+				self.assertIn(r"\href{https://example.invalid/produit/AP-M?x=1\#top}", tex)
+				with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+					page = next(p for p in doc if p.get_images())
+					qr = page.get_image_rects(page.get_images()[0][0])[0]
+					self.assertAlmostEqual(qr.width, 25 * 72 / 25.4, delta=1)
+					legende = page.search_for("Fiche produit en ligne")[0]
+					self.assertGreaterEqual(legende.y0, qr.y1 - 1)
+					self.assertEqual([l["uri"] for l in page.get_links() if l.get("uri")], [url])
+					titre = page.search_for("Fiche technique")[0]
+					if alignement == "gauche":
+						self.assertAlmostEqual(qr.x0, 18 * 72 / 25.4, delta=1)
+					elif alignement == "centre":
+						self.assertAlmostEqual((qr.x0 + qr.x1) / 2, page.rect.width / 2, delta=1)
+					else:
+						self.assertAlmostEqual(qr.x1, page.rect.width - 18 * 72 / 25.4, delta=1)
+					self.assertEqual(qr.y1 < titre.y0, position == "avant_titre")
+		ctx["mise_en_page"] = M.normaliser({"qr_legende": "Sans lien"})
+		_, pdf, _ = L.composer(contenu_simple(ctx), ctx)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			self.assertTrue(all(not p.get_images() for p in doc))
+
 	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
 	def test_positions_pdf_et_ordre(self):
 		import pymupdf
