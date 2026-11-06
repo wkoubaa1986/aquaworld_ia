@@ -458,3 +458,44 @@ class TestLargeurMosaique(unittest.TestCase):
 			grande = max(rects, key=lambda r: r.width * r.height)
 			self.assertAlmostEqual(grande.width, 174 * 0.7 * 0.6 * 72 / 25.4, delta=1 * 72 / 25.4)   # 60 % de 70 % de la ligne
 			self.assertGreater(grande.x0, (18 + 15) * 72 / 25.4)                                      # décalée vers le centre
+
+
+class TestStyleTitresEtSommaire(unittest.TestCase):
+	"""06/11/2026 : « je veux que toutes les sections soient soulignées… TOC ? » — style des titres et sommaire."""
+
+	def test_reglages(self):
+		m = M.normaliser({"style_titres": "souligne", "sommaire": 1})
+		self.assertEqual((m["style_titres"], m["sommaire"]), ("souligne", 1))
+		m = M.normaliser({"style_titres": "simple", "sommaire": 0})
+		self.assertNotIn("style_titres", m)   # défauts non stockés : empreinte des versions existantes inchangée
+		self.assertNotIn("sommaire", m)
+		for mauvais in ({"style_titres": "gras"}, {"style_titres": 1}, {"sommaire": 2}, {"sommaire": "1"}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_sommaire_cliquable_et_titres_soulignes(self):
+		import pymupdf
+
+		ctx = contexte_simple()
+		contenu = contenu_simple(ctx)
+		contenu["sections"] = [{"titre": f"Rubrique {i}", "texte": "Texte. " * 30, "article": "", "source": "Article"} for i in range(1, 4)]
+		sans = L.compiler(L.source(contenu, ctx), {})[0]
+		ctx["mise_en_page"] = M.normaliser({"style_titres": "souligne", "sommaire": 1})
+		avec = L.compiler(L.source(contenu, ctx), {})[0]
+		with pymupdf.open(stream=sans, filetype="pdf") as doc:
+			self.assertFalse(doc[0].search_for("Sommaire"))
+			filets_sans = len([d for d in doc[0].get_drawings() if d["rect"].width > 400 and d["rect"].height < 2])
+		with pymupdf.open(stream=avec, filetype="pdf") as doc:
+			page = doc[0]
+			self.assertTrue(page.search_for("Sommaire"))
+			self.assertEqual(len(page.search_for("Rubrique 2")), 2)   # au sommaire et comme titre
+			liens = [l for l in page.get_links() if l.get("kind") in (pymupdf.LINK_GOTO, pymupdf.LINK_NAMED)]
+			self.assertGreaterEqual(len(liens), 3)
+			# Un filet fin sur toute la largeur du texte sous chaque titre (5 titres : 3 rubriques, caractéristiques,
+			# variantes), comptés sur tout le document car le sommaire repousse les derniers blocs en page 2.
+			filets = [d for d in page.get_drawings() if d["rect"].width > 400 and d["rect"].height < 2]
+			tous = [d for p in doc for d in p.get_drawings() if d["rect"].width > 400 and d["rect"].height < 2]
+			self.assertGreaterEqual(len(tous) - filets_sans, 5)
+			titre = page.search_for("Rubrique 1")[-1]
+			self.assertTrue(any(titre.y1 - 2 <= d["rect"].y0 <= titre.y1 + 18 for d in filets))

@@ -318,13 +318,22 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
 \setlength{\emergencystretch}{4em}
-\newcommand{\docsection}[1]{\section*{\color{aqua}#1}}
+\newcommand{\docsection}[1]{\section*{\color{aqua}#1}\phantomsection\addcontentsline{toc}{section}{#1}}
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
 \fancyfoot[C]{\thepage}
 """
 	en_tete = en_tete.replace("{087E8B}", "{" + disposition["couleur"][1:] + "}")
+	# Style des titres de section (demande 06/11/2026) ; chaque titre entre au sommaire.
+	style_titres = disposition.get("style_titres", "simple")
+	if style_titres == "souligne":
+		en_tete += r"\renewcommand{\docsection}[1]{\section*{\color{aqua}#1}\vspace{-11pt}\noindent{\color{aqua}\rule{\linewidth}{0.6pt}}\par\vspace{2pt}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
+	elif style_titres == "barre":
+		en_tete += r"\renewcommand{\docsection}[1]{\section*{\noindent{\color{aqua}\rule[-3pt]{3pt}{14pt}}\hspace{6pt}\color{aqua}#1}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
+	elif style_titres == "fond":
+		en_tete += r"\renewcommand{\docsection}[1]{\section*{\colorbox{aquafort}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\color{aqua}#1}}}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
+	en_tete += r"\renewcommand{\contentsname}{" + texte(labels["sommaire"], rtl) + "}\n"
 	script = "[Script=Arabic]" if langue.split("-")[0] in ("ar", "fa", "ur") else ""
 	en_tete += "\\setmainfont" + script + "{" + police + "}\n\\newfontfamily\\latinfont{Noto Sans}\n"
 	if police_symboles():
@@ -416,6 +425,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		body.append(r"{\color{red}\bfseries " + t(labels["brouillon"]) + r"}\par")
 	body.append(r"\endgroup")
 	body.extend(zones("apres_titre"))
+	if disposition.get("sommaire"):
+		# Sommaire des titres de blocs et de rubriques (\docsection) ; hyperref le rend cliquable, la seconde passe le remplit.
+		body.append(r"\begingroup\setlength{\parskip}{1pt}\color{aqua}\tableofcontents\endgroup\par\medskip")
 	blocs = {cle: [] for cle in M.ORDRE}
 
 	# Légendes des photos : masquables (pas celle du QR), alignées et colorées selon la mise en page (06/11/2026).
@@ -683,7 +695,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	for cle in disposition["ordre"]:
 		body.extend(blocs[cle])
 	if contenu.get("points_a_verifier"):
-		body += [r"\docsection{" + t(labels["brouillon"]) + "}"]
+		# Hors sommaire : le bloc brouillon disparaît du document validé.
+		body += [r"\begingroup\renewcommand{\addcontentsline}[3]{}\docsection{" + t(labels["brouillon"]) + r"}\endgroup"]
 		body += [t("• " + p) + r"\par" for p in contenu["points_a_verifier"]]
 	if ctx.get("sources"):
 		body += [r"\docsection{" + t(labels["sources"]) + "}"]

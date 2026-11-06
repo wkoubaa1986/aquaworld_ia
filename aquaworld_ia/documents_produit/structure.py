@@ -25,6 +25,7 @@ LIBELLES = dict(
 	version="Version",
 	sources="Sources documentaires",
 	photo="Photo",
+	sommaire="Sommaire",
 )
 
 

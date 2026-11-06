@@ -16,7 +16,9 @@ MARQUE_DEFAUTS = {
 }
 PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille", "photo_grande": "",
 	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
-	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent"}
+	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0}
+# style_titres : simple | souligne (filet sous le titre) | barre (barre latérale) | fond (bandeau) ; sommaire : table des
+# titres de blocs et de rubriques au début du document (demande 06/11/2026).
 # libelle_croise : « nom_sans_parent » (le nom de la variante sans le nom de l'article parent, ex. « AquaJad, Classique
 # 5 Stages, Sans mixage »), « nom » (nom complet) ou « reference » (code, ex. AP-M-AJ-5-SM) dans les cellules du croisé.
 # largeur_mosaique : % de la ligne occupé par la mosaïque (grande + colonne) ; en dessous de 100, elle est centrée.
@@ -105,9 +107,9 @@ def normaliser(valeur=None):
 		else:
 			admis = {"photos_variantes": (0, 1, 2), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
 				"style_galerie": ("grille", "mosaique"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
-				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101), "libelle_croise": ("reference", "nom", "nom_sans_parent"),
+				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101), "libelle_croise": ("reference", "nom", "nom_sans_parent"), "style_titres": ("simple", "souligne", "barre", "fond"), "sommaire": (0, 1),
 				"legende_couleur": ("texte", "titres", "gris")}[cle]
-			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur", "libelle_croise")
+			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur", "libelle_croise", "style_titres")
 			if (type(v) is not int if not textuel else not isinstance(v, str)) or v not in admis:
 				raise ValueError("Présentation des photos invalide.")
 		if v == defaut:

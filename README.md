@@ -590,7 +590,8 @@ de nouvelle version. L’image doit être un fichier lisible par l’utilisateur
 l’enregistrement et à la composition).
 
 **Réglages dans l’ordre du document** (06/11/2026) : le panneau de mise en page est découpé en blocs
-qui suivent l’ordre choisi — « Titre et marque » (alignement et couleur des titres, zone de marque),
+qui suivent l’ordre choisi — « Titre et marque » (alignement et couleur des titres, style des titres de
+section, sommaire, zone de marque),
 puis un bloc numéroté par élément (description et photo principale, rubriques, caractéristiques,
 tableau des variantes, autres illustrations) avec, dans son en-tête, les flèches ↑ ↓ (ou le glisser)
 qui réordonnent le document et le panneau à la fois ; le QR code, placé à la position choisie, ferme
@@ -606,6 +607,17 @@ des attributs (ex. avec / sans mixage) signalé par **une couleur par valeur** :
 devant la référence et une **légende sous le tableau** (« Système de mélange : ■ Sans mixage ■ Avec
 mixage ») ; le texte de la valeur reste sous le libellé, dans sa couleur, sauf s’il figure déjà dans le
 nom affiché ; palette de huit couleurs, combinaisons colorées si plusieurs attributs restent (06/11/2026).
+
+**Style des titres de section et sommaire** (06/11/2026 : « je veux que toutes les sections soient
+soulignées… TOC ? ») : dans « Titre et marque », **Style des titres de section** s’applique à tous
+les titres du document (rubriques, caractéristiques, variantes, illustrations, sources) — *texte en
+couleur* (défaut), *souligné* (filet fin dans la couleur des titres sous chaque titre), *barre
+latérale* (barre verticale colorée devant le titre) ou *bandeau coloré* (fond clair sur toute la
+largeur). **Sommaire au début du document** insère, après le bloc de titre, la liste des titres de
+blocs et de rubriques avec leur page ; les entrées sont cliquables dans le PDF (hyperref) et le
+sommaire se remplit à la seconde passe XeLaTeX. Le libellé « Sommaire » est traduit avec les autres
+libellés. Les deux réglages valent pour la fiche ou le manuel séparément, comme le reste de la mise
+en page ; les valeurs par défaut ne modifient pas l’empreinte des versions existantes.
 
 **Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**

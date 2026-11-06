@@ -24,7 +24,7 @@ const DP_CONSIGNES = [
   {nom:'Manuel d’entretien détaillé', texte:'Manuel orienté entretien et dépannage. Détailler chaque opération d’entretien pas à pas (remplacement des cartouches, désinfection, contrôle des fuites), avec la fréquence et les signes qui indiquent qu’elle est nécessaire. Prévoir une rubrique de dépannage sous forme « symptôme → cause probable → action ». Rappeler les consignes de sécurité documentées avant toute intervention.'},
   {nom:'Export / traduction', texte:'Document destiné à être traduit en plusieurs langues. Phrases courtes et sans tournures idiomatiques, vocabulaire technique standard, unités internationales (bar, L/h, mm). Éviter les références propres au marché local (normes ou services locaux) sauf si elles sont dans les sources.'},
 ];
-const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,hauteur_vignettes:55,style_galerie:'grille',photo_grande:'',tableau_variantes:'liste',largeur_grande:62,legendes_galerie:1,legende_alignement:'gauche',legende_couleur:'texte',largeur_mosaique:100,libelle_croise:'nom_sans_parent',qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
+const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,hauteur_vignettes:55,style_galerie:'grille',photo_grande:'',tableau_variantes:'liste',largeur_grande:62,legendes_galerie:1,legende_alignement:'gauche',legende_couleur:'texte',largeur_mosaique:100,libelle_croise:'nom_sans_parent',style_titres:'simple',sommaire:0,qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
 
 class DocumentsProduit {
@@ -187,7 +187,9 @@ class DocumentsProduit {
       <p class="dp-muted">Les réglages suivent l’ordre du document : déplacez un bloc avec ses flèches (ou en le glissant) et ses réglages suivent.</p>
       <div class="dp-bloc dp-bloc-fixe"><div class="dp-bloc-head"><h3>Titre et marque</h3><span class="dp-muted">toujours en tête</span></div>
       <div class="dp-grid"><label class="dp-label">Alignement du titre<select class="form-control dp-layout-title-align">${options({gauche:'À gauche',centre:'Centré',droite:'À droite'},m.alignement_titre)}</select></label>
-      <label class="dp-label">Couleur des titres<input class="form-control dp-layout-color" type="color" value="${m.couleur}" style="width:90px;height:36px"></label></div>
+      <label class="dp-label">Couleur des titres<input class="form-control dp-layout-color" type="color" value="${m.couleur}" style="width:90px;height:36px"></label>
+      <label class="dp-label">Style des titres de section<select class="form-control dp-style-titres">${options({simple:'Texte en couleur',souligne:'Souligné (filet en couleur)',barre:'Barre latérale',fond:'Bandeau coloré'},m.style_titres)}</select></label>
+      <label class="dp-label"><input type="checkbox" class="dp-sommaire" ${m.sommaire?'checked':''}> Sommaire au début du document (titres des blocs et des rubriques, cliquables)</label></div>
       <div class="dp-brand-zone-settings" style="border:0;margin:0;padding:0"><h4 style="font-size:13px;margin:12px 0 6px">Zone de marque</h4>
       <p class="dp-muted dp-zone-brand-status" role="status"></p>
       <div class="dp-actions"><button class="btn btn-default btn-sm dp-enable-free-logo">Déplacer le logo à la souris</button></div>
@@ -212,13 +214,14 @@ class DocumentsProduit {
       <div class="dp-layout-preview"></div>
       <div class="dp-live-pages"></div></div></div>`);
     this.liveLayout=true;
-    z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
+    z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-style-titres,.dp-sommaire,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
       const position=z.find('.dp-layout-position').val(),maximum=['gauche','droite'].includes(position)?55:80;
       const borne=(selector,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selector).val())||def)));
       const largeur=borne('.dp-layout-width',20,maximum,65);
       if(Number(z.find('.dp-layout-width').val())>maximum)z.find('.dp-layout-width').val(largeur);
       z.find('.dp-layout-width').attr('max',maximum);
       this.layouts[this.activeTab]={...this.layoutValues(),position_photo:position,largeur_photo:largeur,hauteur_photo:borne('.dp-layout-height',20,120,65),alignement_titre:z.find('.dp-layout-title-align').val(),couleur:z.find('.dp-layout-color').val(),position_marque:z.find('.dp-layout-brand-position').val(),alignement_marque:z.find('.dp-layout-brand-align').val(),largeur_logo:borne('.dp-layout-logo-width',10,70,32),afficher_nom_marque:z.find('.dp-layout-brand-name').prop('checked')?1:0,logo_x:Number(z.find('.dp-logo-x').val())||0,logo_y:Number(z.find('.dp-logo-y').val())||0,
+        style_titres:z.find('.dp-style-titres').val()||'simple',sommaire:z.find('.dp-sommaire').prop('checked')?1:0,
         qr_url:(z.find('.dp-qr-url').val()||'').trim(),qr_legende:(z.find('.dp-qr-legende').val()||'').trim().slice(0,120),qr_position:z.find('.dp-qr-position').val(),qr_alignement:z.find('.dp-qr-align').val(),qr_taille:borne('.dp-qr-taille',15,40,22)};
       this.clampLogoPosition();
       if($(e.target).hasClass('dp-qr-url'))this.loadQrPreview();
