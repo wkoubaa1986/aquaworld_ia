@@ -15,6 +15,15 @@ const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
 const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Tableau des variantes',illustrations:'Autres illustrations'};
 // Les quatre étapes du travail, dans l'ordre où on les fait : l'écran suit cet ordre (refonte du 06/11/2026).
 const DP_STEPS = {preparer:'Préparer',presenter:'Présenter',rediger:'Rédiger',relire:'Relire et produire'};
+// Modèles de consignes de rédaction : un point de départ à modifier, jamais une preuve technique (cf. traitement.generer).
+const DP_CONSIGNES = [
+  {nom:'Particuliers', texte:'Public : particuliers, sans connaissance technique. Vocabulaire simple, phrases courtes, pas d’abréviations sans explication. Mettre en avant le confort d’usage, la qualité de l’eau obtenue et la simplicité d’entretien. Donner les gestes d’entretien courants (changement des filtres, nettoyage) avec leur fréquence quand elle est documentée.'},
+  {nom:'Installateurs / plombiers', texte:'Public : plombiers et installateurs professionnels. Ton technique et direct. Détailler le raccordement, les dimensions, la pression et le débit de service, les contraintes d’installation (espace, évacuation, alimentation électrique). Signaler les erreurs d’installation fréquentes et les points de contrôle à la mise en service.'},
+  {nom:'Revendeurs / B2B', texte:'Public : revendeurs et clients professionnels. Présenter la gamme et ses variantes de façon comparative : ce qui distingue chaque modèle (étages, membrane, options). Ton commercial mais factuel, sans superlatif non justifié. Mettre en avant les arguments de vente documentés et les applications types.'},
+  {nom:'Fiche courte (1 page)', texte:'Fiche technique sur une page maximum. Présentation en trois phrases, puis uniquement les caractéristiques essentielles et les applications. Pas de rubrique longue : privilégier les listes et le tableau des variantes.'},
+  {nom:'Manuel d’entretien détaillé', texte:'Manuel orienté entretien et dépannage. Détailler chaque opération d’entretien pas à pas (remplacement des cartouches, désinfection, contrôle des fuites), avec la fréquence et les signes qui indiquent qu’elle est nécessaire. Prévoir une rubrique de dépannage sous forme « symptôme → cause probable → action ». Rappeler les consignes de sécurité documentées avant toute intervention.'},
+  {nom:'Export / traduction', texte:'Document destiné à être traduit en plusieurs langues. Phrases courtes et sans tournures idiomatiques, vocabulaire technique standard, unités internationales (bar, L/h, mm). Éviter les références propres au marché local (normes ou services locaux) sauf si elles sont dans les sources.'},
+];
 const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
 
@@ -346,7 +355,7 @@ class DocumentsProduit {
       <div class="dp-progress"></div>
 
       <section class="dp-step" data-step="preparer" hidden>
-      <div class="dp-card"><h3>Consignes de rédaction <span class="dp-muted dp-shared">commun à la fiche et au manuel</span></h3><textarea class="form-control dp-consignes" rows="2" placeholder="Public visé, style, rubriques souhaitées…">${dpEsc(d.consignes)}</textarea></div>
+      <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Consignes de rédaction <span class="dp-muted dp-shared">commun à la fiche et au manuel</span></h3><select class="form-control input-sm dp-consignes-modele" aria-label="Modèle de consignes" style="max-width:260px"><option value="">Partir d’un modèle…</option>${DP_CONSIGNES.map(m=>`<option value="${dpEsc(m.nom)}">${dpEsc(m.nom)}</option>`).join('')}</select></div><textarea class="form-control dp-consignes" rows="3" placeholder="Facultatif. Public visé, ton, longueur, rubriques à privilégier… L’IA s’en sert pour la forme, jamais comme source technique.">${dpEsc(d.consignes)}</textarea></div>
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Variantes couvertes <span class="dp-muted dp-variant-count"></span></h3><input class="form-control input-sm dp-search" placeholder="Filtrer…" style="max-width:220px"><button class="btn btn-xs btn-default" data-select-all="1">Toutes</button><button class="btn btn-xs btn-default" data-select-all="0">Aucune</button></div>
       <div class="dp-variants">${this.variantTable(selected)}</div></div>
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Sources <span class="dp-muted">manuels PDF, photos de pages</span></h3><button class="btn btn-default btn-sm dp-upload-source">Ajouter un document</button><button class="btn btn-default btn-sm dp-existing">Documents déjà liés aux articles</button></div>
@@ -444,6 +453,12 @@ class DocumentsProduit {
   }
   bindConfig() {
     this.lastConfig=JSON.stringify(this.configValues());
+    this.root.find('.dp-consignes-modele').on('change',e=>{
+      const modele=DP_CONSIGNES.find(m=>m.nom===e.target.value),ta=this.root.find('.dp-consignes');e.target.value='';
+      if(!modele)return;
+      const appliquer=()=>{ta.val(modele.texte).trigger('input').trigger('focus');};
+      if(ta.val().trim())frappe.confirm(`Remplacer les consignes actuelles par le modèle « ${dpEsc(modele.nom)} » ?`,appliquer);else appliquer();
+    });
     this.root.find('.dp-choose-images').on('click',async()=>{await frappe.require('/assets/aquaworld_ia/js/documents_produit_photos.js');await new aquaworld_ia.PhotosProduit(this).ouvrir();});
     this.root.find('.dp-brand').on('change',()=>this.renderBrand());
     this.root.find('.dp-brand-with-header').on('change',()=>this.renderLayoutPreview());
