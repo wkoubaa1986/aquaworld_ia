@@ -514,8 +514,9 @@ disposition ; le PDF final dépend du contenu et de la pagination A4.
 
 **QR code d’un lien internet** (06/11/2026) : dans la mise en page de chaque onglet, saisir
 le lien (https://…, par exemple la page du produit sur le site), une légende affichée sous
-le code, sa position (au-dessus du titre, sous le titre, dans « Autres illustrations » après la
-galerie — ou seul sous ce titre s’il n’y a pas d’autre photo —, à la fin du document), son alignement
+le code, sa position (au-dessus du titre, sous le titre, dans « Autres illustrations » comme
+dernière vignette de la galerie — il prend la case libre de la grille, ou reste seul sous le titre
+du bloc s’il n’y a pas d’autre photo —, à la fin du document), son alignement
 et sa taille (15 à 40 mm). **Reprendre le lien WooCommerce de l’article** remplit le lien depuis
 la section WooCommerce de l’article parent (serveur + identifiant produit, sous la forme
 `https://boutique/?post_type=product&p=ID`, que WordPress redirige vers la page du produit et qui

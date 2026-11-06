@@ -182,6 +182,36 @@ class TestMiseEnPage(unittest.TestCase):
 			self.assertFalse(doc[0].search_for(libelle))
 
 	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_qr_code_vignette_de_la_galerie(self):
+		"""Trois autres photos sur deux colonnes : le QR prend la case libre de la seconde ligne, à droite de la 3e photo."""
+		import pymupdf
+		from PIL import Image
+
+		def png(couleur):
+			b = io.BytesIO()
+			Image.new("RGB", (300, 200), couleur).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(4)]
+		url = "https://example.invalid/?post_type=product&p=1343"
+		ctx["mise_en_page"] = M.normaliser({"qr_url": url, "qr_legende": "Voir le produit en ligne",
+			"qr_position": "illustrations", "qr_alignement": "centre", "colonnes_photos": 2})
+		assets = {"images": [f"images/image-{i}.png" for i in range(4)], "qr": "images/qr.png"}
+		fichiers = {f"images/image-{i}.png": png(c) for i, c in enumerate(("red", "green", "blue", "gray"))}
+		fichiers["images/qr.png"] = L.qr_png(url)
+		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), fichiers)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			page = next(p for p in doc if len(p.get_images()) >= 4)
+			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0])]
+			qr = min(rects, key=lambda r: r.width)
+			self.assertAlmostEqual(qr.width, 22 * 72 / 25.4, delta=1)
+			voisines = [r for r in rects if r != qr and abs(r.y0 - qr.y0) < 20]
+			self.assertEqual(len(voisines), 1)                    # la 3e photo, seule sur sa ligne avant le QR
+			self.assertGreater(qr.x0, voisines[0].x1)             # le QR occupe la case de droite
+			self.assertGreater(page.search_for("Voir le produit en ligne")[0].y0, qr.y1 - 1)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
 	def test_positions_pdf_et_ordre(self):
 		import pymupdf
 		from PIL import Image

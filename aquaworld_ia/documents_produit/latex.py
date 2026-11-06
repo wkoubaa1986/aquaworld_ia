@@ -252,15 +252,20 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			lignes.append(t(labels["portee"] + " : " + ctx["images"][index]["article"]) + r"\par")
 		return "\n".join(lignes)
 
-	def galerie(indices, portee=True):
+	def galerie(indices, portee=True, extra=None):
+		"""Les photos `indices` en galerie ; `extra` (LaTeX) devient une vignette de plus, en dernier — le QR
+		prend ainsi la case libre de la grille au lieu de pendre sous la galerie (demande 06/11/2026)."""
 		colonnes = disposition.get("colonnes_photos", 1)
 		if colonnes == 1:
-			return [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices]
+			return [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices] + ([extra] if extra else [])
+		contenus = [photo(i, 1, 55, portee) for i in indices] + ([extra] if extra else [])
 		lignes = []
-		for debut in range(0, len(indices), colonnes):
+		for debut in range(0, len(contenus), colonnes):
 			cellules = [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}"
-				+ r"\linewidth}\vspace{0pt}\small " + photo(i, 1, 55, portee) + r"\end{minipage}"
-				for i in indices[debut:debut + colonnes]]
+				+ r"\linewidth}\vspace{0pt}\small " + cellule + r"\end{minipage}"
+				for cellule in contenus[debut:debut + colonnes]]
+			# Une dernière ligne incomplète garde ses cases alignées à gauche : des cellules vides complètent la ligne.
+			cellules += [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}" + r"\linewidth}\strut\end{minipage}"] * (colonnes - len(cellules))
 			lignes.append(r"\noindent " + r"\hfill ".join(cellules) + r"\par\medskip")
 		return lignes
 
@@ -340,13 +345,11 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]
 	# Le QR peut rejoindre le bloc « Autres illustrations » (demande 06/11/2026) : après la galerie, ou seul
 	# sous le titre du bloc quand il n'y a pas d'autre illustration — le bloc suit alors l'ordre choisi.
-	qr_illustrations = zone_qr if qr["qr_position"] == "illustrations" else []
+	qr_illustrations = "\n".join(zone_qr) if qr["qr_position"] == "illustrations" and zone_qr else None
 	if illustrations or qr_illustrations:
 		if regrouper or disposition.get("colonnes_photos", 1) > 1 or (qr_illustrations and not illustrations):
 			blocs["illustrations"].append(r"\docsection{" + t(labels["illustrations"]) + "}")
-		if illustrations:
-			blocs["illustrations"].extend(galerie(illustrations))
-		blocs["illustrations"].extend(qr_illustrations)
+		blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
 	for cle in disposition["ordre"]:
 		body.extend(blocs[cle])
 	if contenu.get("points_a_verifier"):
