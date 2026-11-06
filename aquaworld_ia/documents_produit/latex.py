@@ -110,7 +110,26 @@ def texte(s, rtl=False):
 	)
 
 
-def image_png(octets):
+_CACHE_PNG = {}   # (sha256 des octets, taille) -> PNG : les mêmes photos sont recomposées à chaque aperçu en direct
+
+
+def image_png(octets, max_cote=2400):
+	"""Rasterise une image (PNG/JPEG/WebP/SVG) en PNG, bornée à `max_cote` px (2400 pour l'impression, 360 pour
+	une vignette de tableau). Mise en cache par contenu : 45 images d'articles passaient 110 s et 44 Mo de PDF
+	(06/11/2026, tableau croisé avec vignettes) ; en vignette 360 px et en cache, quelques secondes."""
+	import hashlib
+
+	cle = (hashlib.sha256(octets).hexdigest(), int(max_cote))
+	if cle in _CACHE_PNG:
+		return _CACHE_PNG[cle]
+	png = _image_png(octets, int(max_cote))
+	if len(_CACHE_PNG) > 300:
+		_CACHE_PNG.clear()
+	_CACHE_PNG[cle] = png
+	return png
+
+
+def _image_png(octets, max_cote):
 	import pymupdf
 	from PIL import Image, ImageOps
 
@@ -119,9 +138,9 @@ def image_png(octets):
 			if im.width * im.height > 40_000_000:
 				raise ValueError("Illustration trop grande.")
 			im = ImageOps.exif_transpose(im).convert("RGBA")
-			im.thumbnail((2400, 2400))
+			im.thumbnail((max_cote, max_cote))
 			out = io.BytesIO()
-			im.save(out, format="PNG")
+			im.save(out, format="PNG", optimize=max_cote <= 400)
 			return out.getvalue()
 	except (OSError, SyntaxError):
 		# Les SVG sont rasterisés en local sans exécuter de script ni de commande externe.
@@ -720,7 +739,7 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 			if v.get("image"):
 				try:
 					name = f"images/variante-{i}.png"
-					fichiers[name] = image_png(C.octets(v["image"]))
+					fichiers[name] = image_png(C.octets(v["image"]), max_cote=360)   # vignette de 12–14 mm : 360 px suffisent
 					assets["variantes"][v["name"]] = name
 				except Exception:
 					continue

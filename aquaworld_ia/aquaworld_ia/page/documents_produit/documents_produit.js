@@ -79,7 +79,8 @@ class DocumentsProduit {
     try{sessionStorage.setItem('dp-step:'+this.name,step);}catch{/* sans stockage, l'étape repart de la valeur par défaut */}
     this.root.find('.dp-step').each((_,el)=>{el.hidden=el.dataset.step!==step;});
     this.root.find('.dp-step-btn').each((_,el)=>{const actif=el.dataset.step===step;el.classList.toggle('active',actif);el.setAttribute('aria-current',actif?'step':'false');});
-    if(step==='relire')this.renderLayoutPreview();
+    if(step==='relire'&&this.current&&!this.root.find('.dp-review-live img').length)this.planifierPages('review',200);
+    if(step==='presenter'&&!this.root.find('.dp-live-pages img').length)this.planifierPages('layout',200);
     this.updateBar();
   }
   stepStatus() {
@@ -207,10 +208,10 @@ class DocumentsProduit {
       <p class="dp-muted dp-qr-status" role="status"></p></div>
       <div class="dp-actions" style="margin-top:14px"><button class="btn btn-default btn-sm dp-reset-layout">Disposition initiale</button></div>
       <p class="dp-muted dp-layout-status" role="status" style="margin-top:10px">La mise en page s’applique en générant le PDF d’une version, sans nouvelle rédaction IA.</p>
-      </div><div class="dp-preview-column"><div class="dp-actions dp-preview-switch" role="group" aria-label="Aperçu"><button type="button" class="btn btn-xs ${this.liveLayout?'btn-default':'btn-primary'} dp-preview-mode" data-mode="schema">Schéma</button><button type="button" class="btn btn-xs ${this.liveLayout?'btn-primary':'btn-default'} dp-preview-mode" data-mode="pages">Pages PDF en direct</button><span class="dp-muted dp-live-status"></span></div>
-      <div class="dp-layout-preview" ${this.liveLayout?'hidden':''}></div><p class="dp-muted dp-schema-note" style="margin-top:12px" ${this.liveLayout?'hidden':''}>Aperçu de disposition : les blocs sans contenu sont omis du PDF.</p>
-      <div class="dp-live-pages" ${this.liveLayout?'':'hidden'}></div></div></div>`);
-    z.find('.dp-preview-mode').on('click',e=>this.setLiveLayout(e.currentTarget.dataset.mode==='pages'));
+      </div><div class="dp-preview-column"><div class="dp-actions dp-preview-switch"><b>Pages PDF en direct</b><span class="dp-muted dp-live-status"></span></div>
+      <div class="dp-layout-preview"></div>
+      <div class="dp-live-pages"></div></div></div>`);
+    this.liveLayout=true;
     z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
       const position=z.find('.dp-layout-position').val(),maximum=['gauche','droite'].includes(position)?55:80;
       const borne=(selector,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selector).val())||def)));
@@ -241,8 +242,8 @@ class DocumentsProduit {
     z.find('.dp-photo-group').val(String(m.photos_variantes));z.find('.dp-photo-columns').val(String(m.colonnes_photos));
     z.find('.dp-photo-group,.dp-photo-columns,.dp-photo-hauteur,.dp-photo-style,.dp-photo-grande,.dp-photo-grande-largeur,.dp-photo-mosaique-largeur,.dp-variant-table,.dp-legendes,.dp-legende-align,.dp-legende-couleur').on('input change',()=>{const h=Math.max(25,Math.min(90,Math.round(Number(z.find('.dp-photo-hauteur').val())||55))),lg=Math.max(30,Math.min(75,Math.round(Number(z.find('.dp-photo-grande-largeur').val())||62))),lm=Math.max(50,Math.min(100,Math.round(Number(z.find('.dp-photo-mosaique-largeur').val())||100)));this.layouts[this.activeTab]={...this.layoutValues(),largeur_mosaique:lm,photos_variantes:Number(z.find('.dp-photo-group').val()),colonnes_photos:Number(z.find('.dp-photo-columns').val()),hauteur_vignettes:h,style_galerie:z.find('.dp-photo-style').val()||'grille',photo_grande:z.find('.dp-photo-grande').val()||'',largeur_grande:lg,tableau_variantes:z.find('.dp-variant-table').val()||'liste',legendes_galerie:Number(z.find('.dp-legendes').val()),legende_alignement:z.find('.dp-legende-align').val()||'gauche',legende_couleur:z.find('.dp-legende-couleur').val()||'texte'};const mos=this.layoutValues().style_galerie==='mosaique';z.find('.dp-photo-grande-zone').prop('hidden',!mos);z.find('.dp-photo-style-aide').text(mos?'La grande photo à gauche, jusqu’à trois petites empilées à droite (le QR code des illustrations compte comme une petite) ; au-delà, grille. La photo principale (★, étape Préparer) est dans le bloc de présentation, pas dans la galerie.':'');this.renderLayoutPreview();this.layoutChanged();});
     this.renderColumnChoices();this.renderLayoutOrder();this.renderLayoutPreview();
-    z.closest('.dp-card').toggleClass('dp-live-on',!!this.liveLayout);
-    if(this.liveLayout)this.planifierPages('layout',300);
+    z.closest('.dp-card').addClass('dp-live-on');
+    this.planifierPages('layout',300);
   }
   blocSettingsHtml(cle,m,options) {
     if(cle==='presentation')return `<div class="dp-column-choices" role="group" aria-label="Diviser la zone photo et description">
@@ -356,6 +357,7 @@ class DocumentsProduit {
     this.pagesTimer=setTimeout(()=>this.composerPages(cible),delai);
   }
   async composerPages(cible) {
+    if(this.activeStep!==(cible==='layout'?'presenter':'relire'))return;   // l'étape n'est plus affichée : inutile
     if(this.pagesEnCours){this.pagesRelance=cible;return;}
     const zone=cible==='layout'?this.root.find('.dp-live-pages'):this.root.find('.dp-review-live'),statut=cible==='layout'?this.root.find('.dp-live-status'):this.root.find('.dp-review-live-status');
     if(!zone.length)return;
@@ -402,36 +404,8 @@ class DocumentsProduit {
       const image=logo?`<img class="dp-design-brand-logo dp-free-brand-logo" src="${logo}" alt="Logo ${dpEsc(marque.name)}" draggable="false" style="height:${hLogo/h*100}%">`:`<div class="dp-free-placeholder" style="height:${hLogo/h*100}%">${logoAutorise?'Logo à ajouter':'Logo masqué par l’en-tête'}</div>`;
       feuilleLibre=`<p class="dp-muted">Première page · A4 · 210 × 297 mm</p><div class="dp-free-sheet" aria-label="Page A4 pour placer librement le logo">${fond?`<img class="dp-free-background" src="${fond.image}" alt="Première page du document sans la zone de marque" draggable="false">`:'<div class="dp-free-margins"><span>Zone de contenu<br>Actualisez le fond pour voir le document.</span></div>'}<div class="dp-free-brand" role="group" aria-label="Logo déplaçable : utilisez la souris ou les flèches du clavier" tabindex="${this.canMoveLogo()?0:-1}" aria-disabled="${!this.canMoveLogo()}" style="left:${m.logo_x/210*100}%;top:${m.logo_y/297*100}%;width:${m.largeur_logo/210*100}%;height:${h/297*100}%">${image}${m.afficher_nom_marque?`<strong class="dp-free-brand-name" style="height:${8/h*100}%;font-size:calc(${Math.min(3,m.largeur_logo/(Math.max(marque.name.length,1)*.6))} * 100cqw / 210)">${dpEsc(marque.name)}</strong>`:''}</div></div><p class="dp-muted dp-free-coordinates" aria-live="polite">X : ${m.logo_x.toFixed(1)} mm · Y : ${m.logo_y.toFixed(1)} mm</p><button class="btn btn-default btn-sm dp-load-free-background" ${this.freePreviewLoading?'disabled':''}>${this.freePreviewLoading?'Préparation du fond…':'Actualiser le fond PDF'}</button><p class="dp-muted dp-free-background-status" style="margin-top:8px">${this.freePreviewError|| (fond?(fond.exemple?'Fond d’exemple : aucun contenu IA n’a été rédigé.':'Fond issu de la version sélectionnée, avec vos corrections en cours.'): 'Le fond doit être actualisé après un changement du contenu ou de la disposition.')}</p><p class="dp-muted" style="margin-top:18px"><b>Disposition des blocs</b> — schéma ; le logo, placé librement ci-dessus, n’y figure pas.</p>`;
     }
-    const contenuMarque=logo?`<img class="dp-design-brand-logo" src="${logo}" alt="Logo ${dpEsc(marque.name)}" style="width:${m.largeur_logo*1.8}px;max-height:${m.largeur_logo*18/32*1.8}px">`:logoAutorise?`<span class="dp-design-brand-placeholder">${this.brandLoading?'Chargement du logo…':'Logo '+dpEsc(marque.name||'de marque')+' à ajouter'}</span>`:'';
-    const zoneMarque=m.position_marque!=='masquee'&&(contenuMarque||m.afficher_nom_marque)?`<div class="dp-design-brand" data-brand-position="${m.position_marque}" style="text-align:${alignMarque}">${contenuMarque}${m.afficher_nom_marque?`<strong class="dp-design-brand-name">${dpEsc(marque.name)}</strong>`:''}</div>`:'';
-    const alignQr={gauche:'left',centre:'center',droite:'right'}[m.qr_alignement],tailleQr=m.qr_taille*1.8;
-    const zoneQr=m.qr_url?`<div class="dp-design-qr" style="text-align:${alignQr}">${this.qrPreview?.url===m.qr_url&&this.qrPreview.image?`<img src="${this.qrPreview.image}" alt="QR code vers ${dpEsc(m.qr_url)}" style="width:${tailleQr}px;height:${tailleQr}px">`:`<span class="dp-design-brand-placeholder" style="display:inline-flex;width:${tailleQr}px;height:${tailleQr}px;align-items:center;justify-content:center">QR</span>`}${m.qr_legende?`<small style="display:block">${dpEsc(m.qr_legende)}</small>`:''}</div>`:'';
-    const zones=p=>(m.position_marque===p?zoneMarque:'')+(m.qr_position===p?zoneQr:'');
-    const titre=this.root.find('.dp-title').val()??c?.titre??this.typeActif(),resume=this.root.find('.dp-summary').val()??c?.resume??'Description du produit, rédigée à partir des informations disponibles.';
-    const couleur=/^#[0-9a-f]{6}$/i.test(m.couleur)?m.couleur:'#087E8B',align={gauche:'left',centre:'center',droite:'right'}[m.alignement_titre];
-    const cote=['gauche','droite'].includes(m.position_photo),largeur=Math.min(cote?55:80,m.largeur_photo),hauteur=Math.min(120,m.hauteur_photo)*1.4;
-    const photo=`<div class="dp-design-photo" style="${cote?'':`width:${largeur}%;margin-left:auto;margin-right:auto;`}">${im?`<img src="${dpUrl(im.image)}" alt="${dpEsc(im.legende||'Photo principale')}" style="max-height:${hauteur}px">`:`<div class="dp-design-placeholder" style="height:${hauteur}px">Photo principale</div>`}<small>${dpEsc(im?.legende||'Légende')}</small></div>`;
-    const description=`<div class="dp-design-description">${dpEsc(resume.slice(0,210))}${resume.length>210?'…':''}</div>`;
-    const parties=['avant','gauche'].includes(m.position_photo)?[photo,description]:[description,photo];
-    const ratio=m.position_photo==='gauche'?largeur:100-largeur;
-    const presentation=`<div class="dp-design-presentation ${cote?'dp-design-columns':''}" style="${cote?`grid-template-columns:minmax(0,${ratio}fr) minmax(0,${100-ratio}fr)`:''}">${parties.join('')}</div>`;
-    const hVignette=m.colonnes_photos>1?Math.round(m.hauteur_vignettes*0.9):55;
-    const img=p=>`<img src="${dpUrl(p.image)}" alt="${dpEsc(p.legende)}" style="height:${hVignette}px">`;
-    const grille=(photos,extra='')=>{
-      let tete='';
-      if(m.style_galerie==='mosaique'&&photos.length+(extra?1:0)>=2&&photos.length){
-        const gi=Math.max(0,photos.findIndex(p=>m.photo_grande&&p.image===m.photo_grande)),grande=photos[gi];photos=photos.filter((_,i)=>i!==gi);
-        let petites=photos.slice(0,3);const qrDedans=extra&&petites.length<3;
-        tete=`<div class="dp-photo-mosaic" style="grid-template-columns:${m.largeur_grande}% 1fr;width:${m.largeur_mosaique}%;margin-left:auto;margin-right:auto"><img class="dp-photo-mosaic-grande" src="${dpUrl(grande.image)}" alt="${dpEsc(grande.legende)}" style="height:${hVignette*(petites.length+(qrDedans?1:0))+6*(petites.length+(qrDedans?1:0)-1)}px">${petites.map(img).join('')}${qrDedans?extra:''}</div>`;
-        photos=photos.slice(3);if(qrDedans)extra='';}
-      return tete+(photos.length||extra?`<div class="dp-photo-mini-grid" style="grid-template-columns:repeat(${Math.max(m.colonnes_photos,tete?2:1)},minmax(0,1fr))">${photos.map(img).join('')}${extra}</div>`:'');};
-    const variantes=this.configValues().variantes.map(v=>v.article),supp=images.slice(1),communes=supp.filter(p=>!m.photos_variantes||!variantes.includes(p.article)||(m.photos_variantes===2&&supp.find(q=>q.article===p.article)!==p));
-    const illustrees=variantes.filter(v=>supp.some(p=>p.article===v)),sansPhoto=variantes.length-illustrees.length;
-    const apercuVariantes=illustrees.slice(0,3).map(v=>`<div class="dp-design-block"><b>${dpEsc(v)}</b>${grille(supp.filter(p=>p.article===v))}</div>`).join('')+(illustrees.length>3?`<div class="dp-sheet-small">+ ${illustrees.length-3} variantes illustrées dans le PDF</div>`:'')+(sansPhoto?`<div class="dp-design-block">Tableau : ${sansPhoto} variantes sans autre photo</div>`:'');
-    // Dans les illustrations, le QR est une vignette de la grille (il prend la case libre), avec sa légende.
-    const qrTuile=m.qr_position==='illustrations'&&zoneQr?`<div class="dp-design-qr-tile">${zoneQr}</div>`:'';
-    const blocs={presentation,rubriques:`<div class="dp-design-block">${this.activeTab==='manuel'?'Installation · Utilisation<br>Entretien · Dépannage':'Présentation · Applications'}</div>`,caracteristiques:'<div class="dp-sheet-table">Caractéristiques techniques</div>',variantes:m.photos_variantes===1?apercuVariantes:`<div class="dp-design-block">${m.tableau_variantes==='croise'?'Tableau croisé des variantes':'Tableau des variantes'}${m.photos_variantes===2&&illustrees.length?` · ${illustrees.length} vignette${illustrees.length>1?'s':''}`:''}</div>`,illustrations:`<div class="dp-design-block">Autres illustrations${communes.length||qrTuile?grille(communes,qrTuile):''}</div>`};
-    this.root.find('.dp-layout-preview').html(feuilleLibre+`<div class="dp-sheet dp-design-sheet" aria-label="Aperçu de la mise en page"><div class="dp-sheet-header">${entete?'En-tête : '+dpEsc(entete):'Document A4'}</div>${zones('avant_titre')}<div class="dp-sheet-title" style="color:${couleur};text-align:${align}">${dpEsc(titre)}</div><div class="dp-sheet-small" style="text-align:${align}">${dpEsc(marque.name)} · ${dpEsc(ctx.article.name)}</div>${zones('apres_titre')}<div class="dp-design-blocks" style="--dp-accent:${couleur}">${m.ordre.map(k=>`<div data-preview-block="${k}">${blocs[k]}</div>`).join('')}</div>${zones('fin_document')}<div class="dp-sheet-footer">Pied de page et numéro de page</div></div>`);
+    // Le schéma de disposition a été retiré (06/11/2026) : les vraies pages PDF, à côté, font office d'aperçu.
+    this.root.find('.dp-layout-preview').html(feuilleLibre);
     if(feuilleLibre)this.bindFreeLogo();
   }
   // ---------------------------------------------------------------- variantes (étape 1)
@@ -676,13 +650,11 @@ class DocumentsProduit {
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
       <label class="dp-label">Points à vérifier avant validation — retirez chaque point une fois résolu</label><textarea class="form-control dp-checks" placeholder="Aucun point en attente">${dpEsc(c.points_a_verifier.join('\n'))}</textarea>
       <details style="margin-top:14px"><summary>Variantes et sources de cette version</summary><div class="dp-table-wrap"><table class="dp-table">${c.variantes.map(v=>`<tr><td>${dpEsc(v.article)}</td><td>${dpEsc(v.marque)}</td><td>${v.attributs.map(a=>dpEsc(a.nom+' : '+a.valeur)).join('<br>')}</td></tr>`).join('')}</table></div>${(ctx.preuves||[]).map(p=>`<details><summary>${dpEsc(p.source+' · '+p.fichier)}</summary><div style="white-space:pre-wrap;padding:10px">${dpEsc(p.texte)}</div></details>`).join('')}</details></div>
-      <div class="dp-review-pdf"><div class="dp-actions dp-preview-switch" role="group" aria-label="Aperçu"><button type="button" class="btn btn-xs ${this.liveReview?'btn-default':'btn-primary'} dp-review-mode" data-mode="saved">PDF enregistré</button><button type="button" class="btn btn-xs ${this.liveReview?'btn-primary':'btn-default'} dp-review-mode" data-mode="live">Pages en direct</button><span class="dp-muted dp-review-live-status"></span></div>
-      <div class="dp-review-saved" ${this.liveReview?'hidden':''}>${doc.pdf?`<iframe class="dp-preview" title="Aperçu PDF" src="${dpUrl(doc.pdf)}#toolbar=1"></iframe>`:'<div class="dp-muted" style="margin-top:12px">Pas encore de PDF pour cette version : relisez, puis cliquez sur « Générer le PDF » — ou passez en « Pages en direct ».</div>'}</div>
-      <div class="dp-review-live" ${this.liveReview?'':'hidden'}></div></div></div>`);
-    z.find('.dp-editor').on('input change',()=>{this.dirty=true;this.renderLayoutPreview();this.updateBar();if(this.liveReview)this.planifierPages('review',1500);});
-    z.find('.dp-review-mode').on('click',e=>this.setLiveReview(e.currentTarget.dataset.mode==='live'));
-    z.find('.dp-review').addClass('dp-review-split');
-    if(this.liveReview)this.planifierPages('review',300);
+      <div class="dp-review-pdf"><div class="dp-actions dp-preview-switch"><b>Pages PDF en direct</b><span class="dp-muted dp-review-live-status"></span>${doc.pdf?`<a class="btn btn-xs btn-default" href="${dpUrl(doc.pdf)}" target="_blank" rel="noopener">Ouvrir le PDF enregistré</a>`:''}</div>
+      <div class="dp-review-live"></div></div></div>`);
+    z.find('.dp-editor').on('input change',()=>{this.dirty=true;this.renderLayoutPreview();this.updateBar();this.planifierPages('review',1500);});
+    this.liveReview=true;
+    if(this.activeStep==='relire')this.planifierPages('review',300);
     z.find('.dp-remove-section,.dp-remove-carac').on('click',e=>{$(e.currentTarget).closest('.dp-section,tr').remove();this.dirty=true;this.updateBar();});
     const add=(key,row)=>{this.current.contenu=this.captureDocument();this.current.contenu[key].push(row);this.renderDocument();this.dirty=true;this.updateBar();};
     z.find('.dp-add-section').on('click',()=>add('sections',{titre:'Nouvelle rubrique',texte:'',article:'',source:'Saisie manuelle'}));
