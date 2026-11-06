@@ -457,17 +457,14 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			# que les bas s'alignent ; sinon la grande suit la colonne des petites.
 			part = disposition.get("largeur_grande", 62) / 100          # part de la ligne pour la grande photo
 			espace = 11 if disposition.get("legendes_galerie", 1) else 4  # entre deux petites : légende éventuelle, \par, centrage
-			dims = (assets.get("dimensions") or {}).get(assets["images"][indices[0]])
-			if dims and dims[0] > 0:
-				hauteur_grande = min(174 * part * disposition.get("largeur_mosaique", 100) / 100 * dims[1] / dims[0], 160)
-				petite = max(18, min(hauteur, (hauteur_grande - espace * (nb - 1)) / max(1, nb)))
-			else:
-				petite = hauteur
-				hauteur_grande = petite * nb + espace * (nb - 1)
-			grande = photo(indices[0], 1, round(hauteur_grande, 1), portee)
+			# Les petites gardent la hauteur réglée (une grande très large et basse — un logo — les écrasait, 06/11/2026) ;
+			# la grande prend la hauteur de la colonne et s'y centre verticalement, à largeur bornée par sa colonne.
+			petite = hauteur
+			hauteur_colonne = petite * nb + espace * (nb - 1)
+			grande = photo(indices[0], 1, round(hauteur_colonne, 1), portee)
 			colonne = "\n".join([photo(i, 1, round(petite, 1), portee) for i in petites] + ([extra_dans_mosaique] if extra_dans_mosaique else []))
-			ligne = (r"\noindent\begin{minipage}[t]{" + f"{part:.2f}" + r"\linewidth}\vspace{0pt}\small " + grande + r"\end{minipage}\hfill"
-				+ r"\begin{minipage}[t]{" + f"{0.97 - part:.2f}" + r"\linewidth}\vspace{0pt}\small " + colonne + r"\end{minipage}")
+			ligne = (r"\noindent\begin{minipage}[c][" + f"{hauteur_colonne + 8:.0f}" + r"mm][c]{" + f"{part:.2f}" + r"\linewidth}\small " + grande + r"\end{minipage}\hfill"
+				+ r"\begin{minipage}[c][" + f"{hauteur_colonne + 8:.0f}" + r"mm][c]{" + f"{0.97 - part:.2f}" + r"\linewidth}\small " + colonne + r"\end{minipage}")
 			totale = disposition.get("largeur_mosaique", 100) / 100
 			if totale < 1:
 				# Mosaïque moins large que la ligne : centrée, ses proportions internes conservées.
@@ -604,15 +601,21 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			n = len(croise["entetes"])
 			largeurs = [.22] + [(.96 - .22) / (n - 1)] * (n - 1)
 			# Colonnes m{} : cellules centrées verticalement, les vignettes ne poussent pas le texte en bas.
-			colonnes = "".join(r">{\raggedright\arraybackslash}m{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs)
+			# Première colonne à gauche, cellules de variantes centrées (image, libellé, complément).
+			colonnes = r">{\raggedright\arraybackslash}m{" + f"{largeurs[0]:.3f}" + r"\linewidth}" + "".join(
+				r">{\centering\arraybackslash}m{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs[1:])
+			par_nom = disposition.get("libelle_croise") == "nom"
+			noms_variantes = {v["article"]: v.get("nom", "") for v in tabulees}
 
 			def cellule(items):
 				parts = []
 				for it in items:
 					vue = vignette(it["article"], 12)
-					parts.append((vue + r"\par " if vue else "") + r"\mbox{" + t(it["article"]) + "}"
-						+ ((r"\par{\small " + t(it["complement"]) + "}") if it["complement"] else "")
-						+ ((r"\par{\small\itshape " + t(it["nom"]) + "}") if it.get("nom") else ""))
+					libelle = (noms_variantes.get(it["article"]) or it["article"]) if par_nom else it["article"]
+					parts.append((vue + r"\par " if vue else "") + (t(libelle) if par_nom else r"\mbox{" + t(libelle) + "}")
+						# Le reste des attributs (ex. avec / sans mixage) en gras rouge : c'est ce qui distingue deux variantes d'une même cellule.
+						+ ((r"\par{\small\bfseries\color[HTML]{C00000} " + t(it["complement"]) + "}") if it["complement"] else "")
+						+ ((r"\par{\small\itshape " + t(it["nom"]) + "}") if it.get("nom") and not par_nom else ""))
 				return r"\par\smallskip ".join(parts)
 
 			# Case d'angle : l'attribut des lignes en gras, celui des colonnes dessous avec une flèche vers les colonnes.

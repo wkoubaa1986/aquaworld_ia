@@ -336,7 +336,10 @@ class TestGalerieMosaique(unittest.TestCase):
 			self.assertAlmostEqual(grande.width, 0.62 * 174 * 72 / 25.4, delta=1 * 72 / 25.4)
 			petites = [r for r in rects if r.x0 > grande.x1 - 1 and r.y0 < grande.y1]
 			self.assertEqual(len(petites), 3)                                               # trois empilées à droite
-			self.assertLess(abs(max(r.y1 for r in petites) - grande.y1), 4 * 72 / 25.4)     # bas alignés (± 4 mm)
+			# Les petites gardent 32 mm ; la grande est centrée verticalement face à la colonne (06/11/2026).
+			self.assertTrue(all(abs(r.height - 32 * 72 / 25.4) < 1 for r in petites))
+			milieu_colonne = (min(r.y0 for r in petites) + max(r.y1 for r in petites)) / 2
+			self.assertLess(abs((grande.y0 + grande.y1) / 2 - milieu_colonne), 10 * 72 / 25.4)
 			self.assertEqual(len([r for r in rects if r.y0 > grande.y1 + 5]), 3)            # vues 5 à 7 en grille dessous
 		# Avec une seule autre photo, pas de mosaïque : galerie ordinaire.
 		ctx["images"] = ctx["images"][:2]

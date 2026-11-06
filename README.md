@@ -595,7 +595,11 @@ qui réordonnent le document et le panneau à la fois ; le QR code, placé à la
 la liste. Chaque bloc porte ses propres réglages (galeries, mosaïque, légendes sous « Autres
 illustrations » ; tableau et vignettes sous « Tableau des variantes »). **Largeur totale de la
 mosaïque** (50–100 % de la ligne) : en dessous de 100, la mosaïque est centrée ; la largeur de la
-grande photo s’exprime en % de la mosaïque.
+grande photo s’exprime en % de la mosaïque. Les petites gardent la hauteur de vignette réglée ; la grande prend la hauteur de la colonne et
+s’y centre verticalement (une grande très large et basse — un logo — écrasait les petites auparavant).
+**Tableau croisé** : cellules de variantes centrées (image, libellé, complément), libellé au choix
+(*Référence* ou *Nom complet de la variante*, réglage « Libellé dans le tableau croisé »), et le reste
+des attributs (ex. avec / sans mixage) en gras rouge (06/11/2026).
 
 **Mise en page** permet de définir une disposition différente par onglet
 et par dossier. La **Zone photo et description** propose **Une colonne** ou **Deux colonnes**
