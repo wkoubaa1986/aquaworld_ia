@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 aquaworld_ia.patches.v0_7.tarifs_texte_auto
 aquaworld_ia.patches.v0_25.reparer_fichiers_doubles
+aquaworld_ia.patches.v0_44.role_aquaworld_ia_equipe
