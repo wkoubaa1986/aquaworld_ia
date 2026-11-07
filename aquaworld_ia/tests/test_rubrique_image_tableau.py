@@ -238,3 +238,29 @@ class TestCaracteristiquesVides(unittest.TestCase):
 		c["caracteristiques"] = [{"nom": f"C{i}", "valeur": "1", "unite": "", "article": "", "source": ""} for i in range(251)]
 		with self.assertRaises(ValueError):
 			S.normaliser(c, ctx)
+
+
+class TestPointsResolus(unittest.TestCase):
+	"""07/11/2026 : les points à vérifier en liste, un clic les barre (résolus). Les résolus sont conservés à part,
+	traduits avec la version, absents quand il n'y en a pas (empreinte des anciennes versions)."""
+
+	def test_points_resolus(self):
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		c["points_a_verifier"] = ["Débit à confirmer", ""]
+		c["points_resolus"] = ["Pression vérifiée", None]
+		out = S.normaliser(c, ctx)
+		self.assertEqual(out["points_a_verifier"], ["Débit à confirmer"])
+		self.assertEqual(out["points_resolus"], ["Pression vérifiée"])
+		self.assertIn(("points_resolus", 0), S.champs_traduisibles(out))
+		c["points_resolus"] = []
+		self.assertNotIn("points_resolus", S.normaliser(c, ctx))
+		c["points_resolus"] = ["x"] * 81
+		with self.assertRaises(ValueError):
+			S.normaliser(c, ctx)
+		# Seuls les points ouverts figurent dans le PDF brouillon et bloquent la validation.
+		c["points_resolus"] = ["Pression vérifiée"]
+		tex = L.source(S.normaliser(c, ctx), ctx)
+		self.assertIn("Débit à confirmer", tex)
+		self.assertNotIn("Pression vérifiée", tex)
+

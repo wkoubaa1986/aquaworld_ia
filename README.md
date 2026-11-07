@@ -589,6 +589,13 @@ contenu que lorsqu’elles sont remplies : relire une ancienne version sans y to
 de nouvelle version. L’image doit être un fichier lisible par l’utilisateur (contrôle à
 l’enregistrement et à la composition).
 
+**Points à vérifier en liste** (étape Relire, 07/11/2026 : « les sortir en bullet points, cliquer dessus comme si
+c’est barré et validé ») : chaque point est une ligne de liste ; un clic sur le point (ou son rond) le barre et le
+marque résolu, un second clic le rouvre, × le retire, un champ ajoute un point, « Tout marquer résolu » barre tout.
+Les points résolus sont conservés dans la version (`points_resolus`, clé absente quand vide), traduits avec elle, mais
+ne figurent pas dans le PDF brouillon et ne bloquent plus **Valider** : seuls les points ouverts comptent (colonne
+des étapes, garde-fou serveur). Enregistrer après avoir cliqué, comme pour toute correction.
+
 **Éditeur des rubriques** (étape Relire, 07/11/2026 : « déplacer les parties en haut et en bas, ajouter image, graphe
 ou tableau générés par IA ou depuis le PC, les retravailler par IA, plusieurs dispositions ») : chaque rubrique porte
 son numéro, son titre, les flèches **↑ ↓** qui la déplacent, et **×** (confirmation si elle a un contenu). Sous le

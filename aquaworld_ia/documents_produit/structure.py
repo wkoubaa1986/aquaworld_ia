@@ -183,7 +183,7 @@ def normaliser(data, contexte):
 	if isinstance(data.get("caracteristiques"), list):
 		data = {**data, "caracteristiques": [c for c in data["caracteristiques"]
 			if isinstance(c, dict) and (str(c.get("nom") or "").strip() or str(c.get("valeur") or "").strip())]}
-	for cle, limite in (("sections", 40), ("caracteristiques", 250), ("points_a_verifier", 80)):
+	for cle, limite in (("sections", 40), ("caracteristiques", 250), ("points_a_verifier", 80), ("points_resolus", 80)):
 		if not isinstance(data.get(cle, []), list) or len(data.get(cle, [])) > limite:
 			raise ValueError("Liste documentaire invalide : " + cle)
 	for s in data.get("sections", []):
@@ -199,6 +199,11 @@ def normaliser(data, contexte):
 			}
 		)
 	out["points_a_verifier"] = [texte(p, 1000) for p in data.get("points_a_verifier", []) if p]
+	# Points marqués résolus à l'écran (barrés) : conservés pour mémoire, ils ne bloquent plus la validation et ne
+	# figurent pas dans le PDF. La clé n'existe que remplie (empreinte des anciennes versions) — demande 07/11/2026.
+	resolus = [texte(p, 1000) for p in data.get("points_resolus", []) or [] if p]
+	if resolus:
+		out["points_resolus"] = resolus
 	# Ces données proviennent des articles, pas d'une invention du modèle.
 	out["variantes"] = copy.deepcopy(
 		data.get("variantes")
@@ -257,6 +262,7 @@ def champs_traduisibles(contenu):
 		for r, ligne in enumerate(s.get("tableau") or []):
 			paths += [("sections", i, "tableau", r, c) for c in range(len(ligne))]
 	paths += [("points_a_verifier", i) for i in range(len(contenu["points_a_verifier"]))]
+	paths += [("points_resolus", i) for i in range(len(contenu.get("points_resolus") or []))]
 	paths += [("legendes", i) for i in range(len(contenu["legendes"]))]
 	for i, v in enumerate(contenu["variantes"]):
 		paths.append(("variantes", i, "nom"))

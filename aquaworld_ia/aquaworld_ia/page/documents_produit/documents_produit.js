@@ -108,7 +108,7 @@ class DocumentsProduit {
     const v=this.configValues(),d=this.data,versions=this.documentsActifs(),m=this.layoutValues();
     const marque=this.brandInfo,logo=marque&&dpUrl(marque.logo);
     const defaut=JSON.stringify({...dpLayoutDefault(),...m})===JSON.stringify(dpLayoutDefault());
-    const points=this.current&&this.current.doc.type_document===this.typeActif()?(this.root.find('.dp-checks').val()||'').split('\n').filter(s=>s.trim()).length:null;
+    const points=this.current&&this.current.doc.type_document===this.typeActif()?this.root.find('.dp-check:not(.resolu)').length:null;
     const fr=versions.filter(x=>x.langue==='fr').length,valides=versions.filter(x=>x.statut==='Validé').length;
     return {
       preparer:[
@@ -167,7 +167,7 @@ class DocumentsProduit {
           <li><strong>Rédiger.</strong> <b>Régler les modèles par outil</b> ouvre les réglages IA. Cliquez sur <b>${creer}</b> : l’IA rédige le contenu et enregistre une version française ; le coût estimé apparaît dans l’historique du dossier.
             <p>${manuel?'Les rubriques couvrent les étapes d’installation, de mise en service, d’utilisation, d’entretien et de dépannage selon les sources. Relisez en particulier les procédures, les réglages et les consignes de sécurité.':'L’IA prépare le titre, la présentation, les rubriques et les caractéristiques. La structure est prévue par l’outil ; les informations disponibles déterminent les rubriques remplies.'}</p>
           </li>
-          <li><strong>Relire et produire.</strong> Choisissez une version, corrigez le titre, la présentation, les rubriques, les caractéristiques et les légendes, puis <b>Enregistrer</b>. Résolvez les <b>Points à vérifier</b> et retirez-les de la liste. <b>Générer le PDF</b> compose le document sans appel IA ; <b>Valider et générer le PDF</b> fige la version. <b>Traduire</b> crée une version dans une autre langue, à relire avant son PDF.
+          <li><strong>Relire et produire.</strong> Choisissez une version, corrigez le titre, la présentation, les rubriques, les caractéristiques et les légendes, puis <b>Enregistrer</b>. Traitez chaque <b>point à vérifier</b> et cliquez-le pour le marquer résolu (barré) ; seuls les points ouverts bloquent la validation. <b>Générer le PDF</b> compose le document sans appel IA ; <b>Valider et générer le PDF</b> fige la version. <b>Traduire</b> crée une version dans une autre langue, à relire avant son PDF.
             <p>Chaque rubrique se déplace avec <b>↑ ↓</b>. Sous son texte : <b>Ajouter une image ou un graphe</b> (fichier du dossier ou du PC, illustration générée par l’IA, ou graphe préparé par l’IA depuis les données du document) et <b>Ajouter un tableau</b> (vide, ou rédigé par l’IA). Chaque élément a sa <b>disposition</b> (à droite ou à gauche du texte, dessous, dessus), sa largeur et sa légende ; une image se retouche par l’IA, un graphe ou un tableau se modifie par l’IA avec une instruction.</p></li>
         </ol>
         <div class="dp-help-grid">
@@ -706,7 +706,9 @@ class DocumentsProduit {
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
       <label class="dp-label">Caractéristiques techniques</label><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
-      <label class="dp-label">Points à vérifier avant validation — retirez chaque point une fois résolu</label><textarea class="form-control dp-checks" placeholder="Aucun point en attente">${dpEsc(c.points_a_verifier.join('\n'))}</textarea>
+      <label class="dp-label">Points à vérifier avant validation — cliquez un point pour le marquer résolu (barré), cliquez de nouveau pour le rouvrir ; × le retire. Seuls les points ouverts bloquent la validation.</label>
+      <ul class="dp-checks">${[...c.points_a_verifier.map(p=>[p,0]),...(c.points_resolus||[]).map(p=>[p,1])].map(([p,ok])=>`<li class="dp-check ${ok?'resolu':''}" data-resolu="${ok}"><button type="button" class="dp-check-toggle" aria-pressed="${!!ok}" title="${ok?'Rouvrir ce point':'Marquer résolu'}">${ok?'✔':''}</button><span class="dp-check-text">${dpEsc(p)}</span><button type="button" class="btn btn-xs btn-default dp-check-remove" title="Retirer ce point">×</button></li>`).join('')||'<li class="dp-muted dp-check-none">Aucun point en attente</li>'}</ul>
+      <div class="dp-actions"><input class="form-control input-sm dp-check-new" placeholder="Ajouter un point à vérifier…" maxlength="1000"><button type="button" class="btn btn-default btn-xs dp-check-add">Ajouter</button>${c.points_a_verifier.length>1?'<button type="button" class="btn btn-default btn-xs dp-check-all">Tout marquer résolu</button>':''}</div>
       <details style="margin-top:14px"><summary>Variantes et sources de cette version</summary><div class="dp-table-wrap"><table class="dp-table">${c.variantes.map(v=>`<tr><td>${dpEsc(v.article)}</td><td>${dpEsc(v.marque)}</td><td>${v.attributs.map(a=>dpEsc(a.nom+' : '+a.valeur)).join('<br>')}</td></tr>`).join('')}</table></div>${(ctx.preuves||[]).map(p=>`<details><summary>${dpEsc(p.source+' · '+p.fichier)}</summary><div style="white-space:pre-wrap;padding:10px">${dpEsc(p.texte)}</div></details>`).join('')}</details></div>
       <div class="dp-review-pdf"><div class="dp-actions dp-preview-switch"><b>Pages PDF en direct</b><span class="dp-muted dp-review-live-status"></span>${doc.pdf?`<a class="btn btn-xs btn-default" href="${dpUrl(doc.pdf)}" target="_blank" rel="noopener">Ouvrir le PDF enregistré</a>`:''}</div>
       <div class="dp-review-live"></div></div></div>`);
@@ -717,6 +719,13 @@ class DocumentsProduit {
     const add=(key,row)=>{this.current.contenu=this.captureDocument();this.current.contenu[key].push(row);this.renderDocument();this.dirty=true;this.updateBar();};
     z.find('.dp-add-section').on('click',()=>add('sections',{titre:'Nouvelle rubrique',texte:'',article:'',source:'Saisie manuelle'}));
     this.bindSectionExtras(z);
+    // Points à vérifier en liste (demande 07/11/2026) : un clic barre le point (résolu), un autre le rouvre ; × le retire.
+    const pointsChanges=()=>{this.dirty=true;this.updateBar();this.renderLayoutPreview();this.planifierPages('review',1500);};
+    z.find('.dp-check-toggle,.dp-check-text').on('click',e=>{const li=$(e.currentTarget).closest('.dp-check'),ok=li.attr('data-resolu')!=='1';li.attr('data-resolu',ok?'1':'0').toggleClass('resolu',ok);li.find('.dp-check-toggle').text(ok?'✔':'').attr({'aria-pressed':String(ok),title:ok?'Rouvrir ce point':'Marquer résolu'});pointsChanges();});
+    z.find('.dp-check-remove').on('click',e=>{$(e.currentTarget).closest('.dp-check').remove();if(!z.find('.dp-check').length)z.find('.dp-checks').html('<li class="dp-muted dp-check-none">Aucun point en attente</li>');pointsChanges();});
+    z.find('.dp-check-all').on('click',()=>{z.find('.dp-check:not(.resolu) .dp-check-toggle').trigger('click');});
+    const ajouterPoint=()=>{const t=(z.find('.dp-check-new').val()||'').trim();if(!t)return;this.current.contenu=this.captureDocument();this.current.contenu.points_a_verifier.push(t);this.renderDocument();this.dirty=true;this.updateBar();};
+    z.find('.dp-check-add').on('click',ajouterPoint);z.find('.dp-check-new').on('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ajouterPoint();}});
     z.find('.dp-add-carac').on('click',()=>add('caracteristiques',{nom:'',valeur:'',unite:'',article:'',source:'Saisie manuelle'}));
     z.find('.dp-translate').on('click',()=>this.translation());
     z.find('.dp-pdf').on('click',()=>this.lancer('pdf'));
@@ -840,10 +849,11 @@ class DocumentsProduit {
         d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">Réécriture en cours… (10 à 40 s)</p>');
         try{
           const r=await dpCall('reecrire_partie',{name:this.name,document_name:this.current.doc.name,cible,instruction:v.instruction,contenu:this.captureDocument()});
-          if(cible.type==='resume')z.find('.dp-summary').val(r.texte);
-          else{rubrique.find('.dp-section-text').val(r.texte);if(r.titre)rubrique.find('.dp-section-name').val(r.titre);if(r.source)rubrique.find('.dp-section-source').val(r.source);}
-          if(r.points_a_verifier?.length){const ch=z.find('.dp-checks');ch.val([ch.val().trim(),...r.points_a_verifier].filter(Boolean).join('\n'));}
-          this.dirty=true;this.updateBar();this.renderLayoutPreview();d.hide();
+          const c=this.captureDocument();
+          if(cible.type==='resume')c.resume=r.texte;
+          else{const s=c.sections[cible.index];s.texte=r.texte;if(r.titre)s.titre=r.titre;if(r.source)s.source=r.source;}
+          if(r.points_a_verifier?.length)c.points_a_verifier=[...c.points_a_verifier,...r.points_a_verifier];
+          this.current.contenu=c;this.renderDocument();this.dirty=true;this.updateBar();d.hide();
           frappe.show_alert({message:'Partie réécrite : relisez, puis Enregistrer.',indicator:'green'});
         }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'La réécriture a échoué. Reformulez l’instruction et réessayez.')}</div>`);}
       }});
@@ -870,7 +880,8 @@ class DocumentsProduit {
     // Seulement le tableau des caractéristiques (pas ceux des rubriques ni des variantes), sans les lignes vides :
     // elles étaient capturées comme caractéristiques et faisaient dépasser la limite (06/11/2026, AP-M).
     c.caracteristiques=z.find('.dp-caracs tbody tr').map((_,el)=>{const r={};$(el).find('[data-key]').each((_,f)=>r[$(f).attr('data-key')]=$(f).val());return r;}).get().filter(r=>(r.nom||'').trim()||(r.valeur||'').trim());
-    c.points_a_verifier=(z.find('.dp-checks').val()||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    const lirePoints=resolu=>z.find('.dp-check').filter((_,el)=>(el.dataset.resolu==='1')===resolu).map((_,el)=>$(el).find('.dp-check-text').text().trim()).get().filter(Boolean);
+    c.points_a_verifier=lirePoints(false);const resolus=lirePoints(true);if(resolus.length)c.points_resolus=resolus;else delete c.points_resolus;
     c.legendes=z.find('.dp-doc-caption').map((_,el)=>el.value).get();return c;
   }
   async saveDocument() {
