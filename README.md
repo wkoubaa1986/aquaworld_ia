@@ -577,17 +577,40 @@ l’en-tête et la mise en page actuels du dossier, et montre ses pages (20 au p
 Rien n’est enregistré, aucun appel IA ; pour conserver le résultat : Enregistrer puis Générer le PDF.
 
 **Image et tableau dans une rubrique** (étape Relire, 06/11/2026) : sous le texte de chaque
-rubrique, **Ajouter une image (graphe, schéma)** choisit une photo du dossier ou importe un fichier
+rubrique, **Ajouter une image ou un graphe → Depuis le dossier ou mon PC** choisit une photo du dossier ou importe un fichier
 (PNG, JPG, SVG — par exemple un graphe exporté d’Excel), puis **Disposition** (texte à gauche ·
 image à droite, image à gauche · texte à droite, image sous le texte, image au-dessus), largeur
-(20–60 % en colonne, jusqu’à 100 % dessous/dessus) et légende. **Ajouter un tableau** ouvre une
+(20–60 % en colonne, jusqu’à 100 % dessous/dessus) et légende. **Ajouter un tableau → Tableau vide** ouvre une
 grille (première ligne = en-têtes, jusqu’à 8 colonnes et 40 lignes, + / − ligne et colonne) placée
-sous le texte. Dans le PDF, l’image à côté du texte est composée en deux colonnes alignées en
+sous le texte (sa disposition se règle ensuite, voir « Éditeur des rubriques »). Dans le PDF, l’image à côté du texte est composée en deux colonnes alignées en
 haut (`paracol`), le tableau avec des lignes fines et l’en-tête en gras ; les légendes et les
 cellules sont traduites avec la version, valeurs et unités protégées. Ces clés n’existent dans le
 contenu que lorsqu’elles sont remplies : relire une ancienne version sans y toucher ne crée pas
 de nouvelle version. L’image doit être un fichier lisible par l’utilisateur (contrôle à
 l’enregistrement et à la composition).
+
+**Éditeur des rubriques** (étape Relire, 07/11/2026 : « déplacer les parties en haut et en bas, ajouter image, graphe
+ou tableau générés par IA ou depuis le PC, les retravailler par IA, plusieurs dispositions ») : chaque rubrique porte
+son numéro, son titre, les flèches **↑ ↓** qui la déplacent, et **×** (confirmation si elle a un contenu). Sous le
+texte, deux menus : **Ajouter une image ou un graphe** — *Depuis le dossier ou mon PC*, *✦ Illustration générée par
+l’IA* (modèle image, prompt : sujet du produit, rubrique, instruction, fond blanc sans texte ni chiffre ; fichier privé
+joint au dossier, format carré / paysage / portrait), *✦ Graphe depuis les données (IA)* — et **Ajouter un tableau** —
+*Tableau vide* ou *✦ Tableau rédigé par l’IA*. Une image posée se **retouche par l’IA** (l’image actuelle sert de
+référence à `images.edit`) ou se remplace ; un graphe ou un tableau se **modifie par l’IA** avec une instruction, en
+partant de l’existant. Le **graphe** n’est pas une image : c’est une structure de données (`graphe` : type barres /
+barres_horizontales / courbe / secteurs, titre, axes, unité, ≤ 12 catégories, ≤ 4 séries) que le PDF compose en
+vectoriel avec pgfplots / pgf-pie (couleur des titres, chiffres en police du document) ; ses libellés sont traduits
+avec la version, ses valeurs non. À l’écran, un aperçu SVG simplifié ; les pages PDF en direct montrent le rendu réel.
+**Les nombres ne viennent jamais du modèle** (`documents_produit/illustrations.py`) : chaque valeur d’un graphe ou d’un
+tableau proposé par l’IA doit déjà figurer dans le document à l’écran, le contexte (article, variantes,
+caractéristiques, preuves) ou l’instruction, sinon l’appel est refusé en listant les valeurs inconnues. **Dispositions** :
+l’illustration (image ou graphe) et le tableau ont chacun leur sélecteur à pictogrammes — à droite du texte, à gauche,
+dessous, dessus — avec leur largeur (illustration 20–60 % en colonne, jusqu’à 100 % dessous/dessus ; tableau 30–70 %
+en colonne) ; les deux ne peuvent pas être à la fois à côté du texte (un `paracol` ne s’imbrique pas : le choix est
+grisé à l’écran et refusé au serveur). Un tableau en colonne est un `tabular` (pas de `longtable` dans une colonne).
+`tableau_position` / `tableau_largeur` n’existent dans le contenu qu’hors défaut, comme image / graphe / tableau :
+relire une ancienne version sans y toucher ne crée pas de nouvelle version. Ces appels (action « illustrer ») sont
+comptés dans l’historique des coûts du dossier ; ils sont réservés à la version française, comme la réécriture.
 
 **Réglages dans l’ordre du document** (06/11/2026) : le panneau de mise en page est découpé en blocs
 qui suivent l’ordre choisi — « Titre et marque » (alignement et couleur des titres, style des titres de

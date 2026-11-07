@@ -45,13 +45,68 @@ def texte(value, limite=12000):
 
 IMAGE_RUBRIQUE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
 POSITIONS_IMAGE = ("droite", "gauche", "dessous", "dessus")
+POSITIONS_TABLEAU = ("dessous", "dessus", "droite", "gauche")
+COTES = ("droite", "gauche")
 TABLEAU_MAX = (40, 8)   # lignes, colonnes
+GRAPHE_TYPES = ("barres", "barres_horizontales", "courbe", "secteurs")
+GRAPHE_MAX = (12, 4)    # catégories, séries
+
+
+def cellule(c, limite=300):
+	return texte("" if c is None else (str(c) if isinstance(c, (int, float)) and not isinstance(c, bool) else c), limite)
+
+
+def nombre(v):
+	"""Une valeur de graphe : int/float fini (jamais un booléen), ou un texte « 1 234,5 » -> int ou float."""
+	if isinstance(v, bool) or v is None:
+		raise ValueError("Valeur de graphe invalide.")
+	if isinstance(v, str):
+		v = v.strip().replace("\u202f", "").replace("\xa0", "").replace(" ", "").replace(",", ".")
+	try:
+		f = float(v)
+	except (TypeError, ValueError):
+		raise ValueError("Valeur de graphe invalide.")
+	if f != f or f in (float("inf"), float("-inf")):
+		raise ValueError("Valeur de graphe invalide.")
+	return int(f) if f == int(f) and abs(f) < 1e15 else round(f, 6)
+
+
+def graphe(spec):
+	"""Un graphe de rubrique (demande 07/11/2026) : des DONNÉES, jamais une image — le PDF le compose en vectoriel
+	(pgfplots), la traduction en traduit les libellés. {type, titre, axe_x, axe_y, unite, categories, series:[{nom,
+	valeurs}]} ; une valeur par catégorie, secteurs = une seule série de valeurs positives."""
+	if not isinstance(spec, dict):
+		raise ValueError("Graphe de rubrique invalide.")
+	genre = spec.get("type") or "barres"
+	if genre not in GRAPHE_TYPES:
+		raise ValueError("Type de graphe invalide : barres, barres_horizontales, courbe ou secteurs.")
+	categories = spec.get("categories") or []
+	if not isinstance(categories, list) or not 1 <= len(categories) <= GRAPHE_MAX[0]:
+		raise ValueError(f"Un graphe a entre 1 et {GRAPHE_MAX[0]} catégories.")
+	categories = [cellule(c, 80) for c in categories]
+	series = spec.get("series") or []
+	if not isinstance(series, list) or not 1 <= len(series) <= GRAPHE_MAX[1]:
+		raise ValueError(f"Un graphe a entre 1 et {GRAPHE_MAX[1]} séries.")
+	if genre == "secteurs" and len(series) != 1:
+		raise ValueError("Un graphe en secteurs n’a qu’une série.")
+	out_series = []
+	for serie in series:
+		if not isinstance(serie, dict) or not isinstance(serie.get("valeurs"), list) or len(serie["valeurs"]) != len(categories):
+			raise ValueError("Chaque série du graphe a exactement une valeur par catégorie.")
+		valeurs = [nombre(v) for v in serie["valeurs"]]
+		if genre == "secteurs" and (any(v < 0 for v in valeurs) or not sum(valeurs)):
+			raise ValueError("Les secteurs demandent des valeurs positives, dont une au moins non nulle.")
+		out_series.append({"nom": cellule(serie.get("nom", ""), 80), "valeurs": valeurs})
+	return {"type": genre, "titre": cellule(spec.get("titre", ""), 120), "axe_x": cellule(spec.get("axe_x", ""), 80),
+		"axe_y": cellule(spec.get("axe_y", ""), 80), "unite": cellule(spec.get("unite", ""), 20),
+		"categories": categories, "series": out_series}
 
 
 def rubrique(s, portee):
-	"""Une rubrique : titre, texte, portée, source — et, si l'utilisateur les a posés, une image (graphe, schéma)
-	avec sa disposition, et un tableau (première ligne = en-têtes). Les clés image/tableau n'apparaissent que
-	remplies : une version antérieure relue sans changement garde la même empreinte (demande 06/11/2026)."""
+	"""Une rubrique : titre, texte, portée, source — et, si l'utilisateur les a posés, une illustration (image :
+	graphe exporté, schéma — ou graphe de données composé par le PDF) avec sa disposition, et un tableau (première
+	ligne = en-têtes) avec la sienne. Les clés image/graphe/tableau n'apparaissent que remplies, les positions que
+	hors défaut : une version antérieure relue sans changement garde la même empreinte (demande 06/11/2026)."""
 	if not isinstance(s, dict):
 		raise ValueError("Rubrique invalide.")
 	out = {
@@ -61,18 +116,24 @@ def rubrique(s, portee):
 		"source": texte(s.get("source", ""), 600),
 	}
 	image = texte(s.get("image", "") or "", 500)
+	spec = s.get("graphe") or None
+	if image and spec:
+		raise ValueError("Une rubrique porte une image ou un graphe, pas les deux.")
 	if image:
 		if not IMAGE_RUBRIQUE.fullmatch(image):
 			raise ValueError("L’image d’une rubrique doit être un fichier de l’outil.")
-		position = s.get("image_position", "droite")
+		out["image"] = image
+	elif spec:
+		out["graphe"] = graphe(spec)
+	if image or spec:
+		position = s.get("image_position") or "droite"
 		if position not in POSITIONS_IMAGE:
-			raise ValueError("Disposition de l’image de rubrique invalide.")
+			raise ValueError("Disposition de l’illustration de rubrique invalide.")
 		largeur = s.get("image_largeur", 40)
-		maximum = 60 if position in ("droite", "gauche") else 100
+		maximum = 60 if position in COTES else 100
 		if isinstance(largeur, bool) or not isinstance(largeur, int) or not 20 <= largeur <= maximum:
-			raise ValueError(f"La largeur de l’image doit être un entier entre 20 et {maximum} %.")
-		out.update(image=image, image_position=position, image_largeur=largeur,
-			image_legende=texte(s.get("image_legende", "") or "", 300))
+			raise ValueError(f"La largeur de l’illustration doit être un entier entre 20 et {maximum} %.")
+		out.update(image_position=position, image_largeur=largeur, image_legende=texte(s.get("image_legende", "") or "", 300))
 	tableau = s.get("tableau") or []
 	if tableau:
 		if not isinstance(tableau, list) or len(tableau) > TABLEAU_MAX[0] or not all(isinstance(r, list) for r in tableau):
@@ -80,7 +141,19 @@ def rubrique(s, portee):
 		largeurs = {len(r) for r in tableau}
 		if len(largeurs) != 1 or not 1 <= largeurs.pop() <= TABLEAU_MAX[1]:
 			raise ValueError(f"Un tableau a au plus {TABLEAU_MAX[1]} colonnes, identiques sur chaque ligne.")
-		out["tableau"] = [[texte("" if c is None else (str(c) if isinstance(c, (int, float)) and not isinstance(c, bool) else c), 300) for c in r] for r in tableau]
+		out["tableau"] = [[cellule(c) for c in r] for r in tableau]
+		position = s.get("tableau_position") or "dessous"
+		if position not in POSITIONS_TABLEAU:
+			raise ValueError("Disposition du tableau de rubrique invalide.")
+		if position in COTES:
+			if out.get("image_position") in COTES:
+				raise ValueError("L’illustration et le tableau ne peuvent pas être tous deux à côté du texte : placez l’un dessous ou dessus.")
+			largeur = s.get("tableau_largeur", 50)
+			if isinstance(largeur, bool) or not isinstance(largeur, int) or not 30 <= largeur <= 70:
+				raise ValueError("La largeur du tableau doit être un entier entre 30 et 70 %.")
+			out["tableau_largeur"] = largeur
+		if position != "dessous":
+			out["tableau_position"] = position
 	return out
 
 
@@ -173,8 +246,14 @@ def champs_traduisibles(contenu):
 		for i, _row in enumerate(contenu[cle]):
 			paths += [(cle, i, k) for k in champs]
 	for i, s in enumerate(contenu["sections"]):
-		if s.get("image"):
+		if s.get("image") or s.get("graphe"):
 			paths.append(("sections", i, "image_legende"))
+		g = s.get("graphe")
+		if g:
+			# Les libellés du graphe se traduisent ; ses valeurs sont des nombres, hors traduction.
+			paths += [("sections", i, "graphe", k) for k in ("titre", "axe_x", "axe_y")]
+			paths += [("sections", i, "graphe", "categories", j) for j in range(len(g["categories"]))]
+			paths += [("sections", i, "graphe", "series", j, "nom") for j in range(len(g["series"]))]
 		for r, ligne in enumerate(s.get("tableau") or []):
 			paths += [("sections", i, "tableau", r, c) for c in range(len(ligne))]
 	paths += [("points_a_verifier", i) for i in range(len(contenu["points_a_verifier"]))]

@@ -10,7 +10,7 @@ const dpEsc = v => frappe.utils.escape_html(String(v ?? ''));
 const dpCall = async (method,args={}) => (await frappe.call({method:DP_API+method,args})).message;
 const dpUrl = url => typeof url==='string' && /^\/(private\/)?files\//.test(url) ? dpEsc(url) : '';
 const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFractionDigits:4,maximumFractionDigits:4})+' $';
-const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction'})[action] || action;
+const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
 const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Tableau des variantes',illustrations:'Autres illustrations'};
 // Les quatre étapes du travail, dans l'ordre où on les fait : l'écran suit cet ordre (refonte du 06/11/2026).
@@ -26,6 +26,24 @@ const DP_CONSIGNES = [
 ];
 const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,hauteur_vignettes:55,style_galerie:'grille',photo_grande:'',tableau_variantes:'liste',largeur_grande:62,legendes_galerie:1,legende_alignement:'gauche',legende_couleur:'texte',largeur_mosaique:100,libelle_croise:'nom_sans_parent',style_titres:'simple',sommaire:0,qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
+// Dispositions d'une illustration ou d'un tableau dans sa rubrique (07/11/2026) : un pictogramme par choix.
+const DP_POSITIONS={droite:'Texte à gauche · à droite',gauche:'À gauche · texte à droite',dessous:'Sous le texte',dessus:'Au-dessus du texte'};
+const dpPict=(kind,pos)=>{
+  const c='var(--primary,#087E8B)';
+  const bloc=(x,y,w,h)=>kind==='tableau'?`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1" fill="none" stroke="${c}" stroke-width="1.2"/><line x1="${x}" y1="${y+h/2}" x2="${x+w}" y2="${y+h/2}" stroke="${c}"/><line x1="${x+w/2}" y1="${y}" x2="${x+w/2}" y2="${y+h}" stroke="${c}"/>`:`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.5" fill="${c}" opacity=".7"/>`;
+  const lignes=(x,y,w,n)=>Array.from({length:n},(_,i)=>`<rect x="${x}" y="${y+i*4}" width="${w}" height="1.6" rx=".8" fill="#9aa3ad"/>`).join('');
+  const g={droite:lignes(3,4,18,6)+bloc(24,4,13,20),gauche:bloc(3,4,13,20)+lignes(19,4,18,6),dessous:lignes(3,3,34,3)+bloc(8,16,24,9),dessus:bloc(8,3,24,9)+lignes(3,16,34,3)}[pos];
+  return `<svg viewBox="0 0 40 28" width="40" height="28" aria-hidden="true">${g}</svg>`;};
+const dpLayoutPicker=(cls,valeur,kind,sansCotes=false)=>`<div class="dp-layout-pick" role="radiogroup"><input type="hidden" class="${cls}" value="${dpEsc(valeur)}">${Object.entries(DP_POSITIONS).map(([v,l])=>{const off=sansCotes&&(v==='droite'||v==='gauche');return `<button type="button" class="dp-layout-opt ${v===valeur?'active':''}" data-value="${v}" role="radio" aria-checked="${v===valeur}" title="${l}${off?' — indisponible : l’autre élément est déjà à côté du texte':''}" ${off?'disabled':''}>${dpPict(kind,v)}</button>`;}).join('')}</div>`;
+const dpMenu=(label,items)=>`<div class="btn-group dp-menu"><button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">${label} ▾</button><div class="dropdown-menu">${items.map(([cls,txt,off])=>`<button type="button" class="dropdown-item ${cls}" ${off?'disabled title="Illustrez la version française puis traduisez"':''}>${txt}</button>`).join('')}</div></div>`;
+const DP_GRAPHES={barres:'barres',barres_horizontales:'barres horizontales',courbe:'courbe',secteurs:'secteurs'};
+const dpGrapheLibelle=g=>`${DP_GRAPHES[g.type]||g.type} · ${(g.categories||[]).length} catégorie(s) · ${(g.series||[]).length} série(s)${g.titre?' · '+g.titre:''}`;
+// Aperçu simplifié d'un graphe de données à l'écran ; le PDF le compose en vectoriel (pgfplots).
+const dpGraphSvg=g=>{const W=140,H=90,p=8,cats=g.categories||[],series=g.series||[],cols=['#087E8B','#6fb7bf','#8a8f98','#bfe0e3'];const vals=series.flatMap(s=>s.valeurs||[]),max=Math.max(1,...vals.map(v=>Math.abs(Number(v)||0)));let body='';
+  if(g.type==='secteurs'){const tot=vals.reduce((a,b)=>a+Math.max(0,b),0)||1;let a=-Math.PI/2;const cx=W/2,cy=H/2,r=38;body=vals.map((v,i)=>{const b=a+2*Math.PI*Math.max(0,v)/tot,x1=cx+r*Math.cos(a),y1=cy+r*Math.sin(a),x2=cx+r*Math.cos(b),y2=cy+r*Math.sin(b),big=b-a>Math.PI?1:0,d=`M${cx},${cy}L${x1},${y1}A${r},${r},0,${big},1,${x2},${y2}Z`;a=b;return `<path d="${d}" fill="${cols[i%cols.length]}" stroke="white"/>`;}).join('');}
+  else if(g.type==='courbe'){body=series.map((s,k)=>`<polyline fill="none" stroke="${cols[k%cols.length]}" stroke-width="2" points="${(s.valeurs||[]).map((v,i)=>`${p+i*(W-2*p)/Math.max(1,cats.length-1)},${H-p-(H-2*p)*Math.max(0,v)/max}`).join(' ')}"/>`).join('');}
+  else{const horiz=g.type==='barres_horizontales',n=cats.length||1,m=series.length||1,slot=(horiz?H-2*p:W-2*p)/n,bw=slot*0.7/m;body=series.map((s,k)=>(s.valeurs||[]).map((v,i)=>{const len=(horiz?W-2*p:H-2*p)*Math.max(0,v)/max,off=p+i*slot+slot*0.15+k*bw;return horiz?`<rect x="${p}" y="${off}" width="${len}" height="${bw}" fill="${cols[k%cols.length]}"/>`:`<rect x="${off}" y="${H-p-len}" width="${bw}" height="${len}" fill="${cols[k%cols.length]}"/>`;}).join('')).join('');}
+  return `<svg viewBox="0 0 ${W} ${H}" aria-label="Aperçu du graphe">${body}</svg>`;};
 
 class DocumentsProduit {
   constructor(page, root) { this.page=page; this.root=root; this.name=null; this.current=null; this.dirty=false; this.activeTab='fiche'; this.activeStep='preparer'; this.selectedVersions={}; }
@@ -147,7 +165,8 @@ class DocumentsProduit {
           <li><strong>Rédiger.</strong> <b>Régler les modèles par outil</b> ouvre les réglages IA. Cliquez sur <b>${creer}</b> : l’IA rédige le contenu et enregistre une version française ; le coût estimé apparaît dans l’historique du dossier.
             <p>${manuel?'Les rubriques couvrent les étapes d’installation, de mise en service, d’utilisation, d’entretien et de dépannage selon les sources. Relisez en particulier les procédures, les réglages et les consignes de sécurité.':'L’IA prépare le titre, la présentation, les rubriques et les caractéristiques. La structure est prévue par l’outil ; les informations disponibles déterminent les rubriques remplies.'}</p>
           </li>
-          <li><strong>Relire et produire.</strong> Choisissez une version, corrigez le titre, la présentation, les rubriques, les caractéristiques et les légendes, puis <b>Enregistrer</b>. Résolvez les <b>Points à vérifier</b> et retirez-les de la liste. <b>Générer le PDF</b> compose le document sans appel IA ; <b>Valider et générer le PDF</b> fige la version. <b>Traduire</b> crée une version dans une autre langue, à relire avant son PDF.</li>
+          <li><strong>Relire et produire.</strong> Choisissez une version, corrigez le titre, la présentation, les rubriques, les caractéristiques et les légendes, puis <b>Enregistrer</b>. Résolvez les <b>Points à vérifier</b> et retirez-les de la liste. <b>Générer le PDF</b> compose le document sans appel IA ; <b>Valider et générer le PDF</b> fige la version. <b>Traduire</b> crée une version dans une autre langue, à relire avant son PDF.
+            <p>Chaque rubrique se déplace avec <b>↑ ↓</b>. Sous son texte : <b>Ajouter une image ou un graphe</b> (fichier du dossier ou du PC, illustration générée par l’IA, ou graphe préparé par l’IA depuis les données du document) et <b>Ajouter un tableau</b> (vide, ou rédigé par l’IA). Chaque élément a sa <b>disposition</b> (à droite ou à gauche du texte, dessous, dessus), sa largeur et sa légende ; une image se retouche par l’IA, un graphe ou un tableau se modifie par l’IA avec une instruction.</p></li>
         </ol>
         <div class="dp-help-grid">
           <section><h4>Logo de la marque : ajouter et placer</h4>
@@ -162,9 +181,13 @@ class DocumentsProduit {
             <p>Dans <b>Mise en page</b>, choisissez <b>Une colonne</b> ou <b>Deux colonnes</b>, le côté, la largeur et la hauteur de la photo, l’alignement du titre, la couleur des titres et l’ordre des blocs (flèches ou glisser-déposer). Les photos des variantes peuvent être regroupées avec leur référence, sur une à trois colonnes.</p>
             <p>Un changement de mise en page, de logo, de photos ou d’en-tête s’applique en générant le PDF, sans nouvelle rédaction IA. Un changement de marque commerciale ou l’ajout de variantes demande une nouvelle rédaction.</p>
           </section>
+          <section><h4>Rubriques : image, graphe, tableau</h4>
+            <p>Un <b>graphe depuis les données</b> n’est pas une image : l’IA choisit les catégories et les séries (barres, barres horizontales, courbe, secteurs) dans l’article, les caractéristiques et les sources, le PDF le compose en vectoriel et ses libellés sont traduits avec la version. Une valeur absente des données fait refuser le graphe ou le tableau : ajoutez-la dans l’article, le texte de la rubrique ou l’instruction.</p>
+            <p>Une <b>illustration générée</b> (schéma, pictogramme) est sans texte ni chiffre : les libellés vont dans la légende. Image, graphe et tableau n’apparaissent qu’après <b>Enregistrer</b> ; les pages PDF en direct les montrent à leur place.</p>
+          </section>
           <section><h4>Versions et coût</h4>
             <p>Chaque rédaction, correction ou PDF crée une nouvelle version ; les anciennes sont conservées. <b>Créer les deux</b> lance la fiche et le manuel.</p>
-            <p>Rédaction, lecture des scans et traduction consomment des jetons ; corrections, placement du logo et composition PDF n’ajoutent aucun coût. <b>Détail des coûts</b> affiche les modèles, les tarifs et chaque génération.</p>
+            <p>Rédaction, réécriture d’une partie, graphe, tableau et image par l’IA, lecture des scans et traduction consomment des jetons ; corrections, placement du logo et composition PDF n’ajoutent aucun coût. <b>Détail des coûts</b> affiche les modèles, les tarifs et chaque génération.</p>
           </section>
         </div></div>`;
   }
@@ -647,8 +670,7 @@ class DocumentsProduit {
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
       <div class="dp-review dp-review-split"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation <button type="button" class="btn btn-default btn-xs dp-ia-resume" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ Réécrire avec l’IA…</button></label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
-      <div class="dp-sections">${c.sections.map((s,i)=>`<div class="dp-section" data-index="${i}"><div class="dp-section-title"><input class="form-control dp-section-name" value="${dpEsc(s.titre)}" placeholder="Titre de la rubrique"><button class="btn btn-xs btn-default dp-remove-section">×</button></div><div class="dp-scope"><select class="form-control input-sm dp-section-scope">${scope(s.article)}</select><input class="form-control input-sm dp-section-source" value="${dpEsc(s.source)}" placeholder="Source : S1 p.3, Article…"></div><textarea class="form-control dp-section-text">${dpEsc(s.texte)}</textarea>
-      <div class="dp-section-extras"><button type="button" class="btn btn-default btn-xs dp-ia-rubrique" ${doc.langue==='fr'?'':'disabled title="Réécrivez la version française puis traduisez"'}>✦ Réécrire avec l’IA…</button>${this.sectionImageHtml(s)}${this.sectionTableHtml(s)}</div></div>`).join('')}</div>
+      <div class="dp-sections">${c.sections.map((s,i)=>this.sectionHtml(s,i,c.sections.length,scope,doc)).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
       <label class="dp-label">Caractéristiques techniques</label><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
@@ -659,7 +681,7 @@ class DocumentsProduit {
     z.find('.dp-editor').on('input change',()=>{this.dirty=true;this.renderLayoutPreview();this.updateBar();this.planifierPages('review',1500);});
     this.liveReview=true;
     if(this.activeStep==='relire')this.planifierPages('review',300);
-    z.find('.dp-remove-section,.dp-remove-carac').on('click',e=>{$(e.currentTarget).closest('.dp-section,tr').remove();this.dirty=true;this.updateBar();});
+    z.find('.dp-remove-carac').on('click',e=>{$(e.currentTarget).closest('tr').remove();this.dirty=true;this.updateBar();});
     const add=(key,row)=>{this.current.contenu=this.captureDocument();this.current.contenu[key].push(row);this.renderDocument();this.dirty=true;this.updateBar();};
     z.find('.dp-add-section').on('click',()=>add('sections',{titre:'Nouvelle rubrique',texte:'',article:'',source:'Saisie manuelle'}));
     this.bindSectionExtras(z);
@@ -674,25 +696,58 @@ class DocumentsProduit {
     if(!this.data.peut_ecrire)z.find('button,input,textarea,select').prop('disabled',true);
     this.showState(this.data.dossier);
   }
-  // ---- image et tableau d'une rubrique (graphe / schéma à côté du texte, tableau sous le texte ; demande 06/11/2026)
-  sectionImageHtml(s) {
-    if(!s.image)return '<button type="button" class="btn btn-default btn-xs dp-si-add">Ajouter une image (graphe, schéma)</button>';
-    const cote=['droite','gauche'].includes(s.image_position||'droite');
-    return `<div class="dp-section-image" data-image="${dpEsc(s.image)}"><a href="${dpUrl(s.image)}" target="_blank" rel="noopener"><img src="${dpUrl(s.image)}" alt="Image de la rubrique"></a><div class="dp-grid"><label class="dp-label">Disposition<select class="form-control input-sm dp-si-position">${[['droite','Texte à gauche · image à droite'],['gauche','Image à gauche · texte à droite'],['dessous','Image sous le texte'],['dessus','Image au-dessus du texte']].map(([v,l])=>`<option value="${v}" ${(s.image_position||'droite')===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="dp-label">Largeur de l’image (%)<input class="form-control input-sm dp-si-largeur" type="number" min="20" max="${cote?60:100}" step="1" value="${s.image_largeur||40}"></label><label class="dp-label dp-full">Légende<input class="form-control input-sm dp-si-legende" maxlength="300" value="${dpEsc(s.image_legende||'')}" placeholder="Ex. Débit selon le nombre d’étages"></label></div><button type="button" class="btn btn-default btn-xs dp-si-remove">Retirer l’image</button></div>`;
+  // ---- rubrique : en-tête (numéro, titre, ↑ ↓, ×), portée, texte, puis illustration (image ou graphe de données) et
+  // tableau, chacun avec sa disposition (demandes 06–07/11/2026 : « déplacer les parties en haut et en bas », « image,
+  // graphe ou tableau générés par IA ou depuis le PC, retravaillés par IA », « plusieurs dispositions »).
+  sectionHtml(s,i,n,scope,doc) {
+    const fr=doc.langue==='fr',ia=fr?'':'disabled title="Réécrivez la version française puis traduisez"';
+    const illustration=!!(s.image||s.graphe),tableau=!!(s.tableau||[]).length;
+    return `<div class="dp-section" data-index="${i}">
+      <div class="dp-section-head"><span class="dp-section-num" title="Rubrique ${i+1} sur ${n}">${i+1}</span><input class="form-control dp-section-name" value="${dpEsc(s.titre)}" placeholder="Titre de la rubrique"><span class="dp-section-tools"><button type="button" class="btn btn-xs btn-default dp-move-up" title="Monter la rubrique" ${i?'':'disabled'}>↑</button><button type="button" class="btn btn-xs btn-default dp-move-down" title="Descendre la rubrique" ${i<n-1?'':'disabled'}>↓</button><button type="button" class="btn btn-xs btn-default dp-remove-section" title="Retirer la rubrique">×</button></span></div>
+      <div class="dp-scope"><select class="form-control input-sm dp-section-scope">${scope(s.article)}</select><input class="form-control input-sm dp-section-source" value="${dpEsc(s.source)}" placeholder="Source : S1 p.3, Article…"></div>
+      <textarea class="form-control dp-section-text">${dpEsc(s.texte)}</textarea>
+      <div class="dp-section-extras"><div class="dp-section-toolbar"><button type="button" class="btn btn-default btn-xs dp-ia-rubrique" ${ia}>✦ Réécrire avec l’IA…</button>
+        ${illustration?'':dpMenu('Ajouter une image ou un graphe',[['dp-si-add','Depuis le dossier ou mon PC (PNG, JPG, SVG)…'],['dp-si-ia','✦ Illustration générée par l’IA…',!fr],['dp-sg-ia','✦ Graphe depuis les données (IA)…',!fr]])}
+        ${tableau?'':dpMenu('Ajouter un tableau',[['dp-st-add','Tableau vide à remplir'],['dp-st-ia','✦ Tableau rédigé par l’IA…',!fr]])}</div>
+        ${this.sectionIllustrationHtml(s,fr)}${this.sectionTableHtml(s,fr)}</div></div>`;
   }
-  sectionTableHtml(s) {
-    const rows=s.tableau||[];
-    if(!rows.length)return '<button type="button" class="btn btn-default btn-xs dp-st-add">Ajouter un tableau</button>';
-    return `<div class="dp-section-table"><div class="dp-table-wrap"><table class="dp-table dp-st"><tbody>${rows.map((row,r)=>`<tr>${row.map(cell=>`<td><input class="form-control input-sm" value="${dpEsc(cell)}" placeholder="${r?'':'En-tête'}" ${r?'':'style="font-weight:600"'}></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="dp-actions"><button type="button" class="btn btn-default btn-xs dp-st-row">+ Ligne</button><button type="button" class="btn btn-default btn-xs dp-st-row-del" ${rows.length>1?'':'disabled'}>− Ligne</button><button type="button" class="btn btn-default btn-xs dp-st-col" ${rows[0].length<8?'':'disabled'}>+ Colonne</button><button type="button" class="btn btn-default btn-xs dp-st-col-del" ${rows[0].length>1?'':'disabled'}>− Colonne</button><button type="button" class="btn btn-default btn-xs dp-st-remove">Retirer le tableau</button><span class="dp-muted">Première ligne = en-têtes. Le tableau se place sous le texte de la rubrique.</span></div></div>`;
+  sectionIllustrationHtml(s,fr) {
+    if(!s.image&&!s.graphe)return '';
+    const pos=s.image_position||'droite',cote=['droite','gauche'].includes(pos),tableauCote=!!(s.tableau||[]).length&&['droite','gauche'].includes(s.tableau_position||'dessous');
+    const apercu=s.graphe?`<div class="dp-graph-thumb" title="Aperçu simplifié : le PDF compose le graphe en vectoriel">${dpGraphSvg(s.graphe)}</div>`:`<a href="${dpUrl(s.image)}" target="_blank" rel="noopener"><img src="${dpUrl(s.image)}" alt="Image de la rubrique"></a>`;
+    const outils=s.graphe?`<button type="button" class="btn btn-default btn-xs dp-sg-ia" ${fr?'':'disabled'}>✦ Modifier le graphe par l’IA…</button>`:`<button type="button" class="btn btn-default btn-xs dp-si-retouche" ${fr?'':'disabled'}>✦ Retoucher par l’IA…</button><button type="button" class="btn btn-default btn-xs dp-si-add">Remplacer…</button>`;
+    return `<div class="dp-section-image" data-image="${dpEsc(s.image||'')}" data-graphe="${dpEsc(s.graphe?JSON.stringify(s.graphe):'')}">${apercu}<div class="dp-illu-settings">
+      <div class="dp-label">${s.graphe?'Graphe · '+dpEsc(dpGrapheLibelle(s.graphe)):'Image'} · disposition</div>${dpLayoutPicker('dp-si-position',pos,'image',tableauCote)}
+      <div class="dp-grid"><label class="dp-label">Largeur (%)<input class="form-control input-sm dp-si-largeur" type="number" min="20" max="${cote?60:100}" step="1" value="${s.image_largeur||40}"></label><label class="dp-label">Légende<input class="form-control input-sm dp-si-legende" maxlength="300" value="${dpEsc(s.image_legende||'')}"></label></div>
+      <div class="dp-actions">${outils}<button type="button" class="btn btn-default btn-xs dp-si-remove">Retirer</button></div></div></div>`;
+  }
+  sectionTableHtml(s,fr) {
+    const rows=s.tableau||[];if(!rows.length)return '';
+    const pos=s.tableau_position||'dessous',cote=['droite','gauche'].includes(pos),illuCote=!!(s.image||s.graphe)&&['droite','gauche'].includes(s.image_position||'droite');
+    return `<div class="dp-section-table"><div class="dp-table-wrap"><table class="dp-table dp-st"><tbody>${rows.map((row,r)=>`<tr>${row.map(cell=>`<td><input class="form-control input-sm" value="${dpEsc(cell)}" placeholder="${r?'':'En-tête'}" ${r?'':'style="font-weight:600"'}></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="dp-actions"><button type="button" class="btn btn-default btn-xs dp-st-row">+ Ligne</button><button type="button" class="btn btn-default btn-xs dp-st-row-del" ${rows.length>1?'':'disabled'}>− Ligne</button><button type="button" class="btn btn-default btn-xs dp-st-col" ${rows[0].length<8?'':'disabled'}>+ Colonne</button><button type="button" class="btn btn-default btn-xs dp-st-col-del" ${rows[0].length>1?'':'disabled'}>− Colonne</button><button type="button" class="btn btn-default btn-xs dp-st-ia" ${fr?'':'disabled'}>✦ Modifier par l’IA…</button><button type="button" class="btn btn-default btn-xs dp-st-remove">Retirer le tableau</button></div>
+      <div class="dp-label">Tableau · disposition</div>${dpLayoutPicker('dp-st-position',pos,'tableau',illuCote)}${cote?`<label class="dp-label">Largeur du tableau (%)<input class="form-control input-sm dp-st-largeur" type="number" min="30" max="70" step="1" value="${s.tableau_largeur||50}"></label>`:''}</div>`;
   }
   bindSectionExtras(z) {
     const index=el=>+$(el).closest('.dp-section').attr('data-index');
     const modifier=(el,fn)=>{this.current.contenu=this.captureDocument();fn(this.current.contenu.sections[index(el)]);this.renderDocument();this.dirty=true;this.updateBar();};
-    z.find('.dp-si-add').on('click',e=>this.choisirImageRubrique(url=>modifier(e.currentTarget,s=>{s.image=url;s.image_position='droite';s.image_largeur=40;s.image_legende='';})));
-    z.find('.dp-si-remove').on('click',e=>modifier(e.currentTarget,s=>{delete s.image;delete s.image_position;delete s.image_largeur;delete s.image_legende;}));
-    z.find('.dp-si-position').on('change',e=>{const cote=['droite','gauche'].includes(e.target.value),l=$(e.target).closest('.dp-section-image').find('.dp-si-largeur');l.attr('max',cote?60:100);if(cote&&Number(l.val())>60)l.val(60);});
+    const retirerIllustration=s=>{delete s.image;delete s.graphe;delete s.image_position;delete s.image_largeur;delete s.image_legende;};
+    // Une illustration ajoutée se place à côté du texte, sauf si le tableau y est déjà : dessous alors.
+    const positionLibre=s=>(s.tableau||[]).length&&['droite','gauche'].includes(s.tableau_position||'dessous')?'dessous':'droite';
+    z.find('.dp-move-up,.dp-move-down').on('click',e=>{const i=index(e.currentTarget),j=$(e.currentTarget).hasClass('dp-move-up')?i-1:i+1;this.current.contenu=this.captureDocument();const sec=this.current.contenu.sections;if(j<0||j>=sec.length)return;[sec[i],sec[j]]=[sec[j],sec[i]];this.renderDocument();this.dirty=true;this.updateBar();const cible=this.root.find('.dp-editor .dp-section').eq(j);cible[0]?.scrollIntoView({block:'nearest',behavior:'smooth'});cible.find('.dp-section-name').trigger('focus');});
+    z.find('.dp-remove-section').on('click',e=>{const i=index(e.currentTarget),s=this.captureDocument().sections[i],plein=(s.texte||'').trim()||s.image||s.graphe||(s.tableau||[]).length;const retirer=()=>{this.current.contenu=this.captureDocument();this.current.contenu.sections.splice(i,1);this.renderDocument();this.dirty=true;this.updateBar();};plein?frappe.confirm(`Retirer la rubrique « ${dpEsc(s.titre||'sans titre')} » et son contenu ?`,retirer):retirer();});
+    z.find('.dp-layout-opt').on('click',e=>{const b=$(e.currentTarget),v=b.attr('data-value'),cote=['droite','gauche'].includes(v);
+      modifier(b,b.closest('.dp-layout-pick').find('input').hasClass('dp-st-position')
+        ?s=>{s.tableau_position=v;if(cote)s.tableau_largeur=Math.max(30,Math.min(70,s.tableau_largeur||50));else delete s.tableau_largeur;}
+        :s=>{s.image_position=v;s.image_largeur=Math.max(20,Math.min(cote?60:100,s.image_largeur||40));});});
+    z.find('.dp-si-add').on('click',e=>this.choisirImageRubrique(url=>modifier(e.currentTarget,s=>{const legende=s.image_legende||'';retirerIllustration(s);s.image=url;s.image_position=positionLibre(s);s.image_largeur=40;s.image_legende=legende;})));
+    z.find('.dp-si-remove').on('click',e=>modifier(e.currentTarget,retirerIllustration));
+    z.find('.dp-si-ia').on('click',e=>this.illustrerAvecIA(index(e.currentTarget),'image'));
+    z.find('.dp-si-retouche').on('click',e=>this.illustrerAvecIA(index(e.currentTarget),'retouche'));
+    z.find('.dp-sg-ia').on('click',e=>this.illustrerAvecIA(index(e.currentTarget),'graphe'));
+    z.find('.dp-st-ia').on('click',e=>this.illustrerAvecIA(index(e.currentTarget),'tableau'));
     z.find('.dp-st-add').on('click',e=>modifier(e.currentTarget,s=>{s.tableau=[['Colonne 1','Colonne 2'],['','']];}));
-    z.find('.dp-st-remove').on('click',e=>modifier(e.currentTarget,s=>{delete s.tableau;}));
+    z.find('.dp-st-remove').on('click',e=>modifier(e.currentTarget,s=>{delete s.tableau;delete s.tableau_position;delete s.tableau_largeur;}));
     z.find('.dp-st-row').on('click',e=>modifier(e.currentTarget,s=>{s.tableau.push(s.tableau[0].map(()=>''));}));
     z.find('.dp-st-row-del').on('click',e=>modifier(e.currentTarget,s=>{if(s.tableau.length>1)s.tableau.pop();}));
     z.find('.dp-st-col').on('click',e=>modifier(e.currentTarget,s=>{if(s.tableau[0].length<8)s.tableau.forEach(r=>r.push(''));}));
@@ -702,11 +757,42 @@ class DocumentsProduit {
     const images=this.data.dossier.images||[];
     const options=images.map(im=>({label:(im.legende||im.image.split('/').pop())+(im.article?' · '+im.article:''),value:im.image}));
     options.push({label:'Importer un nouveau fichier (PNG, JPG, SVG)…',value:'__import'});
-    const d=new frappe.ui.Dialog({title:'Image de la rubrique',fields:[{fieldtype:'Select',fieldname:'choix',label:'Image',options,default:options[0].value,reqd:1},{fieldtype:'HTML',fieldname:'info',options:'<p class="text-muted small">Un graphe exporté (Excel, etc.), un schéma ou une photo. L’image est posée à côté du texte de la rubrique ; vous réglez ensuite sa disposition, sa largeur et sa légende.</p>'}],
+    const d=new frappe.ui.Dialog({title:'Image de la rubrique',fields:[{fieldtype:'Select',fieldname:'choix',label:'Image',options,default:options[0].value,reqd:1},{fieldtype:'HTML',fieldname:'info',options:'<p class="text-muted small">Un graphe exporté (Excel, etc.), un schéma ou une photo, depuis le dossier ou votre PC. L’image est posée à côté du texte de la rubrique ; vous réglez ensuite sa disposition, sa largeur et sa légende, et pouvez la retoucher par l’IA.</p>'}],
       primary_action_label:'Utiliser cette image',primary_action:v=>{d.hide();
         if(v.choix!=='__import')return appliquer(v.choix);
         new frappe.ui.FileUploader({doctype:'Dossier Produit',docname:this.name,is_private:1,allow_multiple:false,restrictions:{allowed_file_types:['.png','.jpg','.jpeg','.webp','.svg']},on_success:f=>appliquer(f.file_url)});
       }});
+    d.show();
+  }
+  illustrerAvecIA(index,mode) {
+    // Graphe depuis les données, tableau rédigé, image générée ou retouchée pour UNE rubrique, selon une instruction ;
+    // l'écran reprend le résultat, rien n'est enregistré avant « Enregistrer » (demande 07/11/2026). Les nombres d'un
+    // graphe ou d'un tableau sont vérifiés côté serveur contre les données : une valeur inconnue fait refuser l'appel.
+    if(!this.current)return;
+    const s0=this.captureDocument().sections[index];if(!s0)return;
+    const cote=['droite','gauche'].includes(s0.image_position||'droite'),aTableau=!!(s0.tableau||[]).length;
+    const M={graphe:{titre:'Graphe depuis les données',label:s0.graphe?'Que doit changer dans le graphe ?':'Que doit montrer le graphe ?',desc:'Ex. « Débit par variante, en barres » · « Pression et débit des trois modèles, en courbe » · « Secteurs : répartition des étages ». L’IA choisit les catégories et les séries dans l’article, les caractéristiques et les sources ; chaque valeur doit déjà y figurer (ou dans cette instruction), sinon le graphe est refusé. Le PDF le compose en vectoriel ; ses libellés sont traduits avec la version.',bouton:s0.graphe?'Modifier le graphe':'Préparer le graphe'},
+      tableau:{titre:'Tableau rédigé par l’IA',label:aTableau?'Que doit changer dans le tableau ?':'Que doit présenter le tableau ?',desc:'Ex. « Une ligne par variante : membrane, débit, pression » · « Les étapes d’entretien avec leur fréquence » · « Ajoute une colonne Observations ». Première ligne = en-têtes. Aucun nombre inventé : une valeur absente des données fait refuser le tableau.',bouton:aTableau?'Modifier le tableau':'Rédiger le tableau'},
+      image:{titre:'Illustration générée par l’IA',label:'Décrivez l’illustration',desc:'Ex. « Schéma d’un osmoseur 5 étages en vue éclatée » · « Pictogramme d’un robinet avec filtre, trait fin ». Fond blanc, sans texte ni chiffre : les libellés vont dans la légende. L’image est enregistrée dans le dossier ; coût d’une image, visible dans l’historique.',format:1,bouton:'Générer l’image'},
+      retouche:{titre:'Retoucher l’image par l’IA',label:'Que doit changer ?',desc:'Ex. « Retirer le fond » · « Mettre les tuyaux en bleu » · « Vue de face plutôt que de côté ». L’image actuelle sert de référence ; la nouvelle la remplace à l’écran, l’ancienne reste dans le dossier.',format:1,bouton:'Retoucher'}}[mode];
+    if(!M)return;
+    const fields=[{fieldtype:'Small Text',fieldname:'instruction',label:M.label,reqd:1,description:M.desc}];
+    if(M.format)fields.push({fieldtype:'Select',fieldname:'format',label:'Format',options:[{label:'Carré',value:'carre'},{label:'Paysage',value:'paysage'},{label:'Portrait',value:'portrait'}],default:cote?'carre':'paysage'});
+    fields.push({fieldtype:'HTML',fieldname:'etat',options:'<p class="dp-muted">Un appel IA (coût visible dans l’historique du dossier). Le résultat est posé à l’écran ; relisez, puis Enregistrer.</p>'});
+    const d=new frappe.ui.Dialog({title:M.titre+' · '+dpEsc(s0.titre||'Rubrique'),fields,primary_action_label:M.bouton,primary_action:async v=>{
+      d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html(`<p class="dp-muted">${M.format?'Génération de l’image… (20 à 90 s)':'Préparation… (10 à 40 s)'}</p>`);
+      try{
+        const r=await dpCall('illustrer_rubrique',{name:this.name,document_name:this.current.doc.name,index,mode,instruction:v.instruction,format:v.format,contenu:this.captureDocument()});
+        this.current.contenu=this.captureDocument();const c=this.current.contenu,s=c.sections[index];
+        const libre=()=>(s.tableau||[]).length&&['droite','gauche'].includes(s.tableau_position||'dessous')?'dessous':'droite';
+        if(mode==='graphe'){delete s.image;s.graphe=r.graphe;if(!s.image_position)s.image_position=libre();s.image_largeur=Math.min(s.image_largeur||(['droite','gauche'].includes(s.image_position)?50:70),['droite','gauche'].includes(s.image_position)?60:100);if(!s.image_legende&&r.legende)s.image_legende=r.legende;}
+        else if(mode==='tableau'){s.tableau=r.tableau;}
+        else{delete s.graphe;s.image=r.image;if(!s.image_position)s.image_position=libre();s.image_largeur=s.image_largeur||40;if(!s.image_legende&&mode==='image')s.image_legende=r.legende||'';}
+        if(r.points_a_verifier?.length)c.points_a_verifier=[...(c.points_a_verifier||[]),...r.points_a_verifier];
+        this.renderDocument();this.dirty=true;this.updateBar();d.hide();
+        frappe.show_alert({message:'Rubrique illustrée : relisez, puis Enregistrer.',indicator:'green'});
+      }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'L’opération a échoué. Reformulez l’instruction et réessayez.')}</div>`);}
+    }});
     d.show();
   }
   reecrireAvecIA(cible) {
@@ -746,8 +832,8 @@ class DocumentsProduit {
     const c=JSON.parse(JSON.stringify(this.current.contenu)),z=this.root.find('.dp-editor');
     c.titre=z.find('.dp-title').val();c.resume=z.find('.dp-summary').val();
     c.sections=z.find('.dp-section').map((_,el)=>{const q=$(el),s={titre:q.find('.dp-section-name').val(),texte:q.find('.dp-section-text').val(),article:q.find('.dp-section-scope').val(),source:q.find('.dp-section-source').val()};
-      const im=q.find('.dp-section-image');if(im.length){s.image=im.attr('data-image');s.image_position=im.find('.dp-si-position').val();s.image_largeur=Math.max(20,Math.min(100,Math.round(Number(im.find('.dp-si-largeur').val())||40)));s.image_legende=im.find('.dp-si-legende').val();}
-      const rows=q.find('.dp-st tr');if(rows.length)s.tableau=rows.map((_,tr)=>[$(tr).find('input').map((_,inp)=>inp.value).get()]).get();
+      const im=q.find('.dp-section-image');if(im.length){const g=im.attr('data-graphe');if(g)s.graphe=JSON.parse(g);else s.image=im.attr('data-image');const pos=im.find('.dp-si-position').val()||'droite';s.image_position=pos;s.image_largeur=Math.max(20,Math.min(['droite','gauche'].includes(pos)?60:100,Math.round(Number(im.find('.dp-si-largeur').val())||40)));s.image_legende=im.find('.dp-si-legende').val();}
+      const rows=q.find('.dp-st tr');if(rows.length){s.tableau=rows.map((_,tr)=>[$(tr).find('input').map((_,inp)=>inp.value).get()]).get();const pos=q.find('.dp-st-position').val()||'dessous';if(pos!=='dessous')s.tableau_position=pos;const tl=q.find('.dp-st-largeur');if(tl.length&&['droite','gauche'].includes(pos))s.tableau_largeur=Math.max(30,Math.min(70,Math.round(Number(tl.val())||50)));}
       return s;}).get();
     // Seulement le tableau des caractéristiques (pas ceux des rubriques ni des variantes), sans les lignes vides :
     // elles étaient capturées comme caractéristiques et faisaient dépasser la limite (06/11/2026, AP-M).

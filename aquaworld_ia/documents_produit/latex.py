@@ -291,6 +291,65 @@ def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristi
 	return {"entetes": entetes, "groupes": groupes}
 
 
+COULEURS_SERIES = ("aqua", "aqua!50", "black!50", "aqua!25")
+COULEURS_SECTEURS = ("aqua", "aqua!65", "aqua!40", "aqua!20", "black!55", "black!35", "black!20",
+	"aqua!80!black", "aqua!55!black", "aqua!30!black", "black!70", "black!10")
+
+
+def _coord(v):
+	return f"{v:g}" if isinstance(v, float) else str(v)
+
+
+def graphe_tikz(g, t):
+	"""Le code pgfplots / pgf-pie d'un graphe de rubrique (structure.graphe), à la largeur de la colonne courante.
+	PURE : les libellés passent par `t` (échappement LaTeX), les valeurs sont des nombres. Catégories en positions
+	1..n avec leurs libellés en xticklabels : des symbolic coords casseraient sur une virgule ou un « = »."""
+	n = len(g["categories"])
+	unite = f" ({t(g['unite'])})" if g.get("unite") else ""
+	titre = (r"title={" + t(g["titre"]) + "}, title style={font=\\small\\bfseries\\color{aqua}}, ") if g.get("titre") else ""
+	if g["type"] == "secteurs":
+		couleurs = ", ".join(COULEURS_SECTEURS[i % len(COULEURS_SECTEURS)] for i in range(n))
+		parts = ", ".join(_coord(v) + "/{" + t(c) + "}" for c, v in zip(g["categories"], g["series"][0]["valeurs"]) if v > 0)
+		legende = (r"{\small\bfseries\color{aqua} " + t(g["titre"]) + r"}\par") if g.get("titre") else ""
+		return (r"\begin{center}" + legende + r"\resizebox{0.92\linewidth}{!}{\begin{tikzpicture}\pie[text=legend, radius=2.4, "
+			+ "color={" + couleurs + r"}, sum=auto]{" + parts + r"}\end{tikzpicture}}\end{center}")
+	labels = ", ".join("{" + t(c) + "}" for c in g["categories"])
+	horizontal = g["type"] == "barres_horizontales"
+	axe_cat, axe_val = ("y", "x") if horizontal else ("x", "y")
+	# axe_x / axe_y désignent les axes horizontal / vertical du graphe : en barres horizontales, l'axe x porte les valeurs.
+	label_val, label_cat = (g.get("axe_x"), g.get("axe_y")) if horizontal else (g.get("axe_y"), g.get("axe_x"))
+	options = [titre + "width=\\linewidth", "height=" + ("0.42" if horizontal and n <= 4 else "0.62") + "\\linewidth",
+		f"{axe_cat}tick={{{','.join(str(i + 1) for i in range(n))}}}", f"{axe_cat}ticklabels={{{labels}}}",
+		f"{axe_cat}min=0.5, {axe_cat}max={n + 0.5}", f"{axe_val}min=0" if min(v for s in g["series"] for v in s["valeurs"]) >= 0 else "",
+		"tick label style={font=\\scriptsize}", "label style={font=\\scriptsize}", "axis line style={black!35}",
+		"tick style={black!35}", "ymajorgrids" if not horizontal else "xmajorgrids", "grid style={black!10}",
+		"legend style={at={(0.5,-0.22)}, anchor=north, legend columns=-1, font=\\scriptsize, draw=none, /tikz/every even column/.append style={column sep=0.4cm}}",
+		"/pgf/number format/use comma", "/pgf/number format/1000 sep={\\,}", "/pgf/number format/assume math mode=true"]
+	etiquette_val = (t(label_val) if label_val else "") + unite
+	if etiquette_val.strip():
+		options.append(f"{axe_val}label={{{etiquette_val}}}")
+	if label_cat:
+		options.append(f"{axe_cat}label={{{t(label_cat)}}}")
+	if horizontal:
+		options += ["y dir=reverse", "xbar", f"bar width={max(3, 10 - 1.4 * len(g['series'])):.0f}pt",
+			"nodes near coords", "nodes near coords style={font=\\tiny, /pgf/number format/fixed}"]
+	elif g["type"] == "courbe":
+		options += [f"enlarge {axe_cat} limits=0.08"]
+	else:
+		options += ["ybar", f"bar width={max(3, 12 - 1.8 * len(g['series']) - 0.4 * n):.0f}pt", "x tick label style={rotate=" + ("35, anchor=east" if n > 6 else "0") + "}",
+			"nodes near coords", "nodes near coords style={font=\\tiny, /pgf/number format/fixed}"]
+	tex = [r"\begin{tikzpicture}", r"\begin{axis}[" + ", ".join(o for o in options if o) + "]"]
+	for k, serie in enumerate(g["series"]):
+		couleur = COULEURS_SERIES[k % len(COULEURS_SERIES)]
+		style = (f"color={couleur}, mark=*, thick, mark size=1.6pt" if g["type"] == "courbe" else f"fill={couleur}, draw=none")
+		points = " ".join(f"({i + 1},{_coord(v)})" if not horizontal else f"({_coord(v)},{i + 1})" for i, v in enumerate(serie["valeurs"]))
+		tex.append(r"\addplot[" + style + "] coordinates {" + points + "};")
+		if len(g["series"]) > 1 or serie.get("nom"):
+			tex.append(r"\addlegendentry{" + t(serie.get("nom") or "") + "}")
+	tex += [r"\end{axis}", r"\end{tikzpicture}"]
+	return "\n".join(tex)
+
+
 def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=None):
 	assets = assets or {}
 	disposition = M.normaliser(ctx.get("mise_en_page"))
@@ -325,6 +384,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \fancyfoot[C]{\thepage}
 """
 	en_tete = en_tete.replace("{087E8B}", "{" + disposition["couleur"][1:] + "}")
+	if any(s.get("graphe") for s in contenu["sections"]):
+		# Graphes de rubrique (07/11/2026) : composés en vectoriel depuis les données, couleur des titres.
+		en_tete += "\\usepackage{pgfplots}\\pgfplotsset{compat=1.18}\\usepackage{pgf-pie}\n"
 	# Style des titres de section (demande 06/11/2026) ; chaque titre entre au sommaire.
 	style_titres = disposition.get("style_titres", "simple")
 	if style_titres == "souligne":
@@ -519,15 +581,23 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	else:
 		image = photo(0, largeur, disposition["hauteur_photo"])
 		blocs["presentation"] = [image, resume] if position == "avant" else [resume, image]
-	def tableau_rubrique(lignes):
-		"""Tableau saisi dans une rubrique : première ligne en gras, colonnes de même largeur, lignes fines."""
+	def tableau_rubrique(lignes, en_colonne=False):
+		"""Tableau saisi dans une rubrique : première ligne en gras, colonnes de même largeur, lignes fines. À côté du
+		texte (dans une colonne paracol), un tabular : longtable n'y est pas admis."""
 		n = len(lignes[0])
-		colonnes = (r">{\raggedright\arraybackslash}p{" + f"{(1 - .03 * (n - 1)) / n:.3f}" + r"\linewidth}") * n
-		tex = [ZEBRE, r"\begin{longtable}{" + colonnes + "}", r"\toprule"]
-		tex.append(r"\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(c) for c in lignes[0]) + r"\\\endhead")
+		# Largeur exacte : les 2 \tabcolsep de chaque colonne sont déduits (sinon 6 pt de trop sur 3 colonnes).
+		colonnes = (r">{\raggedright\arraybackslash}p{\dimexpr\linewidth/" + str(n) + r"-2\tabcolsep\relax}") * n
+		env = "tabular" if en_colonne else "longtable"
+		tex = [ZEBRE, r"\begin{" + env + "}{" + colonnes + "}", r"\toprule"]
+		tex.append(r"\rowcolor{aquafort}" + " & ".join(r"\bfseries\color{aqua} " + t(c) for c in lignes[0]) + r"\\"
+			+ ("" if en_colonne else r"\endhead"))
 		tex += [" & ".join(t(c) for c in ligne) + r"\\" for ligne in lignes[1:]]
-		tex.append(r"\bottomrule\end{longtable}")
+		tex.append(r"\bottomrule\end{" + env + "}")
 		return "\n".join(tex)
+
+	def colonnes(gauche, droite, ratio):
+		return "\n".join([r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
+			r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}"])
 
 	for i, s in enumerate(contenu["sections"]):
 		blocs["rubriques"].append(r"\docsection{" + t(s["titre"]) + "}")
@@ -535,24 +605,44 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			blocs["rubriques"].append(r"{\small " + t(labels["portee"] + " : " + s["article"]) + r"}\par")
 		corps = t(s["texte"]) + r"\par"
 		fichier = (assets.get("sections") or {}).get(i)
-		if s.get("image") and fichier:
-			# Image de rubrique (graphe, schéma) : à côté du texte en deux colonnes, ou au-dessus / en dessous.
-			legende = (r"{\small " + t(s.get("image_legende", "")) + r"}\par") if s.get("image_legende") else ""
-			largeur = s.get("image_largeur", 40) / 100
-			if s["image_position"] in ("droite", "gauche"):
-				image = (r"\begin{center}\includegraphics[width=\linewidth,height=90mm,keepaspectratio]{" + fichier
-					+ r"}\end{center}" + legende)
-				gauche, droite = (corps, image) if s["image_position"] == "droite" else (image, corps)
-				ratio = 1 - largeur if s["image_position"] == "droite" else largeur
-				corps = "\n".join([r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
-					r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}"])
+		position = s.get("image_position", "droite")
+		largeur = s.get("image_largeur", 40) / 100
+		en_colonne = position in ("droite", "gauche")
+		illustration = ""
+		# Centrée sous l'illustration. (Pas « legende » : ce nom est la fonction des légendes de photos, plus haut.)
+		sous_titre = (r"\par{\small " + t(s["image_legende"]) + "}") if s.get("image_legende") else ""
+		if s.get("graphe"):
+			# Graphe de données (07/11/2026) : composé par pgfplots à la largeur de sa colonne ou de son cadre.
+			if en_colonne:
+				illustration = r"\begin{center}" + graphe_tikz(s["graphe"], t) + sous_titre + r"\end{center}"
 			else:
-				image = (r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
-					+ r"\linewidth,height=120mm,keepaspectratio]{" + fichier + r"}\end{center}" + legende)
-				corps = image + "\n" + corps if s["image_position"] == "dessus" else corps + "\n" + image
-		blocs["rubriques"].append(corps)
+				illustration = (r"\begin{center}\begin{minipage}{" + f"{largeur:.2f}" + r"\linewidth}\centering" + graphe_tikz(s["graphe"], t)
+					+ sous_titre + r"\end{minipage}\end{center}")
+		elif s.get("image") and fichier:
+			# Image de rubrique (graphe exporté, schéma) : à côté du texte en deux colonnes, ou au-dessus / en dessous.
+			if en_colonne:
+				illustration = (r"\begin{center}\includegraphics[width=\linewidth,height=90mm,keepaspectratio]{" + fichier
+					+ "}" + sous_titre + r"\end{center}")
+			else:
+				illustration = (r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
+					+ r"\linewidth,height=120mm,keepaspectratio]{" + fichier + "}" + sous_titre + r"\end{center}")
+		if illustration:
+			if en_colonne:
+				corps = colonnes(corps, illustration, 1 - largeur) if position == "droite" else colonnes(illustration, corps, largeur)
+			else:
+				corps = illustration + "\n" + corps if position == "dessus" else corps + "\n" + illustration
 		if s.get("tableau"):
-			blocs["rubriques"].append(tableau_rubrique(s["tableau"]))
+			# Tableau de rubrique : sous le texte (défaut), au-dessus, ou à côté quand l'illustration n'y est pas déjà.
+			position_tableau = s.get("tableau_position", "dessous")
+			if position_tableau in ("droite", "gauche") and not (illustration and en_colonne):
+				tableau = tableau_rubrique(s["tableau"], en_colonne=True)
+				ratio = s.get("tableau_largeur", 50) / 100
+				corps = colonnes(corps, tableau, 1 - ratio) if position_tableau == "droite" else colonnes(tableau, corps, ratio)
+			elif position_tableau == "dessus":
+				corps = tableau_rubrique(s["tableau"]) + "\n" + corps
+			else:
+				corps = corps + "\n" + tableau_rubrique(s["tableau"])
+		blocs["rubriques"].append(corps)
 	if contenu["caracteristiques"]:
 		blocs["caracteristiques"] += [
 			r"\docsection{" + t(labels["caracteristiques"]) + "}",
