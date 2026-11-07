@@ -612,6 +612,38 @@ grisé à l’écran et refusé au serveur). Un tableau en colonne est un `tabul
 relire une ancienne version sans y toucher ne crée pas de nouvelle version. Ces appels (action « illustrer ») sont
 comptés dans l’historique des coûts du dossier ; ils sont réservés à la version française, comme la réécriture.
 
+**Galerie libre, centrage, page entière, polices, présentation reprise d’un autre dossier** (07/11/2026 : « une façon
+plus libre de gérer les dimensions et les positions des images, remplir la page, centrer les images ou tout le grid,
+choisir la police de tout le document, créer un autre document pour un autre produit avec la même mise en forme ») :
+- **Disposition des galeries → Libre : une largeur par photo**. Chaque photo de la galerie (dans l’ordre de l’étape
+  Préparer) a sa largeur en % de la ligne ; les photos s’enchaînent de gauche à droite et passent à la ligne quand la
+  somme dépasse 100 (`latex.empaqueter`) : 100 = une photo par ligne, 50 + 50 = deux côte à côte, 30 + 30 + 40 =
+  trois. La hauteur suit les proportions de chaque photo (130 mm au plus : une ligne ne se coupe pas). Les largeurs
+  sont stockées par fichier (`largeurs_photos`), 100 n’est pas stocké ; le QR des illustrations suit à 25 %.
+- **Alignement des photos** : à gauche (lignes complétées par des cases vides, comme avant) ou **centrées** — chaque
+  ligne, dernière incomplète comprise, avec 3 % d’écart entre les cases ; les parts sont réduites si besoin pour que la
+  ligne tienne, jamais agrandies. **Largeur de la galerie** (50–100 % de la ligne) : en dessous de 100, la grille ou la
+  galerie libre est centrée dans un cadre, proportions internes conservées (comme la mosaïque).
+- **Remplir une page entière** : le bloc « Autres illustrations » commence sur une page neuve (`\clearpage`) et la
+  hauteur des vignettes de la grille est calculée d’après le nombre de rangées (`latex.hauteur_pleine_page`, 232 mm
+  utiles, légendes comprises, 25–150 mm) ; une photo large reste bornée par sa colonne. Le titre du bloc ne reste
+  jamais seul en bas de page (`\needspace{60mm}`).
+- **Police du texte**, **police des titres** (vide = celle du texte) et **taille du texte** (9–12 pt), dans « Titre et
+  marque ». Neuf familles livrées avec l’app (`public/fonts`, OFL : Noto Sans, Open Sans, Lato, Montserrat, Roboto,
+  Poppins, Oswald, Noto Serif, EB Garamond) chargées par fontspec depuis leur dossier (`latex.police_fontspec`, graisses
+  présentes seulement — Oswald n’a pas d’italique), donc indépendantes des polices du serveur et embarquées dans le
+  PDF. Les langues à écriture non latine (arabe, chinois…) gardent leur police Noto ; leurs passages latins et leurs
+  titres prennent la police choisie. Les graphes pgfplots suivent la police du document. Un caractère absent de la
+  police choisie est signalé à la composition (contrôle « Missing character » existant).
+- **Reprendre la présentation d’un autre dossier…** (à côté de « Disposition initiale ») : choisir un dossier modèle et
+  cocher ce qui est repris — la mise en page de la fiche et du manuel (`mise_en_page.portable` : tout sauf la photo en
+  grand de la mosaïque et les largeurs par photo, qui désignent des fichiers de l’autre dossier), la marque, le logo
+  avec en-tête et l’en-tête, les consignes de rédaction (et connaissances générales), et le **plan des rubriques** des
+  dernières versions françaises du modèle, ajouté aux consignes (« Plan des rubriques à suivre (Fiche technique), dans
+  cet ordre : A ; B ; C. », `mise_en_page.plan_rubriques`) pour que l’IA rédige le nouveau produit avec les mêmes
+  rubriques. Photos, variantes, sources et textes restent ceux du dossier courant : le contenu est rédigé pour le nouvel
+  article à l’étape Rédiger, puis relu. Service : `copier_presentation(name, source, elements)`.
+
 **Réglages dans l’ordre du document** (06/11/2026) : le panneau de mise en page est découpé en blocs
 qui suivent l’ordre choisi — « Titre et marque » (alignement et couleur des titres, style des titres de
 section, sommaire, zone de marque),

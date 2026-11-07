@@ -308,7 +308,7 @@ class TestGalerieMosaique(unittest.TestCase):
 	def test_reglage(self):
 		self.assertEqual(M.normaliser({"style_galerie": "mosaique"})["style_galerie"], "mosaique")
 		self.assertNotIn("style_galerie", M.normaliser({"style_galerie": "grille"}))
-		for mauvais in ({"style_galerie": "libre"}, {"style_galerie": 1}):
+		for mauvais in ({"style_galerie": "colonnes"}, {"style_galerie": 1}):
 			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
 				M.normaliser(mauvais)
 
@@ -499,3 +499,103 @@ class TestStyleTitresEtSommaire(unittest.TestCase):
 			self.assertGreaterEqual(len(tous) - filets_sans, 5)
 			titre = page.search_for("Rubrique 1")[-1]
 			self.assertTrue(any(titre.y1 - 2 <= d["rect"].y0 <= titre.y1 + 18 for d in filets))
+
+
+class TestGalerieLibreEtPolices(unittest.TestCase):
+	"""07/11/2026 : galerie libre (une largeur par photo), alignement et largeur de la galerie, page entière, polices
+	livrées et taille du texte, reprise de la présentation d'un autre dossier."""
+
+	def test_validation_des_nouveaux_reglages(self):
+		m = M.normaliser({"style_galerie": "libre", "largeurs_photos": {"/files/a.png": 50, "/private/files/b.png": 100},
+			"alignement_galerie": "centre", "largeur_galerie": 80, "galerie_pleine_page": 1, "police": "montserrat",
+			"police_titres": "oswald", "taille_police": 11})
+		self.assertEqual(m["largeurs_photos"], {"/files/a.png": 50})          # 100 = défaut, non stocké
+		self.assertEqual((m["alignement_galerie"], m["largeur_galerie"], m["galerie_pleine_page"]), ("centre", 80, 1))
+		self.assertEqual((m["police"], m["police_titres"], m["taille_police"]), ("montserrat", "oswald", 11))
+		# Les défauts n'apparaissent pas : une ancienne mise en page garde son empreinte.
+		self.assertNotIn("police", M.normaliser({"police": ""}))
+		self.assertNotIn("taille_police", M.normaliser({"taille_police": 10}))
+		self.assertNotIn("largeurs_photos", M.normaliser({"largeurs_photos": {}}))
+		for mauvais in ({"police": "Comic Sans"}, {"taille_police": 14}, {"alignement_galerie": "droite"}, {"largeur_galerie": 40},
+			{"largeurs_photos": {"https://x/a.png": 50}}, {"largeurs_photos": {"/files/a.png": 5}}, {"largeurs_photos": {"/files/a.png": 50.5}},
+			{"largeurs_photos": [50]}, {"style_galerie": "colonnes"}):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser(mauvais)
+
+	def test_portable_et_plan_des_rubriques(self):
+		m = M.portable({"photo_grande": "/files/a.png", "largeurs_photos": {"/files/a.png": 50}, "police": "lato", "colonnes_photos": 3})
+		self.assertEqual((m.get("police"), m.get("colonnes_photos")), ("lato", 3))
+		self.assertNotIn("photo_grande", m)
+		self.assertNotIn("largeurs_photos", m)
+		plan = M.plan_rubriques("Fiche technique", {"sections": [{"titre": "Applications"}, {"titre": " "}, {"titre": "Entretien"}]})
+		self.assertEqual(plan, "Plan des rubriques à suivre (Fiche technique), dans cet ordre : Applications ; Entretien.")
+		self.assertEqual(M.plan_rubriques("Manuel d'utilisation", {"sections": []}), "")
+
+	def test_empaquetage_polices_et_hauteur_pleine_page(self):
+		self.assertEqual(L.empaqueter([(1, 50), (2, 50), (3, 30), (4, 30), (5, 40), (6, 100), (None, 25)]),
+			[[(1, 50), (2, 50)], [(3, 30), (4, 30), (5, 40)], [(6, 100)], [(None, 25)]])
+		self.assertEqual(L.empaqueter([(1, 60), (2, 60)]), [[(1, 60)], [(2, 60)]])     # 120 % : deux lignes
+		self.assertEqual(L.hauteur_pleine_page(6, 3), 102)
+		self.assertEqual(L.hauteur_pleine_page(12, 4, legendes=False), 71)
+		self.assertEqual(L.hauteur_pleine_page(1, 1), 150)                        # borné
+		self.assertEqual(L.hauteur_pleine_page(40, 2), 25)
+		montserrat = L.police_fontspec("montserrat")
+		self.assertIn(r"\setmainfont{Montserrat}[Path=", montserrat)
+		self.assertIn("BoldItalicFont=*-BoldItalic", montserrat)
+		self.assertNotIn("ItalicFont=*-Italic", L.police_fontspec("oswald"))      # Oswald n'a pas d'italique
+		self.assertEqual(L.police_fontspec("inconnue"), "")
+		self.assertEqual(L.police_fontspec(""), "")
+		for cle in L.POLICES_LIVREES:
+			self.assertTrue(L.police_fontspec(cle), cle)                            # chaque famille annoncée est livrée
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_rendu_galerie_libre_centree_polices_et_page_entiere(self):
+		import pymupdf
+		from PIL import Image
+		from unittest.mock import patch
+
+		from aquaworld_ia.documents_produit import contexte as C
+		from aquaworld_ia.documents_produit import structure as S
+
+		def png(couleur, w, h):
+			b = io.BytesIO()
+			Image.new("RGB", (w, h), couleur).save(b, format="PNG")
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/p{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(5)]
+		c = contenu_simple(ctx)
+		c["legendes"] = [f"Vue {i}" for i in range(5)]
+		c = S.normaliser(c, ctx)
+		# Une couleur par photo : des PNG identiques partageraient un même objet image dans le PDF (un seul rectangle lu).
+		octets = {f"/files/p{i}.png": png(["orange", "teal", "purple", "gray", "navy"][i], 600, 400) for i in range(5)}
+		m = {"style_galerie": "libre", "alignement_galerie": "centre", "largeur_galerie": 90, "police": "montserrat", "police_titres": "oswald",
+			"taille_police": 11, "largeurs_photos": {"/files/p1.png": 30, "/files/p2.png": 30, "/files/p3.png": 40, "/files/p4.png": 50}}
+		with patch.object(C, "octets", side_effect=lambda u: octets[u]):
+			tex, pdf, _ = L.composer(c, {**ctx, "mise_en_page": m})
+		self.assertIn(r"\documentclass[11pt,a4paper]", tex)
+		self.assertIn(r"\setmainfont{Montserrat}[Path=", tex)
+		self.assertIn(r"\newfontfamily\titrefontfamille{Oswald}[Path=", tex)
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			rects = sorted(((p.number, r) for p in doc for x in p.get_images() for r in p.get_image_rects(x[0])),
+				key=lambda pr: (pr[0], pr[1].y0, pr[1].x0))
+			self.assertEqual(len(rects), 5)                                       # principale + 4 de la galerie
+			galerie = [r for _, r in rects[1:]]
+			ligne1 = sorted((r for r in galerie if abs(r.y0 - galerie[0].y0) < 2), key=lambda r: r.x0)
+			self.assertEqual(len(ligne1), 3)                                      # 30 + 30 + 40 : une seule ligne
+			self.assertAlmostEqual(ligne1[0].width / ligne1[2].width, 0.75, delta=0.03)   # proportions 30 / 40 conservées
+			page_w = doc[rects[1][0]].rect.width
+			seul = galerie[3]
+			self.assertAlmostEqual((seul.x0 + seul.x1) / 2, page_w / 2, delta=6)   # la photo à 50 %, seule, est centrée
+			polices = {f[3] for p in doc for f in p.get_fonts()}
+			self.assertTrue(any("Montserrat" in f for f in polices), polices)
+			self.assertTrue(any("Oswald" in f for f in polices), polices)
+		# Page entière : le bloc commence sur une page neuve, la grille prend la hauteur calculée.
+		m2 = {"style_galerie": "grille", "colonnes_photos": 2, "galerie_pleine_page": 1}
+		with patch.object(C, "octets", side_effect=lambda u: octets[u]):
+			tex2, pdf2, _ = L.composer(c, {**ctx, "mise_en_page": m2})
+		self.assertIn(r"\clearpage", tex2)
+		self.assertIn(f"height={L.hauteur_pleine_page(4, 2)}mm", tex2)
+		with pymupdf.open(stream=pdf2, filetype="pdf") as doc:
+			self.assertEqual(len(doc), 2)
+			self.assertEqual(len(doc[1].get_images()), 4)

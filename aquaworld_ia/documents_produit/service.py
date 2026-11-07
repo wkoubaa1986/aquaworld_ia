@@ -373,6 +373,46 @@ def enregistrer(name, data, modified=None):
 
 
 @frappe.whitelist()
+def copier_presentation(name, source, elements):
+	"""Reprend d'un autre dossier sa présentation pour ce produit (demande 07/11/2026 : « créer un autre document pour un
+	autre produit en respectant la même mise en forme »). `elements` : mise_en_page (fiche et manuel, sans ce qui désigne
+	des photos du dossier d'origine), marque (marque, logo avec en-tête, en-tête), consignes (consignes et connaissances
+	générales), plan (titres des rubriques des dernières versions françaises, ajoutés aux consignes pour que l'IA suive le
+	même plan). Photos, variantes, sources et textes restent ceux de ce dossier. -> {source, repris, modified}"""
+	d = dossier(name, "write", True)
+	s = dossier(source)
+	if s.name == d.name:
+		frappe.throw(_("Choisissez un autre dossier que celui-ci."))
+	elements = set(_json(elements) or [])
+	repris = []
+	if "mise_en_page" in elements:
+		conf = M.configuration(s.get("mises_en_page"))
+		d.mises_en_page = json.dumps({k: M.portable(v) for k, v in conf.items()}, ensure_ascii=False)
+		repris.append("mise en page")
+	if "marque" in elements:
+		for k in ("marque_document", "logo_marque_avec_entete", "entete"):
+			d.set(k, s.get(k))
+		repris.append("marque et en-tête")
+	if "consignes" in elements:
+		d.consignes = s.consignes or ""
+		d.connaissances_generales = s.get("connaissances_generales") or 0
+		repris.append("consignes")
+	if "plan" in elements:
+		plans = []
+		for genre in S.TYPES:
+			v = frappe.get_all(C.DOCUMENT, filters={"dossier": s.name, "langue": "fr", "type_document": genre},
+				fields=["contenu_json"], order_by="numero desc", limit=1)
+			plan = M.plan_rubriques(genre, json.loads(v[0].contenu_json)) if v else ""
+			if plan and plan not in (d.consignes or ""):
+				plans.append(plan)
+		if plans:
+			d.consignes = ((d.consignes or "").rstrip() + "\n\n" + "\n".join(plans)).strip()
+			repris.append("plan des rubriques")
+	d.save()
+	return {"source": s.titre, "repris": repris, "modified": d.modified}
+
+
+@frappe.whitelist()
 def lire_document(name):
 	d = document(name)
 	return {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -291,6 +292,53 @@ def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristi
 	return {"entetes": entetes, "groupes": groupes}
 
 
+# Polices livrées avec l'app (public/fonts, OFL) : clé de mise en page -> nom de famille = préfixe des fichiers.
+# Chargées par fontspec depuis leur dossier, donc indépendantes des polices installées sur le serveur (07/11/2026).
+POLICES_LIVREES = {"noto_sans": "NotoSans", "open_sans": "OpenSans", "lato": "Lato", "montserrat": "Montserrat", "roboto": "Roboto",
+	"poppins": "Poppins", "oswald": "Oswald", "noto_serif": "NotoSerif", "eb_garamond": "EBGaramond"}
+POLICES_LIBELLES = {"": "Noto Sans (par défaut)", "noto_sans": "Noto Sans", "open_sans": "Open Sans", "lato": "Lato", "montserrat": "Montserrat",
+	"roboto": "Roboto", "poppins": "Poppins", "oswald": "Oswald", "noto_serif": "Noto Serif", "eb_garamond": "EB Garamond"}
+DOSSIER_POLICES = Path(__file__).resolve().parents[1] / "public" / "fonts"
+
+
+def police_fontspec(cle, commande=r"\setmainfont"):
+	r"""La déclaration fontspec d'une police livrée : `\setmainfont{Montserrat}[Path=…/, Extension=.ttf, UprightFont=*-Regular,
+	BoldFont=*-Bold, …]`, avec seulement les graisses dont le fichier existe (Oswald n'a pas d'italique). '' si la
+	clé est inconnue ou le fichier Regular absent."""
+	famille = POLICES_LIVREES.get(cle or "")
+	if not famille or not (DOSSIER_POLICES / f"{famille}-Regular.ttf").is_file():
+		return ""
+	options = [f"Path={DOSSIER_POLICES.as_posix()}/", "Extension=.ttf", "UprightFont=*-Regular"]
+	for option, suffixe in (("BoldFont", "Bold"), ("ItalicFont", "Italic"), ("BoldItalicFont", "BoldItalic")):
+		if (DOSSIER_POLICES / f"{famille}-{suffixe}.ttf").is_file():
+			options.append(f"{option}=*-{suffixe}")
+	return commande + "{" + famille + "}[" + ", ".join(options) + "]\n"
+
+
+def empaqueter(largeurs, limite=100):
+	"""Galerie libre : les photos (index, largeur %) rangées en lignes, de gauche à droite ; une photo passe à la
+	ligne quand la somme dépasse `limite`. PURE. [[(index, largeur), …], …]"""
+	lignes, courante, somme = [], [], 0
+	for index, largeur in largeurs:
+		largeur = max(10, min(100, int(largeur)))
+		if courante and somme + largeur > limite:
+			lignes.append(courante)
+			courante, somme = [], 0
+		courante.append((index, largeur))
+		somme += largeur
+	if courante:
+		lignes.append(courante)
+	return lignes
+
+
+def hauteur_pleine_page(nombre, colonnes, legendes=True, disponible=232):
+	"""Hauteur (mm) des vignettes d'une grille pour que `nombre` photos sur `colonnes` remplissent une page A4
+	(232 mm utiles sous le titre du bloc), légende comprise. PURE, bornée 25–150 mm."""
+	rangees = max(1, math.ceil(max(1, nombre) / max(1, colonnes)))
+	hauteur = (disponible - rangees * (14 if legendes else 6)) / rangees
+	return int(max(25, min(150, hauteur)))
+
+
 COULEURS_SERIES = ("aqua", "aqua!50", "black!50", "aqua!25")
 COULEURS_SECTEURS = ("aqua", "aqua!65", "aqua!40", "aqua!20", "black!55", "black!35", "black!20",
 	"aqua!80!black", "aqua!55!black", "aqua!30!black", "black!70", "black!10")
@@ -359,7 +407,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 
 	labels = contenu["libelles"]
 	police = POLICES.get(langue.split("-")[0], "Noto Sans")
-	en_tete = r"""\documentclass[10pt,a4paper]{article}
+	en_tete = r"""\documentclass[TAILLEpt,a4paper]{article}
 \usepackage[margin=18mm,headheight=16pt]{geometry}
 \usepackage{fontspec}
 \usepackage{graphicx}
@@ -377,27 +425,38 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt}
 \setlength{\emergencystretch}{4em}
-\newcommand{\docsection}[1]{\section*{\color{aqua}#1}\phantomsection\addcontentsline{toc}{section}{#1}}
+\newcommand{\titrefont}{}
+\newcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\phantomsection\addcontentsline{toc}{section}{#1}}
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
 \fancyfoot[C]{\thepage}
 """
-	en_tete = en_tete.replace("{087E8B}", "{" + disposition["couleur"][1:] + "}")
+	en_tete = en_tete.replace("{087E8B}", "{" + disposition["couleur"][1:] + "}").replace("TAILLEpt", f"{disposition.get('taille_police', 10)}pt")
 	if any(s.get("graphe") for s in contenu["sections"]):
 		# Graphes de rubrique (07/11/2026) : composés en vectoriel depuis les données, couleur des titres.
 		en_tete += "\\usepackage{pgfplots}\\pgfplotsset{compat=1.18}\\usepackage{pgf-pie}\n"
 	# Style des titres de section (demande 06/11/2026) ; chaque titre entre au sommaire.
 	style_titres = disposition.get("style_titres", "simple")
 	if style_titres == "souligne":
-		en_tete += r"\renewcommand{\docsection}[1]{\section*{\color{aqua}#1}\vspace{-11pt}\noindent{\color{aqua}\rule{\linewidth}{0.6pt}}\par\vspace{2pt}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
+		en_tete += r"\renewcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\vspace{-11pt}\noindent{\color{aqua}\rule{\linewidth}{0.6pt}}\par\vspace{2pt}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
 	elif style_titres == "barre":
-		en_tete += r"\renewcommand{\docsection}[1]{\section*{\noindent{\color{aqua}\rule[-3pt]{3pt}{14pt}}\hspace{6pt}\color{aqua}#1}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
+		en_tete += r"\renewcommand{\docsection}[1]{\section*{\noindent{\color{aqua}\rule[-3pt]{3pt}{14pt}}\hspace{6pt}\color{aqua}\titrefont #1}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
 	elif style_titres == "fond":
-		en_tete += r"\renewcommand{\docsection}[1]{\section*{\colorbox{aquafort}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\color{aqua}#1}}}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
+		en_tete += r"\renewcommand{\docsection}[1]{\section*{\colorbox{aquafort}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\color{aqua}\titrefont #1}}}\phantomsection\addcontentsline{toc}{section}{#1}}" + "\n"
 	en_tete += r"\renewcommand{\contentsname}{" + texte(labels["sommaire"], rtl) + "}\n"
 	script = "[Script=Arabic]" if langue.split("-")[0] in ("ar", "fa", "ur") else ""
-	en_tete += "\\setmainfont" + script + "{" + police + "}\n\\newfontfamily\\latinfont{Noto Sans}\n"
+	# Police choisie (07/11/2026) : pour les langues en écriture latine ; les autres gardent leur police Noto. Les passages
+	# latins d'un texte RTL (\latinfont) et les titres (\titrefont) prennent la police livrée quand elle est choisie.
+	choisie = police_fontspec(disposition.get("police")) if langue.split("-")[0] not in POLICES else ""
+	if choisie:
+		en_tete += choisie
+	else:
+		en_tete += "\\setmainfont" + script + "{" + police + "}\n"
+	en_tete += police_fontspec(disposition.get("police"), r"\newfontfamily\latinfont") or "\\newfontfamily\\latinfont{Noto Sans}\n"
+	titres = police_fontspec(disposition.get("police_titres") or disposition.get("police"), r"\newfontfamily\titrefontfamille")
+	if titres:
+		en_tete += titres + r"\renewcommand{\titrefont}{\titrefontfamille}" + "\n"
 	if police_symboles():
 		en_tete += "\\newfontfamily\\symbolfont{" + police_symboles() + "}\n"
 	if rtl:
@@ -479,7 +538,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	body.extend(zones("avant_titre"))
 	body.append(r"\begingroup" + alignement[disposition["alignement_titre"]])
 	body += [
-		r"{\LARGE\bfseries\color{aqua} " + t(contenu["titre"]) + r"}\par",
+		r"{\LARGE\bfseries\color{aqua}\titrefont " + t(contenu["titre"]) + r"}\par",
 		t(ctx.get("marque_document") or ctx["article"].get("brand") or "") + r"\quad " + t(ctx["article"]["name"]) + r"\par",
 		t(labels["version"]) + " " + str(numero) + r"\par",
 	]
@@ -552,18 +611,62 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			if not indices and not extra:
 				return tete
 			colonnes = max(colonnes, 2)
+		centre = disposition.get("alignement_galerie", "gauche") == "centre"
+		largeur_galerie = disposition.get("largeur_galerie", 100) / 100
+
+		def cadrer(lignes):
+			"""Grille ou galerie libre moins large que la ligne : chaque rangée centrée dans un cadre à cette largeur,
+			proportions internes conservées. Rangée par rangée (pas la galerie entière) : un seul cadre serait
+			insécable et rejetterait toute la galerie sur la page suivante, laissant le titre seul."""
+			if largeur_galerie >= 1 or not lignes:
+				return lignes
+			return [r"\begin{center}\begin{minipage}{" + f"{largeur_galerie:.2f}" + r"\linewidth}" + ligne + r"\end{minipage}\end{center}" for ligne in lignes]
+
+		def rangee(cellules_tex, parts, espacer=False):
+			"""Une ligne de cases (contenu, part de la ligne) : à gauche (cases vides en complément, réparties par hfill),
+			ou centrée / libre avec un espace fixe de 3 % entre les cases — les parts sont alors réduites pour que la ligne
+			tienne (30 + 30 + 40 doit rester une seule ligne), jamais agrandies."""
+			if centre or espacer:
+				ecarts = 0.03 * (len(parts) - 1)
+				facteur = min(1, (1 - ecarts) / sum(parts)) if sum(parts) else 1
+				parts = [p * facteur for p in parts]
+			cases = [r"\begin{minipage}[t]{" + f"{part:.3f}" + r"\linewidth}\vspace{0pt}\small " + cellule + r"\end{minipage}"
+				for cellule, part in zip(cellules_tex, parts)]
+			if centre:
+				return r"{\centering " + r"\hspace{0.03\linewidth}".join(cases) + r"\par}\medskip"
+			if espacer:
+				return r"\noindent " + r"\hspace{0.03\linewidth}".join(cases) + r"\par\medskip"
+			return r"\noindent " + r"\hfill ".join(cases) + r"\hfill\null\par\medskip"
+
+		if disposition.get("style_galerie") == "libre" and indices:
+			# Galerie libre (07/11/2026) : chaque photo a sa largeur (% de la ligne), les photos s'enchaînent et passent à
+			# la ligne quand la somme dépasse 100 ; 100 = une photo par ligne. Le QR suit, à 25 %.
+			largeurs = disposition.get("largeurs_photos") or {}
+			images_ctx = ctx.get("images", [])
+			voulues = [(i, largeurs.get(images_ctx[i].get("image", "") if i < len(images_ctx) else "", 100)) for i in indices]
+			if extra:
+				voulues.append((None, 25))
+			lignes = list(tete)
+			for ligne in empaqueter(voulues):
+				# 130 mm de haut au plus : une ligne ne se coupe pas, une photo en portrait à 100 % débordait de la page.
+				cellules = [extra if i is None else photo(i, 1, 130, portee) for i, _ in ligne]
+				lignes.append(rangee(cellules, [l / 100 for _, l in ligne], espacer=True))
+			return cadrer(lignes)
 		if colonnes == 1:
 			return tete + [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices] + ([extra] if extra else [])
+		if disposition.get("galerie_pleine_page") and indices:
+			# Remplir la page : la hauteur des vignettes vient du nombre de rangées, pas du réglage manuel.
+			hauteur = hauteur_pleine_page(len(indices) + (1 if extra else 0), colonnes, bool(disposition.get("legendes_galerie", 1)))
 		contenus = [photo(i, 1, hauteur, portee) for i in indices] + ([extra] if extra else [])
 		lignes = list(tete)
+		part = (1 - .04 * (colonnes - 1)) / colonnes
 		for debut in range(0, len(contenus), colonnes):
-			cellules = [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}"
-				+ r"\linewidth}\vspace{0pt}\small " + cellule + r"\end{minipage}"
-				for cellule in contenus[debut:debut + colonnes]]
-			# Une dernière ligne incomplète garde ses cases alignées à gauche : des cellules vides complètent la ligne.
-			cellules += [r"\begin{minipage}[t]{" + f"{(1 - .04 * (colonnes - 1)) / colonnes:.3f}" + r"\linewidth}\strut\end{minipage}"] * (colonnes - len(cellules))
-			lignes.append(r"\noindent " + r"\hfill ".join(cellules) + r"\par\medskip")
-		return lignes
+			cellules = contenus[debut:debut + colonnes]
+			# Une dernière ligne incomplète garde ses cases alignées à gauche (cases vides en complément), ou se centre.
+			if not centre:
+				cellules += [r"\strut"] * (colonnes - len(cellules))
+			lignes.append(rangee(cellules, [part] * len(cellules)))
+		return cadrer(lignes)
 
 	resume = t(contenu["resume"]) + r"\par"
 	position = disposition["position_photo"]
@@ -779,8 +882,11 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	# sous le titre du bloc quand il n'y a pas d'autre illustration — le bloc suit alors l'ordre choisi.
 	qr_illustrations = "\n".join(zone_qr) if qr["qr_position"] == "illustrations" and zone_qr else None
 	if illustrations or qr_illustrations:
-		if regrouper or disposition.get("colonnes_photos", 1) > 1 or disposition.get("style_galerie") == "mosaique" or (qr_illustrations and not illustrations):
-			blocs["illustrations"].append(r"\docsection{" + t(labels["illustrations"]) + "}")
+		if disposition.get("galerie_pleine_page"):
+			blocs["illustrations"].append(r"\clearpage")   # le bloc commence sur une page neuve (07/11/2026)
+		if regrouper or disposition.get("colonnes_photos", 1) > 1 or disposition.get("style_galerie") in ("mosaique", "libre") or (qr_illustrations and not illustrations):
+			# Le titre ne reste pas seul en bas de page quand la première rangée ne tient pas dessous.
+			blocs["illustrations"].append(r"\needspace{60mm}\docsection{" + t(labels["illustrations"]) + "}")
 		blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
 	for cle in disposition["ordre"]:
 		body.extend(blocs[cle])

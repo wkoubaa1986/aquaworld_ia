@@ -16,7 +16,21 @@ MARQUE_DEFAUTS = {
 }
 PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille", "photo_grande": "",
 	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
-	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0}
+	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0,
+	"alignement_galerie": "gauche", "largeur_galerie": 100, "galerie_pleine_page": 0, "largeurs_photos": {},
+	"police": "", "police_titres": "", "taille_police": 10}
+# 07/11/2026 (« une façon plus libre de gérer dimensions et positions des images, centrer les images ou tout le
+# grid, remplir la page, choisir la police de tout le document ») :
+# style_galerie « libre » : chaque photo a sa largeur (largeurs_photos : {fichier: % de la ligne}, 100 par défaut) ;
+# les photos s'enchaînent de gauche à droite et passent à la ligne quand la somme dépasse 100.
+# alignement_galerie : « gauche » (lignes alignées à gauche) ou « centre » (chaque ligne centrée, dernière ligne
+# incomplète comprise). largeur_galerie : % de la ligne occupé par la grille ou la galerie libre, centrée en dessous
+# de 100. galerie_pleine_page : le bloc « Autres illustrations » commence sur une nouvelle page et la hauteur des
+# vignettes de la grille est calculée pour remplir cette page.
+# police / police_titres : une des familles livrées (public/fonts, voir latex.POLICES_LIVREES), vide = Noto Sans ;
+# police_titres vide = la police du texte. taille_police : corps du texte en points (9, 10, 11, 12).
+POLICES = ("", "noto_sans", "open_sans", "lato", "montserrat", "roboto", "poppins", "oswald", "noto_serif", "eb_garamond")
+IMAGE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
 # style_titres : simple | souligne (filet sous le titre) | barre (barre latérale) | fond (bandeau) ; sommaire : table des
 # titres de blocs et de rubriques au début du document (demande 06/11/2026).
 # libelle_croise : « nom_sans_parent » (le nom de la variante sans le nom de l'article parent, ex. « AquaJad, Classique
@@ -101,15 +115,30 @@ def normaliser(valeur=None):
 		v = valeur.get(cle, defaut)
 		if cle == "photo_grande":
 			# La photo en grand de la mosaïque (fichier de la galerie) ; vide = la première de la galerie.
-			if not isinstance(v, str) or len(v) > 500 or (v and not re.fullmatch(r"/(?:private/)?files/[^\s\"'<>]+", v)):
+			if not isinstance(v, str) or len(v) > 500 or (v and not IMAGE.fullmatch(v)):
 				raise ValueError("Photo de la mosaïque invalide.")
 			v = v.strip()
+		elif cle == "largeurs_photos":
+			# Galerie libre : {fichier: largeur en % de la ligne}. Un fichier absent de la galerie est ignoré au rendu.
+			if not isinstance(v, dict) or len(v) > 20:
+				raise ValueError("Largeurs de photos invalides.")
+			propre = {}
+			for fichier, largeur in v.items():
+				if not isinstance(fichier, str) or len(fichier) > 500 or not IMAGE.fullmatch(fichier):
+					raise ValueError("Largeurs de photos invalides.")
+				if isinstance(largeur, bool) or not isinstance(largeur, int) or not 10 <= largeur <= 100:
+					raise ValueError("La largeur d’une photo est un entier entre 10 et 100 %.")
+				if largeur != 100:
+					propre[fichier] = largeur
+			v = propre
 		else:
 			admis = {"photos_variantes": (0, 1, 2), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
-				"style_galerie": ("grille", "mosaique"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
+				"style_galerie": ("grille", "mosaique", "libre"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
 				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101), "libelle_croise": ("reference", "nom", "nom_sans_parent"), "style_titres": ("simple", "souligne", "barre", "fond"), "sommaire": (0, 1),
-				"legende_couleur": ("texte", "titres", "gris")}[cle]
-			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur", "libelle_croise", "style_titres")
+				"legende_couleur": ("texte", "titres", "gris"), "alignement_galerie": ("gauche", "centre"), "largeur_galerie": range(50, 101),
+				"galerie_pleine_page": (0, 1), "police": POLICES, "police_titres": POLICES, "taille_police": (9, 10, 11, 12)}[cle]
+			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur", "libelle_croise", "style_titres",
+				"alignement_galerie", "police", "police_titres")
 			if (type(v) is not int if not textuel else not isinstance(v, str)) or v not in admis:
 				raise ValueError("Présentation des photos invalide.")
 		if v == defaut:
@@ -160,3 +189,22 @@ def appliquer(ctx, dossier, genre):
 	else:
 		resultat["mise_en_page"] = disposition
 	return resultat
+
+
+def portable(disposition):
+	"""La mise en page d'un dossier reprise pour un autre produit (demande 07/11/2026) : tout, sauf ce qui désigne un
+	fichier de la galerie du dossier d'origine (photo en grand de la mosaïque, largeurs par photo)."""
+	m = normaliser(disposition)
+	m.pop("photo_grande", None)
+	m.pop("largeurs_photos", None)
+	return m
+
+
+def plan_rubriques(genre, contenu):
+	"""Les titres des rubriques d'une version, en consigne de rédaction pour un autre produit : « Plan des rubriques
+	à suivre (Fiche technique), dans cet ordre : A ; B ; C. » -> '' sans rubrique."""
+	titres = [s.get("titre", "").strip() for s in (contenu or {}).get("sections", []) if s.get("titre", "").strip()]
+	if not titres:
+		return ""
+	return f"Plan des rubriques à suivre ({genre}), dans cet ordre : " + " ; ".join(titres) + "."
+
