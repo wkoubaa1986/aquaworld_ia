@@ -469,7 +469,7 @@ class TestStyleTitresEtSommaire(unittest.TestCase):
 		m = M.normaliser({"style_titres": "simple", "sommaire": 0})
 		self.assertNotIn("style_titres", m)   # défauts non stockés : empreinte des versions existantes inchangée
 		self.assertNotIn("sommaire", m)
-		for mauvais in ({"style_titres": "gras"}, {"style_titres": 1}, {"sommaire": 2}, {"sommaire": "1"}):
+		for mauvais in ({"style_titres": "gras"}, {"style_titres": 1}, {"sommaire": 3}, {"sommaire": "1"}):
 			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
 				M.normaliser(mauvais)
 
@@ -599,3 +599,25 @@ class TestGalerieLibreEtPolices(unittest.TestCase):
 		with pymupdf.open(stream=pdf2, filetype="pdf") as doc:
 			self.assertEqual(len(doc), 2)
 			self.assertEqual(len(doc[1].get_images()), 4)
+
+	def test_sommaire_sur_sa_propre_page(self):
+		"""07/11/2026 : « lorsque je mets le sommaire, il doit être sur une page séparée, le document commence sur une
+		nouvelle page » : sommaire = 2 -> saut de page après la table ; 1 reste dans le fil."""
+		self.assertEqual(M.normaliser({"sommaire": 2})["sommaire"], 2)
+		with self.assertRaises(ValueError):
+			M.normaliser({"sommaire": 3})
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		tex = L.source(c, {**ctx, "mise_en_page": {"sommaire": 2}})
+		self.assertIn(r"\tableofcontents\endgroup\par\medskip" + "\n" + r"\clearpage", tex)
+		self.assertNotIn(r"\clearpage", L.source(c, {**ctx, "mise_en_page": {"sommaire": 1}}))
+		if shutil.which("xelatex"):
+			import pymupdf
+
+			_tex, pdf, _ = L.composer(c, {**ctx, "mise_en_page": {"sommaire": 2}})
+			with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+				self.assertEqual(len(doc), 2)
+				self.assertTrue(doc[0].search_for("Sommaire"))
+				self.assertTrue(doc[1].search_for("Utilisation"))          # la première rubrique ouvre la page 2
+				self.assertFalse(doc[0].search_for("Le modèle TEST-P-V"))
+

@@ -549,6 +549,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if disposition.get("sommaire"):
 		# Sommaire des titres de blocs et de rubriques (\docsection) ; hyperref le rend cliquable, la seconde passe le remplit.
 		body.append(r"\begingroup\setlength{\parskip}{1pt}\color{aqua}\tableofcontents\endgroup\par\medskip")
+		if disposition.get("sommaire") == 2:
+			body.append(r"\clearpage")   # sommaire sur sa propre page (avec le titre) : le document commence page suivante
 	blocs = {cle: [] for cle in M.ORDRE}
 
 	# Légendes des photos : masquables (pas celle du QR), alignées et colorées selon la mise en page (06/11/2026).

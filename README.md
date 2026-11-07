@@ -669,9 +669,12 @@ soulignées… TOC ? ») : dans « Titre et marque », **Style des titres de sec
 les titres du document (rubriques, caractéristiques, variantes, illustrations, sources) — *texte en
 couleur* (défaut), *souligné* (filet fin dans la couleur des titres sous chaque titre), *barre
 latérale* (barre verticale colorée devant le titre) ou *bandeau coloré* (fond clair sur toute la
-largeur). **Sommaire au début du document** insère, après le bloc de titre, la liste des titres de
-blocs et de rubriques avec leur page ; les entrées sont cliquables dans le PDF (hyperref) et le
-sommaire se remplit à la seconde passe XeLaTeX. Le libellé « Sommaire » est traduit avec les autres
+largeur). **Sommaire** insère, après le bloc de titre, la liste des titres de blocs et de rubriques
+avec leur page ; les entrées sont cliquables dans le PDF (hyperref) et le sommaire se remplit à la
+seconde passe XeLaTeX. Deux formes (07/11/2026 : « le sommaire doit être sur une page séparée, le
+document commence sur une nouvelle page ») : *sur sa propre page* — le titre et le sommaire occupent
+la première page, le contenu commence page suivante (`\clearpage`, valeur 2, proposée en premier) —
+ou *au début, dans le fil de la première page* (valeur 1, comportement d’origine). Le libellé « Sommaire » est traduit avec les autres
 libellés. Les deux réglages valent pour la fiche ou le manuel séparément, comme le reste de la mise
 en page ; les valeurs par défaut ne modifient pas l’empreinte des versions existantes.
 

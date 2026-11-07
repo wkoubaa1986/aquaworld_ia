@@ -31,6 +31,8 @@ PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignette
 # police_titres vide = la police du texte. taille_police : corps du texte en points (9, 10, 11, 12).
 POLICES = ("", "noto_sans", "open_sans", "lato", "montserrat", "roboto", "poppins", "oswald", "noto_serif", "eb_garamond")
 IMAGE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
+# sommaire : 0 = aucun, 1 = au début, dans le fil de la première page, 2 = sur sa propre page avec le titre, le document
+# commence sur une page neuve (demande 07/11/2026).
 # style_titres : simple | souligne (filet sous le titre) | barre (barre latérale) | fond (bandeau) ; sommaire : table des
 # titres de blocs et de rubriques au début du document (demande 06/11/2026).
 # libelle_croise : « nom_sans_parent » (le nom de la variante sans le nom de l'article parent, ex. « AquaJad, Classique
@@ -134,7 +136,7 @@ def normaliser(valeur=None):
 		else:
 			admis = {"photos_variantes": (0, 1, 2), "colonnes_photos": (1, 2, 3, 4), "hauteur_vignettes": range(25, 91),
 				"style_galerie": ("grille", "mosaique", "libre"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
-				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101), "libelle_croise": ("reference", "nom", "nom_sans_parent"), "style_titres": ("simple", "souligne", "barre", "fond"), "sommaire": (0, 1),
+				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101), "libelle_croise": ("reference", "nom", "nom_sans_parent"), "style_titres": ("simple", "souligne", "barre", "fond"), "sommaire": (0, 1, 2),
 				"legende_couleur": ("texte", "titres", "gris"), "alignement_galerie": ("gauche", "centre"), "largeur_galerie": range(50, 101),
 				"galerie_pleine_page": (0, 1), "police": POLICES, "police_titres": POLICES, "taille_police": (9, 10, 11, 12)}[cle]
 			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur", "libelle_croise", "style_titres",

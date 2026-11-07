@@ -214,7 +214,7 @@ class DocumentsProduit {
       <div class="dp-grid"><label class="dp-label">Alignement du titre<select class="form-control dp-layout-title-align">${options({gauche:'À gauche',centre:'Centré',droite:'À droite'},m.alignement_titre)}</select></label>
       <label class="dp-label">Couleur des titres<input class="form-control dp-layout-color" type="color" value="${m.couleur}" style="width:90px;height:36px"></label>
       <label class="dp-label">Style des titres de section<select class="form-control dp-style-titres">${options({simple:'Texte en couleur',souligne:'Souligné (filet en couleur)',barre:'Barre latérale',fond:'Bandeau coloré'},m.style_titres)}</select></label>
-      <label class="dp-label"><input type="checkbox" class="dp-sommaire" ${m.sommaire?'checked':''}> Sommaire au début du document (titres des blocs et des rubriques, cliquables)</label>
+      <label class="dp-label">Sommaire (titres des blocs et des rubriques, cliquables)<select class="form-control dp-sommaire">${options({0:'Aucun',2:'Sur sa propre page, le document commence page suivante',1:'Au début, dans le fil de la première page'},String(m.sommaire))}</select></label>
       <label class="dp-label">Police du texte<select class="form-control dp-police">${options(DP_POLICES,m.police)}</select></label>
       <label class="dp-label">Police des titres<select class="form-control dp-police-titres">${options({'':'Comme le texte',...Object.fromEntries(Object.entries(DP_POLICES).filter(([k])=>k))},m.police_titres)}</select></label>
       <label class="dp-label">Taille du texte (points)<select class="form-control dp-taille-police">${options({9:'9 — compact',10:'10 — standard',11:'11 — confortable',12:'12 — grand'},String(m.taille_police))}</select></label>
@@ -250,7 +250,7 @@ class DocumentsProduit {
       if(Number(z.find('.dp-layout-width').val())>maximum)z.find('.dp-layout-width').val(largeur);
       z.find('.dp-layout-width').attr('max',maximum);
       this.layouts[this.activeTab]={...this.layoutValues(),position_photo:position,largeur_photo:largeur,hauteur_photo:borne('.dp-layout-height',20,120,65),alignement_titre:z.find('.dp-layout-title-align').val(),couleur:z.find('.dp-layout-color').val(),position_marque:z.find('.dp-layout-brand-position').val(),alignement_marque:z.find('.dp-layout-brand-align').val(),largeur_logo:borne('.dp-layout-logo-width',10,70,32),afficher_nom_marque:z.find('.dp-layout-brand-name').prop('checked')?1:0,logo_x:Number(z.find('.dp-logo-x').val())||0,logo_y:Number(z.find('.dp-logo-y').val())||0,
-        style_titres:z.find('.dp-style-titres').val()||'simple',sommaire:z.find('.dp-sommaire').prop('checked')?1:0,police:z.find('.dp-police').val()||'',police_titres:z.find('.dp-police-titres').val()||'',taille_police:Number(z.find('.dp-taille-police').val())||10,
+        style_titres:z.find('.dp-style-titres').val()||'simple',sommaire:Number(z.find('.dp-sommaire').val())||0,police:z.find('.dp-police').val()||'',police_titres:z.find('.dp-police-titres').val()||'',taille_police:Number(z.find('.dp-taille-police').val())||10,
         qr_url:(z.find('.dp-qr-url').val()||'').trim(),qr_legende:(z.find('.dp-qr-legende').val()||'').trim().slice(0,120),qr_position:z.find('.dp-qr-position').val(),qr_alignement:z.find('.dp-qr-align').val(),qr_taille:borne('.dp-qr-taille',15,40,22)};
       this.clampLogoPosition();
       if($(e.target).hasClass('dp-qr-url'))this.loadQrPreview();
