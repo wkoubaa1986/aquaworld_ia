@@ -18,7 +18,8 @@ PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignette
 	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
 	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0,
 	"alignement_galerie": "gauche", "largeur_galerie": 100, "galerie_pleine_page": 0, "largeurs_photos": {},
-	"police": "", "police_titres": "", "taille_police": 10}
+	"police": "", "police_titres": "", "taille_police": 10, "sauts_page": []}
+# sauts_page : les blocs (clés de ORDRE) qui commencent sur une nouvelle page (demande 07/11/2026).
 # 07/11/2026 (« une façon plus libre de gérer dimensions et positions des images, centrer les images ou tout le
 # grid, remplir la page, choisir la police de tout le document ») :
 # style_galerie « libre » : chaque photo a sa largeur (largeurs_photos : {fichier: % de la ligne}, 100 par défaut) ;
@@ -120,6 +121,10 @@ def normaliser(valeur=None):
 			if not isinstance(v, str) or len(v) > 500 or (v and not IMAGE.fullmatch(v)):
 				raise ValueError("Photo de la mosaïque invalide.")
 			v = v.strip()
+		elif cle == "sauts_page":
+			if not isinstance(v, list) or any(b not in ORDRE for b in v):
+				raise ValueError("Sauts de page invalides.")
+			v = [b for b in ORDRE if b in v]
 		elif cle == "largeurs_photos":
 			# Galerie libre : {fichier: largeur en % de la ligne}. Un fichier absent de la galerie est ignoré au rendu.
 			if not isinstance(v, dict) or len(v) > 20:

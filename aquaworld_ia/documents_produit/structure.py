@@ -115,6 +115,8 @@ def rubrique(s, portee):
 		"article": portee(s.get("article")),
 		"source": texte(s.get("source", ""), 600),
 	}
+	if s.get("saut_page"):
+		out["saut_page"] = 1          # la rubrique commence sur une nouvelle page (demande 07/11/2026) ; clé absente sinon
 	image = texte(s.get("image", "") or "", 500)
 	spec = s.get("graphe") or None
 	if image and spec:

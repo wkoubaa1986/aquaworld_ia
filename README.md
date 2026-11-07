@@ -589,6 +589,12 @@ contenu que lorsqu’elles sont remplies : relire une ancienne version sans y to
 de nouvelle version. L’image doit être un fichier lisible par l’utilisateur (contrôle à
 l’enregistrement et à la composition).
 
+**Nouvelle page par zone** (07/11/2026 : « pour chaque zone, un bouton pour qu’elle commence sur une nouvelle
+page ») : dans l’en-tête de chaque rubrique (étape Relire), le bouton **⤓ Nouvelle page** (clé `saut_page` de la
+rubrique, absente sinon) ; dans l’en-tête de chaque bloc de la mise en page (présentation, rubriques,
+caractéristiques, variantes, illustrations), la case **Nouvelle page** (`sauts_page`, liste des blocs, absente quand
+vide). Le PDF insère un `\clearpage` devant ; un bloc vide n’en provoque pas.
+
 **Points à vérifier en liste** (étape Relire, 07/11/2026 : « les sortir en bullet points, cliquer dessus comme si
 c’est barré et validé ») : chaque point est une ligne de liste ; un clic sur le point (ou son rond) le barre et le
 marque résolu, un second clic le rouvre, × le retire, un champ ajoute un point, « Tout marquer résolu » barre tout.

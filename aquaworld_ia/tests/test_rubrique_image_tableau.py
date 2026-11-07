@@ -264,3 +264,24 @@ class TestPointsResolus(unittest.TestCase):
 		self.assertIn("Débit à confirmer", tex)
 		self.assertNotIn("Pression vérifiée", tex)
 
+
+class TestSautDePage(unittest.TestCase):
+	"""07/11/2026 : « pour chaque zone, un bouton pour qu'elle commence sur une nouvelle page »."""
+
+	def test_rubrique_et_bloc(self):
+		from aquaworld_ia.documents_produit import mise_en_page as M
+
+		self.assertEqual(_rubrique(saut_page=1)["saut_page"], 1)
+		self.assertNotIn("saut_page", _rubrique(saut_page=0))
+		self.assertEqual(M.normaliser({"sauts_page": ["illustrations", "caracteristiques"]})["sauts_page"], ["caracteristiques", "illustrations"])
+		self.assertNotIn("sauts_page", M.normaliser({"sauts_page": []}))
+		with self.assertRaises(ValueError):
+			M.normaliser({"sauts_page": ["sommaire"]})
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		c["sections"].append({"titre": "Entretien", "texte": "Texte.", "article": "", "source": "Article", "saut_page": 1})
+		tex = L.source(S.normaliser(c, ctx), {**ctx, "mise_en_page": {"sauts_page": ["caracteristiques"]}})
+		self.assertIn("\\clearpage\n\\docsection{Entretien}", tex)
+		self.assertIn("\\clearpage\n\\docsection{Caractéristiques techniques}", tex)
+		self.assertNotIn("\\clearpage\n\\docsection{Utilisation}", tex)
+

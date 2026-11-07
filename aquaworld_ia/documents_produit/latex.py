@@ -705,6 +705,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}"])
 
 	for i, s in enumerate(contenu["sections"]):
+		if s.get("saut_page"):
+			blocs["rubriques"].append(r"\clearpage")
 		blocs["rubriques"].append(r"\docsection{" + t(s["titre"]) + "}")
 		if s.get("article"):
 			blocs["rubriques"].append(r"{\small " + t(labels["portee"] + " : " + s["article"]) + r"}\par")
@@ -893,6 +895,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		if disposition.get("galerie_pleine_page"):
 			blocs["illustrations"].append(r"\clearpage")   # la page lui est réservée : les blocs suivants repartent sur une page neuve
 	for cle in disposition["ordre"]:
+		if cle in disposition.get("sauts_page", []) and blocs[cle]:
+			body.append(r"\clearpage")   # ce bloc commence sur une nouvelle page (demande 07/11/2026)
 		body.extend(blocs[cle])
 	if contenu.get("points_a_verifier"):
 		# Hors sommaire : le bloc brouillon disparaît du document validé.
