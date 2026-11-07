@@ -627,6 +627,9 @@ choisir la police de tout le document, créer un autre document pour un autre pr
   somme dépasse 100 (`latex.empaqueter`) : 100 = une photo par ligne, 50 + 50 = deux côte à côte, 30 + 30 + 40 =
   trois. La hauteur suit les proportions de chaque photo (130 mm au plus : une ligne ne se coupe pas). Les largeurs
   sont stockées par fichier (`largeurs_photos`), 100 n’est pas stocké ; le QR des illustrations suit à 25 %.
+- **Ordre des photos depuis le bloc** : la liste « Photos de la galerie » (toutes dispositions) porte des flèches ↑ ↓ ;
+  elles déplacent la carte correspondante de l’étape Préparer, seule source de l’ordre (commun à la fiche et au
+  manuel), et l’aperçu suit. La photo principale (★) reste hors de la galerie.
 - **Alignement des photos** : à gauche (lignes complétées par des cases vides, comme avant) ou **centrées** — chaque
   ligne, dernière incomplète comprise, avec 3 % d’écart entre les cases ; les parts sont réduites si besoin pour que la
   ligne tienne, jamais agrandies. **Largeur de la galerie** (50–100 % de la ligne) : en dessous de 100, la grille ou la
