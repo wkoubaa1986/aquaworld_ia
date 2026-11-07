@@ -888,6 +888,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			# Le titre ne reste pas seul en bas de page quand la première rangée ne tient pas dessous.
 			blocs["illustrations"].append(r"\needspace{60mm}\docsection{" + t(labels["illustrations"]) + "}")
 		blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
+		if disposition.get("galerie_pleine_page"):
+			blocs["illustrations"].append(r"\clearpage")   # la page lui est réservée : les blocs suivants repartent sur une page neuve
 	for cle in disposition["ordre"]:
 		body.extend(blocs[cle])
 	if contenu.get("points_a_verifier"):

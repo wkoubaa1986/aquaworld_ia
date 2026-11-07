@@ -624,7 +624,8 @@ choisir la police de tout le document, créer un autre document pour un autre pr
   ligne, dernière incomplète comprise, avec 3 % d’écart entre les cases ; les parts sont réduites si besoin pour que la
   ligne tienne, jamais agrandies. **Largeur de la galerie** (50–100 % de la ligne) : en dessous de 100, la grille ou la
   galerie libre est centrée dans un cadre, proportions internes conservées (comme la mosaïque).
-- **Remplir une page entière** : le bloc « Autres illustrations » commence sur une page neuve (`\clearpage`) et la
+- **Remplir une page entière** : le bloc « Autres illustrations » a sa page à lui (`\clearpage` avant et après, les
+  blocs suivants repartent sur une page neuve) et la
   hauteur des vignettes de la grille est calculée d’après le nombre de rangées (`latex.hauteur_pleine_page`, 232 mm
   utiles, légendes comprises, 25–150 mm) ; une photo large reste bornée par sa colonne. Le titre du bloc ne reste
   jamais seul en bas de page (`\needspace{60mm}`).

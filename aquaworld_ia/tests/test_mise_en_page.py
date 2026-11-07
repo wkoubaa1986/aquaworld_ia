@@ -594,7 +594,7 @@ class TestGalerieLibreEtPolices(unittest.TestCase):
 		m2 = {"style_galerie": "grille", "colonnes_photos": 2, "galerie_pleine_page": 1}
 		with patch.object(C, "octets", side_effect=lambda u: octets[u]):
 			tex2, pdf2, _ = L.composer(c, {**ctx, "mise_en_page": m2})
-		self.assertIn(r"\clearpage", tex2)
+		self.assertEqual(tex2.count(r"\clearpage"), 2)                            # une page réservée : saut avant et après
 		self.assertIn(f"height={L.hauteur_pleine_page(4, 2)}mm", tex2)
 		with pymupdf.open(stream=pdf2, filetype="pdf") as doc:
 			self.assertEqual(len(doc), 2)
