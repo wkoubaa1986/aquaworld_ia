@@ -759,7 +759,12 @@ et par dossier. La **Zone photo et description** propose **Une colonne** ou **De
 et ajuster la répartition ; les autres blocs gardent toute la largeur. Les réglages incluent
 la photo au-dessus, sous, à gauche ou à droite de la description ; largeur
 (20–80 %, limitée à 55 % à côté du texte), hauteur maximale (20–120 mm), alignement du
-titre et couleur des titres. Les cinq blocs (présentation/photo, rubriques, caractéristiques,
+titre et couleur des titres. En deux colonnes, **Alignement vertical du texte et de la photo**
+(12/11/2026, v0.46.0) vaut **En haut** (défaut) ou **Centré** : le milieu de la description est
+placé face au milieu de l’image, légende non comptée (`alignement_vertical_photo`). Les deux blocs
+sont alors insécables ; une description de plus d’une demi-page garde les colonnes alignées par le
+haut, qui se coupent d’une page à l’autre. Les fiches par variante reprennent ce réglage comme le
+reste de la mise en page du dossier. Les cinq blocs (présentation/photo, rubriques, caractéristiques,
 variantes, autres illustrations) se déplacent par glisser-déposer ou avec les flèches.
 L’en-tête, le titre et le pied de page conservent leurs emplacements. L’aperçu montre la
 disposition ; le PDF final dépend du contenu et de la pagination A4.

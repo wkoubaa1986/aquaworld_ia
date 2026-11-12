@@ -18,7 +18,10 @@ PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignette
 	"tableau_variantes": "liste", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
 	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0,
 	"alignement_galerie": "gauche", "largeur_galerie": 100, "galerie_pleine_page": 0, "largeurs_photos": {},
-	"police": "", "police_titres": "", "taille_police": 10, "sauts_page": []}
+	"police": "", "police_titres": "", "taille_police": 10, "sauts_page": [], "alignement_vertical_photo": "haut"}
+# alignement_vertical_photo (demande 12/11/2026 : « centrer l'écriture par rapport à l'image verticalement ») : en deux
+# colonnes, « haut » = photo et description alignées par le haut, « centre » = centrées l'une par rapport à l'autre
+# (voir latex.source : une description trop longue pour tenir d'un bloc reste alignée par le haut).
 # sauts_page : les blocs (clés de ORDRE) qui commencent sur une nouvelle page (demande 07/11/2026).
 # 07/11/2026 (« une façon plus libre de gérer dimensions et positions des images, centrer les images ou tout le
 # grid, remplir la page, choisir la police de tout le document ») :
@@ -143,9 +146,10 @@ def normaliser(valeur=None):
 				"style_galerie": ("grille", "mosaique", "libre"), "tableau_variantes": ("liste", "croise"), "largeur_grande": range(30, 76),
 				"legendes_galerie": (0, 1), "legende_alignement": ("gauche", "centre", "droite"), "largeur_mosaique": range(50, 101), "libelle_croise": ("reference", "nom", "nom_sans_parent"), "style_titres": ("simple", "souligne", "barre", "fond"), "sommaire": (0, 1, 2),
 				"legende_couleur": ("texte", "titres", "gris"), "alignement_galerie": ("gauche", "centre"), "largeur_galerie": range(50, 101),
-				"galerie_pleine_page": (0, 1), "police": POLICES, "police_titres": POLICES, "taille_police": (9, 10, 11, 12)}[cle]
+				"galerie_pleine_page": (0, 1), "police": POLICES, "police_titres": POLICES, "taille_police": (9, 10, 11, 12),
+				"alignement_vertical_photo": ("haut", "centre")}[cle]
 			textuel = cle in ("style_galerie", "tableau_variantes", "legende_alignement", "legende_couleur", "libelle_croise", "style_titres",
-				"alignement_galerie", "police", "police_titres")
+				"alignement_galerie", "police", "police_titres", "alignement_vertical_photo")
 			if (type(v) is not int if not textuel else not isinstance(v, str)) or v not in admis:
 				raise ValueError("Présentation des photos invalide.")
 		if v == defaut:

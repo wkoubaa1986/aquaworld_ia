@@ -26,7 +26,7 @@ const DP_CONSIGNES = [
   {nom:'Manuel d’entretien détaillé', texte:'Manuel orienté entretien et dépannage. Détailler chaque opération d’entretien pas à pas (remplacement des cartouches, désinfection, contrôle des fuites), avec la fréquence et les signes qui indiquent qu’elle est nécessaire. Prévoir une rubrique de dépannage sous forme « symptôme → cause probable → action ». Rappeler les consignes de sécurité documentées avant toute intervention.'},
   {nom:'Export / traduction', texte:'Document destiné à être traduit en plusieurs langues. Phrases courtes et sans tournures idiomatiques, vocabulaire technique standard, unités internationales (bar, L/h, mm). Éviter les références propres au marché local (normes ou services locaux) sauf si elles sont dans les sources.'},
 ];
-const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,hauteur_vignettes:55,style_galerie:'grille',photo_grande:'',tableau_variantes:'liste',sauts_page:[],alignement_galerie:'gauche',largeur_galerie:100,galerie_pleine_page:0,largeurs_photos:{},police:'',police_titres:'',taille_police:10,largeur_grande:62,legendes_galerie:1,legende_alignement:'gauche',legende_couleur:'texte',largeur_mosaique:100,libelle_croise:'nom_sans_parent',style_titres:'simple',sommaire:0,qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
+const dpLayoutDefault = () => ({position_photo:'apres',largeur_photo:65,hauteur_photo:65,alignement_titre:'gauche',couleur:'#087E8B',ordre:Object.keys(DP_BLOCKS),position_marque:'avant_titre',alignement_marque:'gauche',largeur_logo:32,afficher_nom_marque:0,logo_x:150,logo_y:8,photos_variantes:0,colonnes_photos:1,hauteur_vignettes:55,style_galerie:'grille',photo_grande:'',tableau_variantes:'liste',sauts_page:[],alignement_galerie:'gauche',largeur_galerie:100,galerie_pleine_page:0,largeurs_photos:{},police:'',police_titres:'',taille_police:10,largeur_grande:62,legendes_galerie:1,legende_alignement:'gauche',legende_couleur:'texte',largeur_mosaique:100,libelle_croise:'nom_sans_parent',style_titres:'simple',sommaire:0,alignement_vertical_photo:'haut',qr_url:'',qr_legende:'',qr_position:'fin_document',qr_alignement:'droite',qr_taille:22});
 const dpLogoUrl = b => dpUrl(b?.logo)+(b?.logo_hash?'?v='+encodeURIComponent(b.logo_hash):'');
 // Dispositions d'une illustration ou d'un tableau dans sa rubrique (07/11/2026) : un pictogramme par choix.
 const DP_POSITIONS={droite:'Texte à gauche · à droite',gauche:'À gauche · texte à droite',dessous:'Sous le texte',dessus:'Au-dessus du texte'};
@@ -184,7 +184,7 @@ class DocumentsProduit {
             <p><b>Réglages avancés</b> ouvre la fiche native pour les modèles en image ou en HTML. Pour garder aussi le logo dans le corps du document, cochez <b>Afficher aussi le logo de la marque avec un en-tête personnalisé</b>.</p>
           </section>
           <section><h4>Photo, description et ordre des blocs</h4>
-            <p>Dans <b>Mise en page</b>, choisissez <b>Une colonne</b> ou <b>Deux colonnes</b>, le côté, la largeur et la hauteur de la photo, l’alignement du titre, la couleur des titres et l’ordre des blocs (flèches ou glisser-déposer). Les photos des variantes peuvent être regroupées avec leur référence, sur une à trois colonnes.</p>
+            <p>Dans <b>Mise en page</b>, choisissez <b>Une colonne</b> ou <b>Deux colonnes</b>, le côté, la largeur et la hauteur de la photo, l’alignement vertical du texte face à la photo (en haut ou centré, en deux colonnes), l’alignement du titre, la couleur des titres et l’ordre des blocs (flèches ou glisser-déposer). Les photos des variantes peuvent être regroupées avec leur référence, sur une à trois colonnes.</p>
             <p>Un changement de mise en page, de logo, de photos ou d’en-tête s’applique en générant le PDF, sans nouvelle rédaction IA. Un changement de marque commerciale ou l’ajout de variantes demande une nouvelle rédaction.</p>
           </section>
           <section><h4>Rubriques : image, graphe, tableau</h4>
@@ -252,13 +252,13 @@ class DocumentsProduit {
       <div class="dp-layout-preview"></div>
       <div class="dp-live-pages"></div></div></div>`);
     this.liveLayout=true;
-    z.find('.dp-layout-position,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-style-titres,.dp-sommaire,.dp-police,.dp-police-titres,.dp-taille-police,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
+    z.find('.dp-layout-position,.dp-layout-valign,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-style-titres,.dp-sommaire,.dp-police,.dp-police-titres,.dp-taille-police,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
       const position=z.find('.dp-layout-position').val(),maximum=['gauche','droite'].includes(position)?55:80;
       const borne=(selector,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selector).val())||def)));
       const largeur=borne('.dp-layout-width',20,maximum,65);
       if(Number(z.find('.dp-layout-width').val())>maximum)z.find('.dp-layout-width').val(largeur);
       z.find('.dp-layout-width').attr('max',maximum);
-      this.layouts[this.activeTab]={...this.layoutValues(),position_photo:position,largeur_photo:largeur,hauteur_photo:borne('.dp-layout-height',20,120,65),alignement_titre:z.find('.dp-layout-title-align').val(),couleur:z.find('.dp-layout-color').val(),position_marque:z.find('.dp-layout-brand-position').val(),alignement_marque:z.find('.dp-layout-brand-align').val(),largeur_logo:borne('.dp-layout-logo-width',10,70,32),afficher_nom_marque:z.find('.dp-layout-brand-name').prop('checked')?1:0,logo_x:Number(z.find('.dp-logo-x').val())||0,logo_y:Number(z.find('.dp-logo-y').val())||0,
+      this.layouts[this.activeTab]={...this.layoutValues(),position_photo:position,largeur_photo:largeur,hauteur_photo:borne('.dp-layout-height',20,120,65),alignement_vertical_photo:z.find('.dp-layout-valign').val()||'haut',alignement_titre:z.find('.dp-layout-title-align').val(),couleur:z.find('.dp-layout-color').val(),position_marque:z.find('.dp-layout-brand-position').val(),alignement_marque:z.find('.dp-layout-brand-align').val(),largeur_logo:borne('.dp-layout-logo-width',10,70,32),afficher_nom_marque:z.find('.dp-layout-brand-name').prop('checked')?1:0,logo_x:Number(z.find('.dp-logo-x').val())||0,logo_y:Number(z.find('.dp-logo-y').val())||0,
         style_titres:z.find('.dp-style-titres').val()||'simple',sommaire:Number(z.find('.dp-sommaire').val())||0,police:z.find('.dp-police').val()||'',police_titres:z.find('.dp-police-titres').val()||'',taille_police:Number(z.find('.dp-taille-police').val())||10,
         qr_url:(z.find('.dp-qr-url').val()||'').trim(),qr_legende:(z.find('.dp-qr-legende').val()||'').trim().slice(0,120),qr_position:z.find('.dp-qr-position').val(),qr_alignement:z.find('.dp-qr-align').val(),qr_taille:borne('.dp-qr-taille',15,40,22)};
       this.clampLogoPosition();
@@ -325,7 +325,8 @@ class DocumentsProduit {
       <p class="dp-muted dp-column-proportions" aria-live="polite" style="margin-top:10px"></p><div class="dp-grid">
       <label class="dp-label">Position de la photo<select class="form-control dp-layout-position">${options({avant:'1 colonne · Photo au-dessus',apres:'1 colonne · Photo en dessous',gauche:'2 colonnes · Photo à gauche',droite:'2 colonnes · Photo à droite'},m.position_photo)}</select></label>
       <label class="dp-label"><span class="dp-layout-width-label">Largeur de la photo (%)</span><input class="form-control dp-layout-width" type="number" min="20" max="${['gauche','droite'].includes(m.position_photo)?55:80}" step="1" value="${m.largeur_photo}"></label>
-      <label class="dp-label">Hauteur maximale de la photo (mm)<input class="form-control dp-layout-height" type="number" min="20" max="120" step="1" value="${m.hauteur_photo}"></label></div>
+      <label class="dp-label">Hauteur maximale de la photo (mm)<input class="form-control dp-layout-height" type="number" min="20" max="120" step="1" value="${m.hauteur_photo}"></label>
+      <label class="dp-label dp-layout-valign-zone">Alignement vertical du texte et de la photo<select class="form-control dp-layout-valign">${options({haut:'En haut',centre:'Centré sur la photo'},m.alignement_vertical_photo)}</select></label></div>
       <p class="dp-muted">La photo principale (★, étape Préparer) avec le texte de présentation (résumé).</p>`;
     if(cle==='rubriques')return `<p class="dp-muted">Les rubriques (textes, images et tableaux de rubrique) se règlent à l’étape Relire, rubrique par rubrique. Elles reprennent la couleur des titres.</p>`;
     if(cle==='caracteristiques')return `<p class="dp-muted">Tableau Caractéristique · Valeur · Modèles concernés, lignes colorées dans la couleur des titres. Son contenu se corrige à l’étape Relire.</p>`;
@@ -353,7 +354,8 @@ class DocumentsProduit {
     const m=this.layoutValues(),cote=['gauche','droite'].includes(m.position_photo);
     this.root.find('[data-columns]').each((_,el)=>{const actif=el.dataset.columns===(cote?'2':'1');$(el).toggleClass('active',actif).attr('aria-pressed',String(actif));});
     this.root.find('.dp-layout-width-label').text(cote?'Largeur de la colonne photo (%)':'Largeur de la photo (%)');
-    this.root.find('.dp-column-proportions').text(cote?`Deux colonnes : photo ${m.largeur_photo} % · description ${100-m.largeur_photo} %.`:'Une colonne : la photo et la description se suivent sur la page.');
+    this.root.find('.dp-layout-valign-zone').toggle(cote);
+    this.root.find('.dp-column-proportions').text(cote?`Deux colonnes : photo ${m.largeur_photo} % · description ${100-m.largeur_photo} %${m.alignement_vertical_photo==='centre'?' · centrées en hauteur':''}.`:'Une colonne : la photo et la description se suivent sur la page.');
   }
   layoutValues() { return {...dpLayoutDefault(),...(this.layouts?.[this.activeTab]||{})}; }
   // Le QR de l'aperçu vient du serveur (même générateur que le PDF), avec un délai pour ne pas l'appeler à chaque frappe.
@@ -388,7 +390,7 @@ class DocumentsProduit {
   }
   freeBackgroundKey() {
     const m=this.layoutValues(),configuration={...this.configValues()};delete configuration.mises_en_page;
-    const mise_en_page={};['position_photo','largeur_photo','hauteur_photo','alignement_titre','couleur','ordre','qr_url','qr_legende','qr_position','qr_alignement','qr_taille'].forEach(k=>mise_en_page[k]=m[k]);
+    const mise_en_page={};['position_photo','largeur_photo','hauteur_photo','alignement_vertical_photo','alignement_titre','couleur','ordre','qr_url','qr_legende','qr_position','qr_alignement','qr_taille'].forEach(k=>mise_en_page[k]=m[k]);
     return JSON.stringify({name:this.name,type:this.activeTab,document:this.current?.doc.name,contenu:this.root.find('.dp-editor').length?this.captureDocument():this.current?.contenu,configuration,mise_en_page});
   }
   async loadFreeBackground() {

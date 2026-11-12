@@ -565,11 +565,13 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			return ""
 		return r"{" + legende_style + legende_couleur + r"\small " + t(texte_legende) + r"\par}"
 
-	def photo(index, largeur, hauteur, portee=True):
+	def photo(index, largeur, hauteur, portee=True, sur_axe=False):
+		"""`sur_axe` : l'image est centrée en hauteur sur sa ligne de base (ses légendes pendent dessous), pour qu'un
+		bloc voisin centré `[c]` soit au milieu de l'image seule, légendes non comptées."""
+		image = (r"\includegraphics[width=" + f"{largeur:.2f}" + r"\linewidth,height=" + str(hauteur)
+			+ "mm,keepaspectratio]{" + assets["images"][index] + "}")
 		lignes = [
-			r"\begin{center}\includegraphics[width=" + f"{largeur:.2f}"
-			+ r"\linewidth,height=" + str(hauteur) + "mm,keepaspectratio]{"
-			+ assets["images"][index] + r"}\end{center}",
+			(r"{\centering$\vcenter{\hbox{" + image + r"}}$\par}") if sur_axe else (r"\begin{center}" + image + r"\end{center}"),
 			legende(contenu["legendes"][index]),
 		]
 		if portee and ctx["images"][index].get("article") and disposition.get("legendes_galerie", 1):
@@ -680,12 +682,37 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		blocs["presentation"] = [resume]
 	elif position in ("gauche", "droite"):
 		image = photo(0, 1, disposition["hauteur_photo"])
-		gauche, droite = (image, resume) if position == "gauche" else (resume, image)
 		ratio = largeur if position == "gauche" else 1 - largeur
-		blocs["presentation"] = [
-			r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
-			r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}",
-		]
+		if disposition.get("alignement_vertical_photo") == "centre":
+			# Photo et description centrées l'une par rapport à l'autre (12/11/2026) : deux blocs insécables côte à
+			# côte, aux largeurs des colonnes paracol. Un bloc ne se coupe pas entre deux pages : une description de
+			# plus d'une demi-page (mesurée à la composition) garde les colonnes alignées par le haut, sécables.
+			def bloc(part, corps, ancre):
+				return (r"\begin{minipage}[" + ancre + r"]{\dimexpr" + f"{part:.2f}" + r"\linewidth-" + f"{part * 6:.2f}"
+					+ r"mm\relax}\setlength{\parskip}{6pt}" + corps + r"\end{minipage}")
+
+			# Le milieu du texte face au milieu de l'IMAGE : la légende, sous l'image, ne décale pas le centrage.
+			bloc_texte = r"\usebox{\dpboitetexte}"
+			bloc_photo = bloc(largeur, photo(0, 1, disposition["hauteur_photo"], sur_axe=True), "t")
+			gauche, droite = (bloc_photo, bloc_texte) if position == "gauche" else (bloc_texte, bloc_photo)
+			gauche_haut, droite_haut = (image, r"\dptexte") if position == "gauche" else (r"\dptexte", image)
+			blocs["presentation"] = [
+				r"\long\def\dptexte{" + resume + "}%",
+				r"\newsavebox{\dpboitetexte}%",
+				r"\begin{lrbox}{\dpboitetexte}" + bloc(1 - largeur, r"\dptexte", "c") + r"\end{lrbox}%",
+				r"\ifdim\dimexpr\ht\dpboitetexte+\dp\dpboitetexte\relax>.5\textheight",
+				r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
+				r"\begin{paracol}{2}", gauche_haut, r"\switchcolumn", droite_haut, r"\end{paracol}",
+				r"\else",
+				r"\par\noindent " + gauche + r"\hspace{6mm}" + droite + r"\par",
+				r"\fi",
+			]
+		else:
+			gauche, droite = (image, resume) if position == "gauche" else (resume, image)
+			blocs["presentation"] = [
+				r"\setlength{\columnsep}{6mm}\columnratio{" + f"{ratio:.2f}" + "}",
+				r"\begin{paracol}{2}", gauche, r"\switchcolumn", droite, r"\end{paracol}",
+			]
 	else:
 		image = photo(0, largeur, disposition["hauteur_photo"])
 		blocs["presentation"] = [image, resume] if position == "avant" else [resume, image]

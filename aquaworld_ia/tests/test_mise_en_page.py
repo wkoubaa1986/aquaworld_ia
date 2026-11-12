@@ -267,6 +267,86 @@ class TestMiseEnPage(unittest.TestCase):
 		self.assertTrue(pdf.startswith(b"%PDF"))
 
 
+class TestCentrageVertical(unittest.TestCase):
+	"""12/11/2026 : « centrer l'écriture par rapport à l'image verticalement » (présentation en deux colonnes)."""
+
+	def test_reglage(self):
+		self.assertEqual(M.normaliser({"alignement_vertical_photo": "centre"})["alignement_vertical_photo"], "centre")
+		# Le défaut est retiré : les versions déjà enregistrées ne deviennent pas « à actualiser ».
+		self.assertNotIn("alignement_vertical_photo", M.normaliser({"alignement_vertical_photo": "haut"}))
+		self.assertEqual(M.normaliser({"alignement_vertical_photo": "haut"}), M.normaliser())
+		self.assertEqual(M.portable({"alignement_vertical_photo": "centre"})["alignement_vertical_photo"], "centre")
+		for mauvais in ("bas", "", 1, None):
+			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
+				M.normaliser({"alignement_vertical_photo": mauvais})
+
+	def test_source_inchangee_sans_le_reglage(self):
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": "/files/test.png", "legende": "Photo", "article": ""}]
+		sources = {}
+		for valign in ("haut", "centre"):
+			ctx["mise_en_page"] = M.normaliser({"position_photo": "droite", "alignement_vertical_photo": valign})
+			sources[valign] = L.source(contenu_simple(ctx), ctx, assets={"images": ["images/image-0.png"]})
+		self.assertNotIn("dpboitetexte", sources["haut"])
+		self.assertIn(r"\usebox{\dpboitetexte}", sources["centre"])
+		# En une colonne, le réglage n'a pas d'effet.
+		ctx["mise_en_page"] = M.normaliser({"position_photo": "apres", "alignement_vertical_photo": "centre"})
+		self.assertNotIn("dpboitetexte", L.source(contenu_simple(ctx), ctx, assets={"images": ["images/image-0.png"]}))
+
+	def _pdf(self, position, valign, resume, legende="Photo de test", **kw):
+		from PIL import Image
+
+		im = io.BytesIO()
+		Image.new("RGB", (120, 180), "teal").save(im, format="PNG")
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": "/files/test.png", "legende": legende, "article": ""}]
+		ctx["mise_en_page"] = M.normaliser({"position_photo": position, "largeur_photo": 40, "hauteur_photo": 80,
+			"alignement_vertical_photo": valign})
+		c = contenu_simple(ctx)
+		c["resume"] = resume
+		return L.compiler(L.source(c, ctx, assets={"images": ["images/image-0.png"]}, **kw), {"images/image-0.png": im.getvalue()})[0]
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_texte_au_milieu_de_la_photo(self):
+		import pymupdf
+
+		court = "Osmoseur compact pour la cuisine. " * 6
+		for position in ("gauche", "droite"):
+			for legende in ("Photo de test", ""):
+				with self.subTest(position=position, legende=legende):
+					milieux = {}
+					for valign in ("haut", "centre"):
+						with pymupdf.open(stream=self._pdf(position, valign, court, legende), filetype="pdf") as doc:
+							page = doc[0]
+							photo = page.get_image_rects(page.get_images()[0][0])[0]
+							lignes = page.search_for("Osmoseur compact")
+							haut, bas = min(r.y0 for r in lignes), max(r.y1 for r in lignes)
+							milieux[valign] = ((haut + bas) / 2, (photo.y0 + photo.y1) / 2, haut, photo.y0)
+							if position == "gauche":
+								self.assertLess(photo.x1, min(r.x0 for r in lignes))
+							else:
+								self.assertLess(max(r.x1 for r in lignes), photo.x0)
+					texte, image, haut, haut_photo = milieux["centre"]
+					self.assertLess(abs(texte - image), 6)             # milieu du texte = milieu de l'image, légende non comptée
+					texte, image, haut, haut_photo = milieux["haut"]
+					self.assertLess(abs(haut - haut_photo), 20)         # sans le réglage : alignés par le haut, comme avant
+					self.assertGreater(image - texte, 40)
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_description_longue_reste_secable_et_arabe(self):
+		import pymupdf
+
+		pdf = self._pdf("droite", "centre", "Description détaillée du produit. " * 160 + "XYZ9")
+		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
+			self.assertGreater(len(doc), 1)                        # un bloc insécable aurait débordé de la page
+			self.assertIn("XYZ9", "".join(p.get_text() for p in doc))
+			for page in doc:
+				for block in page.get_text("blocks"):
+					self.assertLess(block[3], page.rect.height)
+		pdf = self._pdf("droite", "centre", "جهاز لتنقية المياه ecoPurium", langue="ar", rtl=True)
+		self.assertTrue(pdf.startswith(b"%PDF"))
+
+
 class TestGalerieCompacte(unittest.TestCase):
 	"""06/11/2026 : « une partie photos plus petite, en grille, pour tenir sur une seule page »."""
 
