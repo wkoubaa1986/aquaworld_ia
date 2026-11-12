@@ -188,6 +188,20 @@ def configuration(valeur):
 	return {cle: normaliser(v) for cle, v in valeur.items()}
 
 
+LEGENDE_QR_SITE = "Voir le produit en ligne"
+
+
+def initiale(url_site):
+	"""Les mises en page d'un nouveau dossier (demande 12/11/2026 : « si le produit est sur le site web, pourquoi le QR
+	code ne se crée pas automatiquement ? ») : le QR du lien de la boutique, avec sa légende, sur la fiche et le
+	manuel — {} sans lien valide. Position, taille et légende se règlent ensuite à l'étape Présenter ; vider
+	l'adresse retire le QR. PURE."""
+	if not isinstance(url_site, str) or not QR_URL.fullmatch(url_site.strip()) or len(url_site.strip()) > 500:
+		return {}
+	disposition = normaliser({"qr_url": url_site.strip(), "qr_legende": LEGENDE_QR_SITE})
+	return {cle: copy.deepcopy(disposition) for cle in TYPES.values()}
+
+
 def pour_document(dossier, genre):
 	return normaliser(configuration(dossier.get("mises_en_page")).get(TYPES[genre]))
 

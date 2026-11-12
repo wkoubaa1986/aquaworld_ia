@@ -267,6 +267,43 @@ class TestMiseEnPage(unittest.TestCase):
 		self.assertTrue(pdf.startswith(b"%PDF"))
 
 
+class TestDossierPrerempli(unittest.TestCase):
+	"""12/11/2026 : à la création d'un dossier, les photos de l'article et le QR code du produit sur le site."""
+
+	def test_qr_du_site_sur_la_fiche_et_le_manuel(self):
+		url = "https://aquaworldservicing.com/?post_type=product&p=1343"
+		depart = M.initiale(url)
+		self.assertEqual(set(depart), {"fiche", "manuel"})
+		for disposition in depart.values():
+			self.assertEqual((disposition["qr_url"], disposition["qr_legende"]), (url, "Voir le produit en ligne"))
+		self.assertEqual(M.configuration(depart), depart)                       # enregistrable tel quel
+		self.assertEqual(M.pour_document({"mises_en_page": __import__("json").dumps(depart)}, "Fiche technique")["qr_url"], url)
+		self.assertIsNot(depart["fiche"], depart["manuel"])
+		for absent in ("", None, "aquaworldservicing.com", "javascript:alert(1)", "https://a.tn/" + "x" * 500):
+			with self.subTest(absent=absent):
+				self.assertEqual(M.initiale(absent), {})                          # article hors du site : rien
+
+	def test_photos_sans_doublon_et_dans_la_limite(self):
+		from aquaworld_ia.documents_produit.photos import retenir_initiales
+
+		lignes = retenir_initiales([
+			{"image": "/files/variante.jpg", "legende": "Variante", "article": "P-V", "hash": "a"},
+			{"image": "/files/parent.jpg", "legende": "Produit", "article": "", "hash": "b"},
+			{"image": "/files/parent-copie.jpg", "legende": "copie", "article": "", "hash": "b"},   # même contenu
+			{"image": "/files/parent.jpg", "legende": "encore", "article": "", "hash": ""},        # même adresse
+			{"image": "/files/vue.jpg", "legende": None, "article": None, "hash": None},
+			{"image": "/files/vue.jpg", "legende": "bis", "article": "", "hash": None},
+		])
+		self.assertEqual(lignes, [
+			{"image": "/files/variante.jpg", "legende": "Variante", "article": "P-V"},
+			{"image": "/files/parent.jpg", "legende": "Produit", "article": ""},
+			{"image": "/files/vue.jpg", "legende": "", "article": ""},
+		])
+		beaucoup = [{"image": f"/files/{i}.jpg", "legende": "", "article": "", "hash": str(i)} for i in range(30)]
+		self.assertEqual(len(retenir_initiales(beaucoup)), 20)                  # limite d'un dossier
+		self.assertEqual(retenir_initiales([]), [])
+
+
 class TestCentrageVertical(unittest.TestCase):
 	"""12/11/2026 : « centrer l'écriture par rapport à l'image verticalement » (présentation en deux colonnes)."""
 

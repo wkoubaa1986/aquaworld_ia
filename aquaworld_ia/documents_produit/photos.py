@@ -45,6 +45,45 @@ def disponibles(dossier, variantes):
 	return resultat
 
 
+def retenir_initiales(candidates, maximum=20):
+	"""Les lignes « images » d'un nouveau dossier, dans l'ordre des candidates ({image, legende, article, hash}) :
+	une même image (même adresse ou même contenu) n'entre qu'une fois, `maximum` au plus (la limite d'un
+	dossier). PURE."""
+	lignes, vues = [], set()
+	for c in candidates:
+		cles = {c["image"], c.get("hash") or c["image"]}
+		if cles & vues or len(lignes) >= maximum:
+			continue
+		vues |= cles
+		lignes.append({"image": c["image"], "legende": c.get("legende") or "", "article": c.get("article") or ""})
+	return lignes
+
+
+def initiales(parent, article):
+	"""Les photos d'un dossier à sa création (demande 12/11/2026 : « s'il y a plusieurs images du produit, pourquoi
+	elles ne viennent pas automatiquement dans la fiche ? ») : la photo de la variante d'où part le dossier, puis
+	l'image de l'article parent et ses pièces jointes image. La première est la photo principale ; les suivantes
+	vont au bloc « Autres illustrations ». Les photos des autres variantes restent à choisir (« Choisir les photos
+	des articles ») : chaque fiche de variante prend déjà les siennes."""
+	candidates = []
+
+	def proposer(url, legende, portee):
+		if not url or PurePosixPath(url.lower()).suffix not in EXTENSIONS:
+			return
+		try:
+			f = C.fichier_lisible(url, silencieux=True)
+		except (frappe.PermissionError, frappe.ValidationError, frappe.DoesNotExistError):
+			return
+		candidates.append({"image": f.file_url, "legende": legende, "article": portee, "hash": f.content_hash})
+
+	if article.variant_of:
+		proposer(article.image, article.item_name, article.name)
+	for photo in disponibles(frappe._dict(article=parent.name, name=""), []):
+		if photo["origine"] == parent.name:
+			proposer(photo["image"], photo["legende"], "")
+	return retenir_initiales(candidates)
+
+
 def legendes(contenu, ancien, nouveau):
 	"""Conserve les corrections/traductions des vues conservées, même après réordonnancement."""
 	restants = list(enumerate(ancien.get("images", [])))

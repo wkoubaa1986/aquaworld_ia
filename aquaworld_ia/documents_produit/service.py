@@ -107,12 +107,16 @@ def creer(article):
 		choix = [v for v in choix if v["name"] == article]
 	for v in choix:
 		d.append("variantes", {"article": v["name"]})
-	photo = a.image or parent.image
-	if photo and photo.startswith(("/files/", "/private/files/")):
-		C.fichier_lisible(photo)
-		d.append(
-			"images", {"image": photo, "legende": a.item_name, "article": a.name if a.variant_of else ""}
-		)
+	# Automatique à la création (12/11/2026) : les photos de l'article, et le QR code du produit s'il est sur le site.
+	from aquaworld_ia.documents_produit.photos import initiales
+
+	retenues = {v["name"] for v in choix}
+	for ligne in initiales(parent, a):
+		if not ligne["article"] or ligne["article"] in retenues:
+			d.append("images", ligne)
+	depart = M.initiale(C.lien_woocommerce(parent.name).get("url", ""))
+	if depart:
+		d.mises_en_page = json.dumps(depart, ensure_ascii=False)
 	d.insert()
 	return {"name": d.name}
 

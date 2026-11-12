@@ -480,6 +480,15 @@ certifications et garanties restent interdites sans source. Le réglage est comm
 et fait partie du contexte des versions (une version rédigée sans l’option est « à actualiser »
 après l’avoir cochée).
 
+**À la création d’un dossier** (12/11/2026, v0.47.0), sans rien cliquer : l’image de l’article parent et ses
+pièces jointes image entrent dans les photos du dossier (la première est la photo principale, les suivantes
+vont aux « Autres illustrations » ; une même image n’entre qu’une fois, 20 au plus), et le **QR code du
+produit sur le site** est posé sur la fiche et le manuel quand l’article est lié à WooCommerce (légende
+« Voir le produit en ligne », en fin de document — à déplacer ou à vider à l’étape Présenter). Le logo
+vient déjà seul de l’image de la marque de l’article (fiche Marque, champ Image). Les photos des variantes
+ne sont pas ajoutées d’office : chaque fiche de variante prend les siennes, et le bouton ci-dessous les
+propose pour la fiche du produit. Un dossier déjà créé n’est pas modifié.
+
 Dans **Préparer**, **Choisir les photos des articles** ouvre une
 galerie des images principales et pièces jointes accessibles du parent, des variantes
 cochées et du dossier. Plusieurs vues peuvent être choisies par variante. La suggestion
