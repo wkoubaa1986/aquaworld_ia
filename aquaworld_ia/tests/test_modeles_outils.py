@@ -145,3 +145,35 @@ class TestModelesOutils(unittest.TestCase):
 				self.assertEqual(laisses, [])
 				self.assertEqual(len(trad), 5)
 				self.assertEqual([a.kwargs["model"] for a in self.api.chat.completions.create.call_args_list], ["traduction-manuels"] * 5)
+
+
+class TestPatchModelesReglages(unittest.TestCase):
+	"""12/11/2026 : les modèles choisis en dev, posés en prod par patch."""
+
+	def test_le_patch_couvre_tous_les_champs_de_modele_avec_des_modeles_connus(self):
+		from pathlib import Path
+
+		from aquaworld_ia.ia import couts
+		from aquaworld_ia.patches.v0_48 import modeles_ia_reglages as P
+
+		racine = Path(client.__file__).resolve().parents[1]
+		champs = {f["fieldname"]: f for f in json.loads((racine / "aquaworld_ia/doctype/aquaworld_ia_reglages/aquaworld_ia_reglages.json").read_text())["fields"]}
+		# Chaque réglage lu par les appels IA est écrit par le patch, et rien d'autre.
+		attendus = {"modele_texte", "modele_image", *client.CHAMPS_MODELES_TEXTE.values(), *client.CHAMPS_MODELES_IMAGE.values()}
+		self.assertEqual(set(P.MODELES), attendus)
+		for champ, modele in P.MODELES.items():
+			with self.subTest(champ=champ):
+				self.assertIn(champ, champs)
+				if modele:
+					self.assertIn(modele, champs[champ]["options"].split("\n"))       # proposé par la liste du champ
+					if not modele.startswith("gpt-image"):
+						self.assertIn(modele, couts.TARIFS_TEXTE_PAR_MODELE)           # coût estimé au bon tarif
+		self.assertEqual((P.MODELES["modele_texte"], P.MODELES["modele_fiche_technique"], P.MODELES["modele_manuel_produit"]),
+			("gpt-6.1-terra", "gpt-6.1-sol", "gpt-6.1-sol"))
+		self.assertEqual((P.MODELES["modele_image"], P.MODELES["modele_image_manuels"]), ("gpt-image-2.6-sunburst", "gpt-image-2.6-flare"))
+		# reglages.json est reposé à chaque migration : il ne doit pas défaire le patch.
+		embarques = json.loads((racine / "contenu/reglages.json").read_text())
+		for champ in P.MODELES:
+			if champ in embarques:
+				self.assertEqual(embarques[champ], P.MODELES[champ], champ)
+		self.assertIn("aquaworld_ia.patches.v0_48.modeles_ia_reglages", (racine / "patches.txt").read_text().split())
