@@ -850,8 +850,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	# Titre du bloc, puis le texte qui présente la gamme (gamme.py) avant le tableau.
 	# \needspace : le titre ne reste pas seul en bas de page, et le tableau ne s'ouvre pas sur son seul filet (vu le
 	# 12/11/2026 : « Gamme et configurations » en bas de page, tableau à la page suivante).
-	titre_gamme = [r"\needspace{60mm}\docsection{" + t(labels["variantes"]) + "}"] + (
-		[t(contenu["gamme"]) + r"\par", r"\needspace{45mm}"] if contenu.get("gamme") else [])
+	titre_gamme = [r"\Needspace{60mm}\docsection{" + t(labels["variantes"]) + "}"] + (
+		[t(contenu["gamme"]) + r"\par", r"\Needspace{45mm}"] if contenu.get("gamme") else [])
 	if illustrees:
 		blocs["variantes"] += titre_gamme
 		for v in illustrees:

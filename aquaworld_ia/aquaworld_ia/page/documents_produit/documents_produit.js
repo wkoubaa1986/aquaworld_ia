@@ -445,9 +445,12 @@ class DocumentsProduit {
     this.pagesEnCours=true;statut.text('Composition du PDF…');zone.addClass('dp-pages-pending');
     try{
       const doc=this.current?.doc.type_document===this.typeActif()?this.current.doc:null;
-      const r=await dpCall('apercu_document',{name:this.name,document_name:doc?.name||null,type_document:this.typeActif(),contenu:doc&&this.root.find('.dp-editor').length?this.captureDocument():undefined,mise_en_page:this.layoutValues(),echelle:cible==='layout'?1.2:1.4});
+      // Sans version ouverte à l'étape Relire, l'aperçu prend la dernière version française du produit plutôt qu'un
+      // document d'exemple vide (12/11/2026 : « pourquoi il n'y a pas la description avant le tableau ? »).
+      const derniere=doc?null:(this.data.documents||[]).find(v=>v.type_document===this.typeActif()&&v.langue==='fr'&&!v.variante);
+      const r=await dpCall('apercu_document',{name:this.name,document_name:doc?.name||derniere?.name||null,type_document:this.typeActif(),contenu:doc&&this.root.find('.dp-editor').length?this.captureDocument():undefined,mise_en_page:this.layoutValues(),echelle:cible==='layout'?1.2:1.4});
       zone.html(`<div class="dp-apercu-pages dp-apercu-pages-live">${r.pages.map((p,i)=>`<figure><img src="${p}" alt="Page ${i+1}"><figcaption>Page ${i+1}</figcaption></figure>`).join('')}</div>`);
-      statut.text(`${r.total} page${r.total>1?'s':''}${doc?'':' · exemple (aucune version)'} · à jour`);
+      statut.text(`${r.total} page${r.total>1?'s':''}${doc?'':derniere?` · version ${derniere.numero} (${derniere.statut})`:' · exemple (aucune version rédigée)'} · à jour`);
     }catch(e){statut.text('Composition impossible : '+(e?.message||'vérifiez les réglages.'));}
     finally{zone.removeClass('dp-pages-pending');this.pagesEnCours=false;if(this.pagesRelance){const c=this.pagesRelance;this.pagesRelance=null;this.composerPages(c);}}
   }
