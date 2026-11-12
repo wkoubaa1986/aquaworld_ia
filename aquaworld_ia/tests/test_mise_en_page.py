@@ -303,6 +303,24 @@ class TestDossierPrerempli(unittest.TestCase):
 		self.assertEqual(len(retenir_initiales(beaucoup)), 20)                  # limite d'un dossier
 		self.assertEqual(retenir_initiales([]), [])
 
+	def test_photos_manquantes_d_un_dossier_existant(self):
+		"""12/11/2026 : les dossiers déjà créés reçoivent les images de l'article qui leur manquent, à la suite."""
+		from aquaworld_ia.documents_produit.photos import manquantes
+
+		existantes = [{"image": "/files/AP-M.jpg", "hash": "a"}, {"image": "/files/choisie.jpg", "hash": "c"}]
+		candidates = [
+			{"image": "/files/AP-M.jpg", "legende": "Osmoseur", "article": "", "hash": "a"},        # déjà là (adresse)
+			{"image": "/files/AP-M-copie.jpg", "legende": "", "article": "", "hash": "c"},         # déjà là (contenu)
+			{"image": "/files/AP-M-A.jpg", "legende": "", "article": "", "hash": "b"},
+		]
+		self.assertEqual(manquantes(existantes, candidates), [{"image": "/files/AP-M-A.jpg", "legende": "", "article": ""}])
+		self.assertEqual(manquantes(existantes, candidates[:2]), [])                             # rien à ajouter
+		self.assertEqual(manquantes([], candidates[2:]), [{"image": "/files/AP-M-A.jpg", "legende": "", "article": ""}])
+		pleines = [{"image": f"/files/{i}.jpg", "hash": str(i)} for i in range(19)]
+		deux = [{"image": f"/files/n{i}.jpg", "legende": "", "article": "", "hash": f"n{i}"} for i in range(2)]
+		self.assertEqual(len(manquantes(pleines, deux)), 1)                                      # 20 photos au plus par dossier
+		self.assertEqual(manquantes(pleines + [{"image": "/files/19.jpg", "hash": "19"}], deux), [])
+
 
 class TestCentrageVertical(unittest.TestCase):
 	"""12/11/2026 : « centrer l'écriture par rapport à l'image verticalement » (présentation en deux colonnes)."""

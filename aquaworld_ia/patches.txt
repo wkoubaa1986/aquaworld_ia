@@ -9,3 +9,4 @@ aquaworld_ia.patches.v0_25.reparer_fichiers_doubles
 aquaworld_ia.patches.v0_44.role_aquaworld_ia_equipe
 aquaworld_ia.patches.v0_48.entete_officiel_fiches_manuels
 aquaworld_ia.patches.v0_48.modeles_ia_reglages
+aquaworld_ia.patches.v0_49.completer_dossiers_existants

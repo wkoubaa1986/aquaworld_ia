@@ -59,12 +59,11 @@ def retenir_initiales(candidates, maximum=20):
 	return lignes
 
 
-def initiales(parent, article):
-	"""Les photos d'un dossier à sa création (demande 12/11/2026 : « s'il y a plusieurs images du produit, pourquoi
-	elles ne viennent pas automatiquement dans la fiche ? ») : la photo de la variante d'où part le dossier, puis
-	l'image de l'article parent et ses pièces jointes image. La première est la photo principale ; les suivantes
-	vont au bloc « Autres illustrations ». Les photos des autres variantes restent à choisir (« Choisir les photos
-	des articles ») : chaque fiche de variante prend déjà les siennes."""
+def candidates_initiales(parent, article):
+	"""Les photos qu'un dossier reçoit d'office, dans l'ordre : la photo de la variante d'où part le dossier, puis
+	l'image de l'article parent et ses pièces jointes image. -> [{image, legende, article, hash}]. Seule l'image
+	principale d'un article porte une légende (son nom) : un nom de fichier (« AP-M-A ») ferait une mauvaise légende
+	imprimée, elle se saisit à l'étape Préparer."""
 	candidates = []
 
 	def proposer(url, legende, portee):
@@ -80,8 +79,28 @@ def initiales(parent, article):
 		proposer(article.image, article.item_name, article.name)
 	for photo in disponibles(frappe._dict(article=parent.name, name=""), []):
 		if photo["origine"] == parent.name:
-			proposer(photo["image"], photo["legende"], "")
-	return retenir_initiales(candidates)
+			proposer(photo["image"], photo["legende"] if photo["principale_article"] else "", "")
+	return candidates
+
+
+def initiales(parent, article):
+	"""Les photos d'un dossier à sa création (demande 12/11/2026 : « s'il y a plusieurs images du produit, pourquoi
+	elles ne viennent pas automatiquement dans la fiche ? »). La première est la photo principale ; les suivantes
+	vont au bloc « Autres illustrations ». Les photos des autres variantes restent à choisir (« Choisir les photos
+	des articles ») : chaque fiche de variante prend déjà les siennes."""
+	return retenir_initiales(candidates_initiales(parent, article))
+
+
+def manquantes(existantes, candidates, maximum=20):
+	"""Les candidates absentes d'un dossier qui a déjà des photos ({image, hash}), à ajouter à la suite sans
+	dépasser `maximum` au total. PURE."""
+	deja = len(existantes)
+	toutes = retenir_initiales(
+		[{"image": e["image"], "hash": e.get("hash"), "legende": "", "article": ""} for e in existantes] + list(candidates), 10 ** 6)
+	# retenir_initiales peut aussi écarter un doublon parmi les existantes : ne garder que les candidates retenues.
+	urls_existantes = {e["image"] for e in existantes}
+	ajouts = [l for l in toutes if l["image"] not in urls_existantes]
+	return ajouts[:max(0, maximum - deja)]
 
 
 def legendes(contenu, ancien, nouveau):
