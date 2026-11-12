@@ -258,6 +258,15 @@ def normaliser(data, contexte):
 	resolus = [texte(p, 1000) for p in data.get("points_resolus", []) or [] if p]
 	if resolus:
 		out["points_resolus"] = resolus
+	# Points traités avec l'IA (points.py, 12/11/2026) : {texte, action, information}. Comme les points résolus, ils
+	# ne bloquent pas la validation, ne figurent pas dans le PDF, et la clé n'existe que remplie.
+	traites = data.get("points_traites") or []
+	if not isinstance(traites, list) or len(traites) > 80:
+		raise ValueError("Liste documentaire invalide : points_traites")
+	traites = [{"texte": texte(t.get("texte", ""), 1000), "action": texte(t.get("action", ""), 1000), "information": texte(t.get("information", ""), 3000)}
+		for t in traites if isinstance(t, dict) and str(t.get("texte") or "").strip()]
+	if traites:
+		out["points_traites"] = traites
 	# Texte d'introduction du tableau des variantes (gamme.py, 12/11/2026). La clé n'existe que remplie, pour ne pas
 	# changer l'empreinte des versions qui n'en ont pas.
 	intro_gamme = texte(data.get("gamme") or "", 3000)

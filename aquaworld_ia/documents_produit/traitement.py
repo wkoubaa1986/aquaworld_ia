@@ -10,6 +10,7 @@ import frappe
 from aquaworld_ia.documents_produit import contexte as C
 from aquaworld_ia.documents_produit import gamme as G
 from aquaworld_ia.documents_produit import mise_en_page as M
+from aquaworld_ia.documents_produit import points as P
 from aquaworld_ia.documents_produit import service as API
 from aquaworld_ia.documents_produit import structure as S
 from aquaworld_ia.ia import journal
@@ -60,6 +61,43 @@ def _points_gamme(texte_gamme, requete):
 	if not inconnus:
 		return []
 	return ["Nombres de « Gamme et configurations » absents des données, à confirmer : " + ", ".join(I.formater(n) for n in inconnus[:20])]
+
+
+def traiter_point(d, genre, ctx, contenu, point, information, destination=None):
+	"""Lève UN point à vérifier avec l'information donnée par l'utilisateur : l'IA l'écrit au bon endroit du document
+	(points.py). Rien n'est enregistré ici. -> {"contenu", "changements", "action"}"""
+	point = S.texte(point or "", 1000)
+	information = S.texte(information or "", 3000)
+	if not point:
+		raise ValueError("Choisissez le point à traiter.")
+	if not information:
+		raise ValueError("Saisissez l'information qui répond à ce point : l'IA l'intègre, elle ne l'invente pas.")
+	system = P.CONSIGNE + "\n" + REGLES_COMMUNES
+	user = {"type_document": genre, "point_a_verifier": point, "information_de_l_entreprise": information,
+		"destination": destination if isinstance(destination, dict) and destination.get("type") in P.TYPES else "au choix",
+		"document": P.document_pour_ia(contenu),
+		"contexte": {**{k: v for k, v in ctx.items() if k != "entete"}, **_contexte_gamme(ctx)}}
+	with journal.suivre_generation(d.name, frappe.generate_hash(length=12), "reecrire", "fr"):
+		data = chat_json(system, json.dumps(user, ensure_ascii=False), fonctionnalite=fonctionnalite(genre), doc=d)
+	articles = {ctx["article"]["name"]} | {a["name"] for a in ctx.get("variantes", [])}
+	import datetime
+
+	source = "Information de l’entreprise (" + datetime.date.today().strftime("%d/%m/%Y") + ")"
+	nouveau, changements, textes = P.appliquer(contenu, data, articles, source, destination)
+	if not changements:
+		raise ValueError("L'IA n'a proposé aucune modification pour ce point. Précisez l'information, ou choisissez l'endroit où l'écrire.")
+	action = S.texte(str((data.get("action") if isinstance(data, dict) else "") or " ; ".join(c["libelle"] for c in changements)), 1000)
+	restes = [S.texte(str(x), 1000) for x in (data.get("reste_a_verifier") or [] if isinstance(data, dict) else []) if x][:6]
+	# Un nombre écrit par l'IA doit venir de l'information donnée ou du document : sinon, un nouveau point (rouge).
+	from aquaworld_ia.documents_produit import illustrations as I
+	from aquaworld_ia.documents_produit.variantes import nombres_connus
+
+	inconnus = I.nombres_inconnus([n for t in textes for n in I._nombres(t)], nombres_connus(user))
+	if inconnus:
+		restes.append("Nombres écrits par l’IA absents de votre information et du document, à confirmer : " + ", ".join(I.formater(n) for n in inconnus[:20]))
+	P.marquer_traite(nouveau, point, action, information)
+	nouveau["points_a_verifier"] = list(dict.fromkeys(nouveau["points_a_verifier"] + restes))[:80]
+	return {"contenu": S.normaliser(nouveau, ctx), "changements": changements, "action": action}
 
 
 def reecrire(d, genre, ctx, contenu, cible, instruction):

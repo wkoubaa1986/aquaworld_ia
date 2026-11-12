@@ -23,10 +23,10 @@ JOUR = {"fr": "jour", "en": "day"}   # autre langue : symbole international « d
 
 # (motif de l'unité, respecter la casse, conversion, unité métrique) — le premier motif reconnu l'emporte.
 UNITES = (
-	(r"GPD|gal(?:lons?)?\s*/\s*(?:j|jour|day|d)", False, lambda x: x * GALLON_US, "L/{jour}"),
+	(r"GPD|gal(?:lons?)?(?:\s*US)?\s*/\s*(?:j|jour|day|d)", False, lambda x: x * GALLON_US, "L/{jour}"),
 	(r"GPM|gal(?:lons?)?\s*/\s*min", False, lambda x: x * GALLON_US, "L/min"),
 	(r"G", True, lambda x: x * GALLON_US, "L"),                       # « 3,2 G » ; « g » minuscule = gramme
-	(r"gal\.?|gallons?|galons?", False, lambda x: x * GALLON_US, "L"),
+	(r"(?:US\s*)?(?:gal\.?|gallons?|galons?)(?:\s*(?:US|américains?))?", False, lambda x: x * GALLON_US, "L"),
 	(r"psi", False, lambda x: x * 0.0689475729, "bar"),
 	(r"\"|″|”|''|inch(?:es)?|pouces?", False, lambda x: x * 25.4, "mm"),
 	(r"°\s*F", False, lambda x: (x - 32) * 5 / 9, "°C"),

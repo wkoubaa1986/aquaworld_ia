@@ -576,6 +576,27 @@ def reecrire_partie(name, document_name, cible, instruction, contenu=None):
 
 
 @frappe.whitelist()
+def traiter_point(name, document_name, point, information, destination=None, contenu=None):
+	"""Traite un point à vérifier avec l'IA, depuis le contenu à l'écran : l'utilisateur donne l'information, l'IA
+	l'écrit au bon endroit. Rien n'est enregistré : l'écran reprend le contenu, l'utilisateur relit puis enregistre.
+	Un appel IA, compté dans les coûts du dossier."""
+	from aquaworld_ia.documents_produit import traitement
+
+	d = dossier(name, "write")
+	v = document(document_name, "write")
+	if v.dossier != name:
+		frappe.throw(_("Choisissez une version de ce dossier."))
+	if v.langue != "fr":
+		frappe.throw(_("Traitez les points sur la version française, puis traduisez-la : la traduction repart du français."))
+	ctx = json.loads(v.contexte_json)
+	ctx["consignes"] = d.consignes or ""
+	if d.get("connaissances_generales"):
+		ctx["connaissances_generales"] = 1
+	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
+	return traitement.traiter_point(d, v.type_document, ctx, c, point, information, _json(destination) if destination else None)
+
+
+@frappe.whitelist()
 def illustrer_rubrique(name, document_name, index, mode, instruction="", contenu=None, format=None):
 	"""Pour UNE rubrique, depuis le contenu à l'écran : un graphe préparé depuis les données (mode « graphe »), un
 	tableau rédigé (« tableau »), une image générée (« image ») ou l'image actuelle retouchée (« retouche ») par

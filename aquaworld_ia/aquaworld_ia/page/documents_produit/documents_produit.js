@@ -737,8 +737,9 @@ class DocumentsProduit {
       <label class="dp-label">Caractéristiques techniques</label><p class="dp-muted">Saisissez la valeur comme dans vos données (3,2 G, 75 GPD, 116 psi, 10") : le PDF l’imprime en unités métriques, calculées, avec la valeur d’origine entre parenthèses — « 12,1 L (3,2 G) ». Une référence, un texte, une valeur déjà métrique ou les pouces d’un raccord restent tels quels.</p><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
       ${!doc.variante&&(c.variantes||[]).length>1?`<label class="dp-label">Gamme et configurations — texte d’introduction du tableau des variantes <button type="button" class="btn btn-default btn-xs dp-ia-gamme" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ ${c.gamme?'Réécrire':'Rédiger'} avec l’IA…</button></label><p class="dp-muted">Ce texte présente comment la gamme se décline et ce que change chaque option ; il s’imprime sous le titre « Gamme et configurations », juste avant le tableau des variantes. Les nombres (variantes, valeurs par attribut) sont comptés par l’outil. Vide : le tableau seul.</p><textarea class="form-control dp-gamme" rows="5">${dpEsc(c.gamme||'')}</textarea>`:''}
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
-      <label class="dp-label">Points à vérifier avant validation — cliquez un point pour le marquer résolu (barré), cliquez de nouveau pour le rouvrir ; × le retire. Seuls les points ouverts bloquent la validation.</label>
-      <ul class="dp-checks">${[...c.points_a_verifier.map(p=>[p,0]),...(c.points_resolus||[]).map(p=>[p,1])].map(([p,ok])=>`<li class="dp-check ${ok?'resolu':''}" data-resolu="${ok}"><button type="button" class="dp-check-toggle" aria-pressed="${!!ok}" title="${ok?'Rouvrir ce point':'Marquer résolu'}">${ok?'✔':''}</button><span class="dp-check-text">${dpEsc(p)}</span><button type="button" class="btn btn-xs btn-default dp-check-remove" title="Retirer ce point">×</button></li>`).join('')||'<li class="dp-muted dp-check-none">Aucun point en attente</li>'}</ul>
+      <label class="dp-label">Points à vérifier avant validation</label>
+      <p class="dp-muted"><span class="dp-check-legende ouvert">Rouge</span> à traiter : donnez l’information à « ✦ Traiter avec l’IA », elle l’écrit au bon endroit du document — ou cliquez le point pour le marquer résolu à la main (barré). <span class="dp-check-legende traite">Vert</span> traité par l’IA : relisez ce qu’elle a écrit ; un clic sur ✔ le rouvre. × retire un point. Seuls les points rouges bloquent la validation.</p>
+      <ul class="dp-checks">${[...c.points_a_verifier.map(p=>[p,0,null]),...(c.points_traites||[]).map(t=>[t.texte,2,t]),...(c.points_resolus||[]).map(p=>[p,1,null])].map(([p,etat,t])=>`<li class="dp-check ${etat===1?'resolu':etat===2?'traite':''}" data-resolu="${etat}"${t?` data-action="${dpEsc(t.action||'')}" data-information="${dpEsc(t.information||'')}"`:''}><button type="button" class="dp-check-toggle" aria-pressed="${etat>0}" title="${etat?'Rouvrir ce point':'Marquer résolu'}">${etat?'✔':''}</button><span class="dp-check-corps"><span class="dp-check-text">${dpEsc(p)}</span>${t?`<span class="dp-check-action">✦ Traité par l’IA${t.action?' — '+dpEsc(t.action):''}</span>`:''}</span><button type="button" class="btn btn-xs btn-default dp-check-ia" ${doc.langue==='fr'?'':'disabled'} title="Donner l’information : l’IA l’écrit dans le document">✦ Traiter avec l’IA</button><button type="button" class="btn btn-xs btn-default dp-check-remove" title="Retirer ce point">×</button></li>`).join('')||'<li class="dp-muted dp-check-none">Aucun point en attente</li>'}</ul>
       <div class="dp-actions"><input class="form-control input-sm dp-check-new" placeholder="Ajouter un point à vérifier…" maxlength="1000"><button type="button" class="btn btn-default btn-xs dp-check-add">Ajouter</button>${c.points_a_verifier.length>1?'<button type="button" class="btn btn-default btn-xs dp-check-all">Tout marquer résolu</button>':''}</div>
       <details style="margin-top:14px"><summary>Variantes et sources de cette version</summary><div class="dp-table-wrap"><table class="dp-table">${c.variantes.map(v=>`<tr><td>${dpEsc(v.article)}</td><td>${dpEsc(v.marque)}</td><td>${v.attributs.map(a=>dpEsc(a.nom+' : '+a.valeur)).join('<br>')}</td></tr>`).join('')}</table></div>${(ctx.preuves||[]).map(p=>`<details><summary>${dpEsc(p.source+' · '+p.fichier)}</summary><div style="white-space:pre-wrap;padding:10px">${dpEsc(p.texte)}</div></details>`).join('')}</details></div>
       <div class="dp-review-pdf"><div class="dp-actions dp-preview-switch"><b>Pages PDF en direct</b><span class="dp-muted dp-review-live-status"></span>${doc.pdf?`<a class="btn btn-xs btn-default" href="${dpUrl(doc.pdf)}" target="_blank" rel="noopener">Ouvrir le PDF enregistré</a>`:''}</div>
@@ -752,9 +753,10 @@ class DocumentsProduit {
     this.bindSectionExtras(z);
     // Points à vérifier en liste (demande 07/11/2026) : un clic barre le point (résolu), un autre le rouvre ; × le retire.
     const pointsChanges=()=>{this.dirty=true;this.updateBar();this.renderLayoutPreview();this.planifierPages('review',1500);};
-    z.find('.dp-check-toggle,.dp-check-text').on('click',e=>{const li=$(e.currentTarget).closest('.dp-check'),ok=li.attr('data-resolu')!=='1';li.attr('data-resolu',ok?'1':'0').toggleClass('resolu',ok);li.find('.dp-check-toggle').text(ok?'✔':'').attr({'aria-pressed':String(ok),title:ok?'Rouvrir ce point':'Marquer résolu'});pointsChanges();});
+    z.find('.dp-check-toggle,.dp-check-text').on('click',e=>{const li=$(e.currentTarget).closest('.dp-check'),ok=li.attr('data-resolu')==='0';li.attr('data-resolu',ok?'1':'0').toggleClass('resolu',ok).removeClass('traite').removeAttr('data-action data-information');li.find('.dp-check-action').remove();li.find('.dp-check-toggle').text(ok?'✔':'').attr({'aria-pressed':String(ok),title:ok?'Rouvrir ce point':'Marquer résolu'});pointsChanges();});
+    z.find('.dp-check-ia').on('click',e=>this.traiterPointAvecIA($(e.currentTarget).closest('.dp-check').find('.dp-check-text').text().trim()));
     z.find('.dp-check-remove').on('click',e=>{$(e.currentTarget).closest('.dp-check').remove();if(!z.find('.dp-check').length)z.find('.dp-checks').html('<li class="dp-muted dp-check-none">Aucun point en attente</li>');pointsChanges();});
-    z.find('.dp-check-all').on('click',()=>{z.find('.dp-check:not(.resolu) .dp-check-toggle').trigger('click');});
+    z.find('.dp-check-all').on('click',()=>{z.find('.dp-check[data-resolu="0"] .dp-check-toggle').trigger('click');});
     const ajouterPoint=()=>{const t=(z.find('.dp-check-new').val()||'').trim();if(!t)return;this.current.contenu=this.captureDocument();this.current.contenu.points_a_verifier.push(t);this.renderDocument();this.dirty=true;this.updateBar();};
     z.find('.dp-check-add').on('click',ajouterPoint);z.find('.dp-check-new').on('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ajouterPoint();}});
     z.find('.dp-add-carac').on('click',()=>add('caracteristiques',{nom:'',valeur:'',unite:'',article:'',source:'Saisie manuelle'}));
@@ -869,6 +871,32 @@ class DocumentsProduit {
     }});
     d.show();
   }
+  traiterPointAvecIA(point) {
+    // Un point à vérifier levé avec l'IA (demande 12/11/2026) : l'utilisateur donne l'information, l'IA l'écrit au bon
+    // endroit du document ; le point passe du rouge au vert. Rien n'est enregistré avant « Enregistrer ».
+    if(!this.current||!point)return;
+    const c=this.captureDocument();
+    const endroits=[{label:'Laisser l’IA choisir l’endroit',value:'auto'},{label:'Caractéristiques techniques (une valeur)',value:'caracteristique'},
+      ...c.sections.map((s,i)=>({label:'Rubrique : '+(s.titre||'sans titre'),value:'section:'+i})),{label:'Nouvelle rubrique',value:'nouvelle_section'},{label:'Présentation',value:'resume'},
+      ...(!this.current.doc.variante&&(c.variantes||[]).length>1?[{label:'Gamme et configurations',value:'gamme'}]:[])];
+    const d=new frappe.ui.Dialog({title:'Traiter ce point avec l’IA',fields:[
+      {fieldtype:'HTML',fieldname:'point',options:`<div class="dp-check" data-resolu="0" style="margin-bottom:12px"><span class="dp-check-text" style="cursor:default">${dpEsc(point)}</span></div>`},
+      {fieldtype:'Small Text',fieldname:'information',label:'Votre information',reqd:1,description:'Écrivez ce que vous savez, comme vous le diriez : « Le réservoir fait 3,2 gallons US. Pression d’entrée de 1 à 4 bar. Raccords 1/4". » L’IA met en forme et place l’information ; elle n’ajoute rien que vous n’ayez écrit.'},
+      {fieldtype:'Select',fieldname:'destination',label:'Où l’écrire',options:endroits,default:'auto'},
+      {fieldtype:'HTML',fieldname:'etat',options:'<p class="dp-muted">Un appel IA (coût visible dans l’historique du dossier). Le document est modifié à l’écran ; relisez les parties surlignées en vert, puis Enregistrer.</p>'}],
+      primary_action_label:'Traiter',primary_action:async v=>{
+        d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">L’IA intègre votre information… (10 à 40 s)</p>');
+        try{
+          const [type,index]=String(v.destination||'auto').split(':'),destination=type==='auto'?null:{type,...(index!==undefined?{index:+index}:{})};
+          const r=await dpCall('traiter_point',{name:this.name,document_name:this.current.doc.name,point,information:v.information,destination,contenu:this.captureDocument()});
+          this.current.contenu=r.contenu;this.renderDocument();this.dirty=true;this.updateBar();d.hide();
+          const z=this.root.find('.dp-editor'),cibles=r.changements.map(m=>m.type==='resume'?z.find('.dp-summary'):m.type==='gamme'?z.find('.dp-gamme'):m.type==='section'?z.find('.dp-section').eq(m.index):z.find('.dp-caracs tbody tr').eq(m.index));
+          cibles.forEach(q=>q.addClass('dp-modifie'));cibles[0]?.[0]?.scrollIntoView({behavior:'smooth',block:'center'});
+          frappe.msgprint({title:'Point traité par l’IA',indicator:'green',message:`<p>${dpEsc(r.action||'')}</p><ul>${r.changements.map(m=>`<li>${dpEsc(m.libelle)}</li>`).join('')}</ul><p class="dp-muted">Les parties modifiées sont surlignées en vert dans le document. Relisez, puis Enregistrer.</p>`});
+        }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'Le traitement a échoué. Précisez l’information et réessayez.')}</div>`);}
+      }});
+    d.show();
+  }
   reecrireAvecIA(cible) {
     // Une partie (résumé ou rubrique) réécrite par l'IA selon une instruction ; l'écran reprend le texte, rien
     // n'est enregistré avant « Enregistrer » (demande 06/11/2026).
@@ -915,8 +943,10 @@ class DocumentsProduit {
     // Seulement le tableau des caractéristiques (pas ceux des rubriques ni des variantes), sans les lignes vides :
     // elles étaient capturées comme caractéristiques et faisaient dépasser la limite (06/11/2026, AP-M).
     c.caracteristiques=z.find('.dp-caracs tbody tr').map((_,el)=>{const r={};$(el).find('[data-key]').each((_,f)=>r[$(f).attr('data-key')]=$(f).val());return r;}).get().filter(r=>(r.nom||'').trim()||(r.valeur||'').trim());
-    const lirePoints=resolu=>z.find('.dp-check').filter((_,el)=>(el.dataset.resolu==='1')===resolu).map((_,el)=>$(el).find('.dp-check-text').text().trim()).get().filter(Boolean);
-    c.points_a_verifier=lirePoints(false);const resolus=lirePoints(true);if(resolus.length)c.points_resolus=resolus;else delete c.points_resolus;
+    const lirePoints=etat=>z.find('.dp-check').filter((_,el)=>el.dataset.resolu===etat).map((_,el)=>$(el).find('.dp-check-text').text().trim()).get().filter(Boolean);
+    c.points_a_verifier=lirePoints('0');const resolus=lirePoints('1');if(resolus.length)c.points_resolus=resolus;else delete c.points_resolus;
+    const traites=z.find('.dp-check[data-resolu="2"]').map((_,el)=>({texte:$(el).find('.dp-check-text').text().trim(),action:el.dataset.action||'',information:el.dataset.information||''})).get().filter(t=>t.texte);
+    if(traites.length)c.points_traites=traites;else delete c.points_traites;
     c.legendes=z.find('.dp-doc-caption').map((_,el)=>el.value).get();return c;
   }
   async saveDocument() {

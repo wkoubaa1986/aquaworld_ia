@@ -526,6 +526,24 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Traiter un point à vérifier avec l’IA (12/11/2026, v0.52.0)
+
+À l’étape Relire, chaque point à vérifier est **rouge** tant qu’il est ouvert et porte un bouton
+**✦ Traiter avec l’IA**. L’utilisateur écrit l’information qui répond au point, comme il la dirait ; l’IA la met
+en forme et l’écrit au bon endroit du document : une valeur mesurable dans les caractéristiques, une explication
+dans la rubrique qui traite du sujet, sinon une nouvelle rubrique, la présentation ou l’introduction de la gamme.
+« Où l’écrire » permet d’imposer l’endroit. Le point passe au **vert**, avec ce que l’IA a fait.
+
+- Rien n’est enregistré : le document est modifié à l’écran, les parties touchées sont surlignées en vert, et
+  l’utilisateur relit puis enregistre. Un point vert se rouvre d’un clic sur ✔.
+- L’IA n’ajoute rien que l’information ne dise : un nombre qu’elle écrirait sans qu’il vienne de l’information ou
+  du document redevient un point rouge, de même que ce que l’information ne permet pas de lever.
+- Les ajouts portent la source « Information de l’entreprise (date) ». Les unités restent celles de l’entreprise :
+  l’équivalent métrique est calculé à l’impression (`unites.py`).
+- Seuls les points rouges bloquent la validation. Contenu : `points_traites` = [{texte, action, information}]
+  (clé absente tant qu’elle est vide). Code : `documents_produit/points.py` (pur), `traitement.traiter_point`,
+  `service.traiter_point`.
+
 ### Le produit en images : mosaïque par défaut, à la mesure de la page (12/11/2026, v0.51.0)
 
 La section « Le produit en images » est par défaut en **mosaïque** : une grande photo à gauche, jusqu’à trois

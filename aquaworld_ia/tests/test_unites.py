@@ -13,6 +13,9 @@ class TestUnitesMetriques(unittest.TestCase):
 			("3,2 G", "", "12,1 L (3,2 G)"),                 # unité écrite dans la valeur
 			("20G", "", "75,7 L (20G)"),
 			("11", "gallons", "41,6 L (11 gallons)"),
+			("3,2", "gallons US", "12,1 L (3,2 gallons US)"),   # écrit ainsi par l'IA après traitement d'un point
+			("3.2", "US gal", "12,1 L (3.2 US gal)"),
+			("75", "gallons US/jour", "284 L/jour (75 gallons US/jour)"),
 			("75", "GPD", "284 L/jour (75 GPD)"),
 			("400GPD", "", "1510 L/jour (400GPD)"),
 			("12", "GPM", "45,4 L/min (12 GPM)"),
