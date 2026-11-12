@@ -16,6 +16,9 @@
   "numero",
   "statut",
   "source_fr",
+  "variante",
+  "version_mere",
+  "empreinte_variante",
   "pdf",
   "source_latex",
   "archive_latex",
@@ -92,6 +95,29 @@
    "fieldtype": "Link",
    "label": "Version française de référence",
    "options": "Document Produit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "variante",
+   "fieldtype": "Link",
+   "label": "Variante (fiche par variante)",
+   "options": "Item",
+   "read_only": 1,
+   "search_index": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "version_mere",
+   "fieldtype": "Link",
+   "label": "Fiche du produit reprise",
+   "options": "Document Produit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "empreinte_variante",
+   "fieldtype": "Data",
+   "label": "Empreinte de la variante, de ses photos et de la fiche reprise",
+   "hidden": 1,
    "read_only": 1
   },
   {
@@ -187,7 +213,7 @@
   }
  ],
  "creation": "2026-11-04 10:00:00.000000",
- "modified": "2026-11-04 10:00:00.000000",
+ "modified": "2026-11-12 10:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "sort_field": "modified",

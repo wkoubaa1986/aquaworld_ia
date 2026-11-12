@@ -1,0 +1,159 @@
+{
+ "doctype": "DocType",
+ "name": "Observation Photo Produit",
+ "module": "Aquaworld IA",
+ "engine": "InnoDB",
+ "istable": 0,
+ "issingle": 0,
+ "autoname": "hash",
+ "title_field": "nom_fichier",
+ "field_order": [
+  "empreinte",
+  "fichier",
+  "nom_fichier",
+  "vue",
+  "legende",
+  "description",
+  "elements",
+  "textes_lus",
+  "incertitudes",
+  "corrigee",
+  "modele",
+  "version_lecture"
+ ],
+ "fields": [
+  {
+   "fieldname": "empreinte",
+   "fieldtype": "Data",
+   "label": "Empreinte du fichier",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "fichier",
+   "fieldtype": "Data",
+   "label": "Fichier",
+   "read_only": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "nom_fichier",
+   "fieldtype": "Data",
+   "label": "Nom du fichier",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "vue",
+   "fieldtype": "Select",
+   "label": "Vue",
+   "options": "face\nensemble\ncote\narriere\ndessus\ndetail\naccessoires\nemballage\nschema\nautre",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "legende",
+   "fieldtype": "Data",
+   "label": "Légende proposée",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Ce que montre la photo"
+  },
+  {
+   "fieldname": "elements",
+   "fieldtype": "Small Text",
+   "label": "Éléments visibles (un par ligne)"
+  },
+  {
+   "fieldname": "textes_lus",
+   "fieldtype": "Small Text",
+   "label": "Textes lus sur la photo (un par ligne)"
+  },
+  {
+   "fieldname": "incertitudes",
+   "fieldtype": "Small Text",
+   "label": "Incertitudes (une par ligne)"
+  },
+  {
+   "fieldname": "corrigee",
+   "fieldtype": "Check",
+   "label": "Corrigée à la main",
+   "read_only": 1
+  },
+  {
+   "fieldname": "modele",
+   "fieldtype": "Data",
+   "label": "Modèle IA",
+   "read_only": 1
+  },
+  {
+   "fieldname": "version_lecture",
+   "fieldtype": "Int",
+   "label": "Version de la lecture",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Item Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Aquaworld IA",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  }
+ ],
+ "creation": "2026-11-12 10:00:00.000000",
+ "modified": "2026-11-12 10:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

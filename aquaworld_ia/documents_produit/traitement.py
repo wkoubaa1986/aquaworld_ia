@@ -107,7 +107,7 @@ Le tableau des variantes et les photos sont ajoutés par le système.
 	data.pop("variantes", None)
 	data.pop("legendes", None)
 	data.pop("libelles", None)
-	contenu = S.normaliser(data, ctx)
+	contenu = S.normaliser(S.depuis_ia(data), ctx)
 	if not contenu["sections"] and not contenu["caracteristiques"]:
 		raise ValueError(
 			"La proposition IA ne contient aucune rubrique ni caractéristique. Relancez la génération."
@@ -180,16 +180,19 @@ def traduire(v, langue, libelle, progression=lambda *a: None):
 	return S.normaliser(resultat, ctx)
 
 
-def executer(name, token, action, document_name=None, langue=None, libelle=None, rtl=0, utilisateur=None):
+def executer(name, token, action, document_name=None, langue=None, libelle=None, rtl=0, utilisateur=None,
+		articles=None, forcer=0):
 	with journal.suivre_generation(name, token, action, langue):
-		return _executer(name, token, action, document_name, langue, libelle, rtl, utilisateur)
+		return _executer(name, token, action, document_name, langue, libelle, rtl, utilisateur, articles, forcer)
 
 
-def _executer(name, token, action, document_name=None, langue=None, libelle=None, rtl=0, utilisateur=None):
+def _executer(name, token, action, document_name=None, langue=None, libelle=None, rtl=0, utilisateur=None,
+		articles=None, forcer=0):
 	precedent = frappe.session.user
 	if utilisateur:
 		frappe.set_user(utilisateur)
 	resultats = []
+	message_final = None
 	try:
 		d = API.dossier(name, "write")
 		if d.token_traitement != token:
@@ -222,7 +225,8 @@ def _executer(name, token, action, document_name=None, langue=None, libelle=None
 			contenu = traduire(v, langue, libelle, progres)
 			# La traduction est enregistrée immédiatement. Le PDF est une action distincte.
 			nouveau = API.nouvelle_version(
-				name, v.type_document, contenu, json.loads(v.contexte_json), langue, libelle, rtl, v.name
+				name, v.type_document, contenu, json.loads(v.contexte_json), langue, libelle, rtl, v.name,
+				**API.lien_variante(v),
 			)
 			frappe.db.commit()
 			resultats.append(nouveau.name)
@@ -234,11 +238,25 @@ def _executer(name, token, action, document_name=None, langue=None, libelle=None
 				raise ValueError("Le document appartient à un autre dossier.")
 			progres("Composition du PDF", 40)
 			generer_pdf(v, valider=action == "valider")
+			if action == "valider" and v.get("variante"):
+				from aquaworld_ia.documents_produit.variantes import joindre_pdf_article
+
+				joindre_pdf_article(v)   # la fiche validée d'une variante est jointe à son article
 			frappe.db.commit()
 			resultats.append(v.name)
+		elif action in ("photos", "variantes", "valider_variantes"):
+			# Import tardif : variantes importe illustrations, qui importe ce module.
+			from aquaworld_ia.documents_produit import variantes as V
+
+			if action == "photos":
+				message_final = V.lire_photos(d, articles, forcer, progres)
+			elif action == "variantes":
+				message_final = V.creer_fiches(d, articles, forcer, progres)
+			else:
+				message_final = V.valider_fiches(d, articles, progres)
 		else:
 			raise ValueError("Action inconnue.")
-		_progres(name, token, "Enregistré : " + ", ".join(resultats), 100, "Terminé")
+		_progres(name, token, (message_final or "Enregistré : " + ", ".join(resultats))[:1500], 100, "Terminé")
 	except Exception as e:
 		frappe.db.rollback()
 		frappe.log_error(title="Documents produit : " + name, message=frappe.get_traceback())

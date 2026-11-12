@@ -417,7 +417,10 @@ configurées par qualité et doivent être adaptées au modèle et à la taille 
 
 ```
 bench --site <site> install-app aquaworld_ia
-bench --site <site> run-tests --app aquaworld_ia      # fonctions pures, sans appel IA
+# Fonctions pures, sans site ni appel IA (les tests qui demandent un site sont ignorés) — depuis le dossier de l’app :
+../../env/bin/python -m unittest discover -s aquaworld_ia/tests -t .
+# Avec un site JETABLE seulement : `bench run-tests` réinitialise des données (prix d’articles) du site visé.
+bench --site <site de test> run-tests --app aquaworld_ia
 node --test aquaworld_ia/tests/test_studio_emballage.js  # depuis le dossier de l’app
 ```
 
@@ -513,6 +516,62 @@ modifiée ou ajoutée est reprise telle que saisie, sans traduction automatique.
 PDF restent conservés. Une photo associée à une variante absente de la version demande
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
+
+### Fiches par variante (12/11/2026, v0.45.0)
+
+Demande : « automatiser en plus la génération de fiche technique par variante, en plus des parents, en se basant sur
+leur photo et ajouter leur spécificité ». À l’étape **Relire et produire** de l’onglet Fiche technique, la carte
+**Fiches par variante** suit une ligne par variante cochée du dossier (photos lues, version, état) et porte quatre
+commandes : **Créer / actualiser les fiches**, **Valider les fiches prêtes**, **Télécharger les PDF (ZIP)**,
+**Photos lues — observations…**. Les cases limitent une commande aux variantes cochées.
+
+**Une fiche de variante = la fiche du produit + les spécificités de la variante** (`documents_produit/variantes.py`).
+- La partie commune est la dernière fiche technique française du produit, reprise SANS IA (`partie_commune`) :
+  rubriques et caractéristiques de toute la gamme (portée vide ou référence du parent) ou de cette variante. Mêmes
+  phrases et mêmes chiffres d’une fiche à l’autre.
+- Les spécificités viennent d’UN appel IA par variante (`requete_specificites`, `SYSTEME`) : présentation adaptée et
+  rubrique « Spécificités de ce modèle » (titre imposé), d’après ses attributs, sa description et les observations de
+  ses photos. Garde-fous : une caractéristique ne vient que de l’article de la variante, jamais d’une photo ; un
+  attribut n’est pas répété en caractéristique ; un nombre absent des données, ou une mention de conformité (CE, NSF,
+  ISO…) absente des données de l’article, ajoute un point à vérifier, qui bloque la validation ; l’IA ne signale en
+  point à vérifier que les contradictions entre l’article et ses photos (« robinet trèfle » contre col de cygne).
+- Présentation : titre = nom de la variante, sa référence sous le titre, ses propres photos (image de l’article et
+  pièces jointes image, huit au plus, vue de face ou d’ensemble d’abord — elles ne passent pas par les vingt photos
+  du dossier), bloc « Référence et configuration » à la place du tableau des variantes, plus de colonne « Modèles
+  concernés ». Avec la disposition de galerie par défaut du dossier, les autres photos passent en grille de deux ou
+  trois colonnes (`mise_en_page_variante`) ; une disposition choisie est respectée.
+
+**Lecture des photos** (`documents_produit/observations.py`, DocType `Observation Photo Produit`) : l’IA vision décrit
+ce qui est visible — vue, légende proposée, composants, éléments comptables, textes lisibles, incertitudes — et n’en
+tire ni dimension, ni performance, ni norme. Une image est lue UNE fois, rangée sous l’empreinte de son contenu : la
+même photo jointe à trente variantes, ou reprise dans un autre dossier, ne coûte qu’un appel. Quatre lectures à la
+fois (`chat_json_image_differe`). La fenêtre **observations** permet de corriger chaque lecture ; une observation
+corrigée n’est plus relue, et les fiches qui montrent la photo passent « à actualiser ».
+
+**Portée dans une fiche de variante** : « Repris de la fiche du produit » (clé `article` vide) est remplacé à chaque
+actualisation — on le corrige dans la fiche du produit ; « Propre à cette variante » (`article` = la variante :
+spécificités, ajouts et corrections) est conservé tant que la variante, ses photos et leurs observations n’ont pas
+changé (`reprendre_specificites`), points résolus compris. Actualiser après une modification de la seule fiche du
+produit ne fait donc aucun appel IA. Cocher une fiche à jour puis relancer fait réécrire ses spécificités.
+
+**À actualiser** : `empreinte_variante` (version de la fiche du produit et son statut, variante, photos,
+observations) est rangée sur la version (`Document Produit.empreinte_variante`, avec `variante` et `version_mere`).
+Tant que la fiche du produit n’est pas validée, chaque fiche de variante porte un point à vérifier qui le dit.
+**Valider les fiches prêtes** valide celles qui sont à jour et sans point à vérifier, compose le PDF définitif et le
+joint (fichier privé, « Fiche technique REF.pdf ») à l’article de la variante, en retirant celui de la version
+précédente. La fiche Article d’une variante montre sa propre fiche en plus des documents du produit.
+
+Traitements (`service.lancer`, une tâche de fond par action, une variante en échec n’arrête pas les autres) :
+`photos` (lit les images non lues), `variantes` (lecture, spécificités quatre à la fois, version et PDF de relecture
+par variante), `valider_variantes`. Les versions d’une fiche de variante se numérotent à part et s’ouvrent dans
+l’éditeur habituel (bouton **Ouvrir**) : correction, aperçu, PDF, validation et traduction y fonctionnent comme pour
+la fiche du produit.
+
+Essais du 12/11/2026 sur le site de développement (modèle gpt-5.2) : Mini Fontaine (3 variantes, 1 photo chacune) et
+osmoseur AP-M (4 variantes sur 45, 3 à 5 photos chacune) — environ 1 cent par photo lue et 1 cent par variante
+rédigée, 30 à 45 s pour quatre variantes. Ces essais ont aussi corrigé la rédaction de la fiche du produit, qui
+échouait (« Le contenu doit être du texte ») quand le modèle rendait les points à vérifier en objets
+(`structure.depuis_ia`).
 
 Chaque dossier comporte deux onglets : **Fiche technique** et **Manuel d’utilisation**.
 Chacun a sa commande de génération, son modèle IA, sa mise en page, ses versions et ses

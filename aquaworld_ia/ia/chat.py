@@ -48,6 +48,29 @@ def chat_json_differe(contexte: tuple, system: str, user: str) -> dict:
 		return {"sortie": None, "journal": dict(entree, erreur="réponse illisible")}
 
 
+def chat_json_image_differe(contexte: tuple, system: str, user: str, image_png: bytes, detail: str = "high") -> dict:
+	"""Comme `chat_json_differe`, avec UNE image jointe (lecture des photos des variantes par paquets, 12/11/2026 :
+	une photo après l'autre, douze photos prenaient 90 s). Même contrat : rien de Frappe ici, le journal est écrit
+	ensuite par le thread principal."""
+	import base64
+
+	client, modele, temperature = contexte
+	contenu = [
+		{"type": "text", "text": user},
+		{"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(image_png).decode(), "detail": detail}},
+	]
+	debut = time.monotonic()
+	try:
+		reponse = _completer(client, modele, temperature, [{"role": "system", "content": system}, {"role": "user", "content": contenu}])
+	except Exception as e:
+		return {"sortie": None, "journal": {"appel": "chat", "modele": modele, "duree_ms": (time.monotonic() - debut) * 1000, "erreur": str(e)}}
+	entree = {"appel": "chat", "modele": modele, "usage": getattr(reponse, "usage", None), "duree_ms": (time.monotonic() - debut) * 1000}
+	try:
+		return {"sortie": json.loads(reponse.choices[0].message.content), "journal": entree}
+	except Exception:
+		return {"sortie": None, "journal": dict(entree, erreur="réponse illisible")}
+
+
 def chat_json(system: str, user: str, *, fonctionnalite: str, doc=None, modele: str | None = None) -> dict:
 	"""Un appel chat.completions en mode JSON -> dict. Lève une erreur claire si la réponse
 	n'est pas du JSON. Les modèles « raisonneurs » refusent une température : on la retire et

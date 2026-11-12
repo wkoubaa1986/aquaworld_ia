@@ -10,7 +10,7 @@ const dpEsc = v => frappe.utils.escape_html(String(v ?? ''));
 const dpCall = async (method,args={}) => (await frappe.call({method:DP_API+method,args})).message;
 const dpUrl = url => typeof url==='string' && /^\/(private\/)?files\//.test(url) ? dpEsc(url) : '';
 const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFractionDigits:4,maximumFractionDigits:4})+' $';
-const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)'})[action] || action;
+const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)',photos:'Lecture des photos des variantes',variantes:'Fiches par variante'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
 const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Tableau des variantes',illustrations:'Autres illustrations'};
 // Les quatre étapes du travail, dans l'ordre où on les fait : l'écran suit cet ordre (refonte du 06/11/2026).
@@ -51,7 +51,7 @@ class DocumentsProduit {
   constructor(page, root) { this.page=page; this.root=root; this.name=null; this.current=null; this.dirty=false; this.activeTab='fiche'; this.activeStep='preparer'; this.selectedVersions={}; }
   async ouvrir() {
     clearTimeout(this.timer); this.name=frappe.get_route()[1] || null;
-    this.loadSequence=(this.loadSequence||0)+1;this.jobTarget=null;this.selectedVersions={};
+    this.loadSequence=(this.loadSequence||0)+1;this.jobTarget=null;this.selectedVersions={};this.varianteActive=null;
     this.root.html('<div class="dp-card">Chargement…</div>');
     if (!this.name) return this.liste();
     this.data=await dpCall('charger',{name:this.name}); this.current=null; this.dirty=false;
@@ -76,7 +76,11 @@ class DocumentsProduit {
     return `<option value="">Toute la gamme</option>${selection.map(article=>`<option value="${dpEsc(article)}" ${article===value?'selected':''}>${dpEsc(article)}</option>`).join('')}${value&&!selection.includes(value)?`<option value="${dpEsc(value)}" selected>${dpEsc(value)} — variante non sélectionnée</option>`:''}`;
   }
   typeActif() { return DP_TYPES[this.activeTab]; }
-  documentsActifs() { return this.data.documents.filter(v=>v.type_document===this.typeActif()); }
+  // Fiches par variante (12/11/2026) : l'éditeur de l'étape Relire montre la fiche du produit, ou celle de la variante
+  // ouverte depuis le tableau « Fiches par variante » — ses versions remplacent alors celles du produit dans la liste.
+  varianteOuverte() { return this.activeTab==='fiche'?(this.varianteActive||''):''; }
+  cleVersions() { return this.activeTab+(this.varianteOuverte()?':'+this.varianteOuverte():''); }
+  documentsActifs() { const variante=this.varianteOuverte(); return this.data.documents.filter(v=>v.type_document===this.typeActif()&&(v.variante||'')===variante); }
   busy() { return ['En attente','En cours'].includes(this.data.dossier.etat_traitement); }
   async switchTab(tab) {
     if(!Object.hasOwn(DP_TYPES,tab)||tab===this.activeTab||this.switchingTab||this.busy())return;
@@ -84,10 +88,10 @@ class DocumentsProduit {
     try {
       if(this.dirty)await this.saveDocument();
       await this.saveConfig();
-      if(this.current)this.selectedVersions[this.activeTab]=this.current.doc.name;
+      if(this.current)this.selectedVersions[this.cleVersions()]=this.current.doc.name;
       this.loadSequence=(this.loadSequence||0)+1;
       this.data=await dpCall('charger',{name:this.name});
-      this.activeTab=tab;this.current=null;this.dirty=false;
+      this.activeTab=tab;this.current=null;this.dirty=false;this.varianteActive=null;
       try{sessionStorage.setItem('dp-tab:'+this.name,tab);}catch{/* Le choix reste utilisable sans stockage navigateur. */}
       this.rendre();
     }finally{this.switchingTab=false;this.showState(this.data.dossier);}
@@ -187,6 +191,11 @@ class DocumentsProduit {
             <p>Un <b>graphe depuis les données</b> n’est pas une image : l’IA choisit les catégories et les séries (barres, barres horizontales, courbe, secteurs) dans l’article, les caractéristiques et les sources, le PDF le compose en vectoriel et ses libellés sont traduits avec la version. Une valeur absente des données fait refuser le graphe ou le tableau : ajoutez-la dans l’article, le texte de la rubrique ou l’instruction.</p>
             <p>Une <b>illustration générée</b> (schéma, pictogramme) est sans texte ni chiffre : les libellés vont dans la légende. Image, graphe et tableau n’apparaissent qu’après <b>Enregistrer</b> ; les pages PDF en direct les montrent à leur place.</p>
           </section>
+          ${manuel?'':`<section><h4>Fiches par variante</h4>
+            <p>À l’étape <b>Relire et produire</b>, <b>Fiches par variante</b> crée une fiche technique pour chaque variante cochée du dossier. Chaque fiche reprend la fiche du produit, sans appel IA, et y ajoute les <b>spécificités</b> de la variante, rédigées par l’IA d’après ses attributs, sa description et ses photos (l’image de l’article et ses pièces jointes).</p>
+            <p><b>Créer / actualiser les fiches</b> lit d’abord les photos pas encore lues (une image partagée n’est lue qu’une fois), puis traite toutes les variantes en une seule tâche. Relisez ce que l’IA a vu avec <b>Photos lues — observations…</b> : une observation corrigée n’est plus relue. <b>Ouvrir</b> affiche la fiche d’une variante dans l’éditeur ; ce qui est « Propre à cette variante » est conservé aux actualisations, ce qui est « Repris de la fiche du produit » se corrige dans la fiche du produit.</p>
+            <p>Une fiche passe <b>À actualiser</b> quand la fiche du produit, la variante, ses photos ou leurs observations changent. <b>Valider les fiches prêtes</b> valide celles qui sont à jour et sans point à vérifier, et joint leur PDF à l’article de la variante ; la fiche du produit doit être validée d’abord.</p>
+          </section>`}
           <section><h4>Versions et coût</h4>
             <p>Chaque rédaction, correction ou PDF crée une nouvelle version ; les anciennes sont conservées. <b>Créer les deux</b> lance la fiche et le manuel.</p>
             <p>Rédaction, réécriture d’une partie, graphe, tableau et image par l’IA, lecture des scans et traduction consomment des jetons ; corrections, placement du logo et composition PDF n’ajoutent aucun coût. <b>Détail des coûts</b> affiche les modèles, les tarifs et chaque génération.</p>
@@ -504,7 +513,7 @@ class DocumentsProduit {
     const c=this.data.couts_ia,total=c?dpMoney(c.total):'';
     this.root.html(`<div class="dp-top"><div><a href="/app/documents-produit" class="dp-muted">← Tous les dossiers</a><h2>${dpEsc(d.titre)}</h2><div class="dp-sub"><a href="/app/item/${encodeURIComponent(d.article)}">${dpEsc(d.article)}</a> · ${dpEsc(this.data.contexte.marque_document||this.data.contexte.article.brand)} · français de référence${c?` · coût IA du dossier : ${total}`:''}</div></div>
       <div class="dp-actions"><button class="btn btn-default btn-sm dp-guide">Guide</button></div></div>
-      <div class="dp-tabs" role="tablist" aria-label="Type de document">${Object.keys(DP_TYPES).map(tab=>`<button class="dp-tab ${tab===this.activeTab?'active':''}" id="dp-tab-${tab}" type="button" role="tab" data-tab="${tab}" aria-selected="${tab===this.activeTab}" aria-controls="dp-type-panel" tabindex="${tab===this.activeTab?'0':'-1'}">${tab==='fiche'?'Fiche technique':'Manuel d’utilisation'} <span class="dp-tab-count">${this.data.documents.filter(v=>v.type_document===DP_TYPES[tab]).length}</span></button>`).join('')}</div>
+      <div class="dp-tabs" role="tablist" aria-label="Type de document">${Object.keys(DP_TYPES).map(tab=>`<button class="dp-tab ${tab===this.activeTab?'active':''}" id="dp-tab-${tab}" type="button" role="tab" data-tab="${tab}" aria-selected="${tab===this.activeTab}" aria-controls="dp-type-panel" tabindex="${tab===this.activeTab?'0':'-1'}">${tab==='fiche'?'Fiche technique':'Manuel d’utilisation'} <span class="dp-tab-count">${this.data.documents.filter(v=>v.type_document===DP_TYPES[tab]&&!v.variante).length}</span></button>`).join('')}</div>
       <div id="dp-type-panel" role="tabpanel" aria-labelledby="dp-tab-${this.activeTab}" class="dp-shell">
       <nav class="dp-steps" aria-label="Étapes"></nav>
       <div class="dp-main">
@@ -548,7 +557,8 @@ class DocumentsProduit {
       </section>
 
       <section class="dp-step" data-step="relire" hidden>
-      <div class="dp-card"><div class="dp-actions dp-card-head"><h3 style="margin:0">${manuel?'Manuels et traductions':'Fiches techniques et traductions'}</h3><select class="form-control dp-versions" aria-label="Versions ${manuel?'du manuel':'de la fiche technique'}" style="max-width:520px"><option value="">Choisir une version…</option>${versions.map(v=>`<option value="${dpEsc(v.name)}">${dpEsc(v.libelle_langue)} · v${v.numero} · ${dpEsc(v.statut)}${v.a_actualiser?' · À actualiser':''}</option>`).join('')}</select></div><div class="dp-document">${versions.length?'Choisissez une version pour la relire, la traduire ou télécharger son PDF.':manuel?'Aucun manuel enregistré. Passez par l’étape Rédiger pour préparer la première version.':'Aucune fiche technique enregistrée. Passez par l’étape Rédiger pour préparer la première version.'}</div></div>
+      ${!manuel&&d.variantes.length?`<details class="dp-card dp-fv" ${this.fvOuvert||this.varianteOuverte()?'open':''}><summary>Fiches par variante <span class="dp-muted dp-fv-resume"></span></summary><div class="dp-fv-body"><p class="dp-muted">Chargement…</p></div></details>`:''}
+      <div class="dp-card dp-versions-card"><div class="dp-actions dp-card-head"><h3 style="margin:0">${manuel?'Manuels et traductions':this.varianteOuverte()?'Fiche de la variante '+dpEsc(this.varianteOuverte()):'Fiches techniques et traductions'}</h3>${this.varianteOuverte()?'<button type="button" class="btn btn-default btn-sm dp-fv-retour">← Fiche du produit</button>':''}<select class="form-control dp-versions" aria-label="Versions ${manuel?'du manuel':'de la fiche technique'}" style="max-width:520px"><option value="">Choisir une version…</option>${versions.map(v=>`<option value="${dpEsc(v.name)}">${dpEsc(v.libelle_langue)} · v${v.numero} · ${dpEsc(v.statut)}${v.a_actualiser?' · À actualiser':''}</option>`).join('')}</select></div><div class="dp-document">${versions.length?'Choisissez une version pour la relire, la traduire ou télécharger son PDF.':manuel?'Aucun manuel enregistré. Passez par l’étape Rédiger pour préparer la première version.':this.varianteOuverte()?'Aucune fiche pour cette variante. Utilisez « Créer / actualiser les fiches » ci-dessus.':'Aucune fiche technique enregistrée. Passez par l’étape Rédiger pour préparer la première version.'}</div></div>
       </section>
       </div></div>
       <div class="dp-bar"><span class="dp-bar-state"></span><div class="dp-actions"><button class="btn btn-default dp-save-all">Enregistrer</button><button class="btn btn-primary" data-generate="${this.activeTab}">${manuel?'Créer le manuel':'Créer la fiche technique'}</button></div></div>`);
@@ -568,10 +578,13 @@ class DocumentsProduit {
     this.root.find('[data-generate]').on('click',e=>this.lancer($(e.currentTarget).attr('data-generate')));
     this.root.find('.dp-versions').on('change',async e=>{const name=e.target.value; if(this.current&&this.dirty) await this.saveDocument(); if(name)await this.loadDocument(name);});
     if (!this.data.peut_ecrire) this.root.find('button,input,textarea').prop('disabled',true);
-    const current=this.current?.doc.type_document===this.typeActif()?this.current.doc.name:this.selectedVersions[this.activeTab];
+    const current=this.current?.doc.type_document===this.typeActif()&&(this.current.doc.variante||'')===this.varianteOuverte()?this.current.doc.name:this.selectedVersions[this.cleVersions()];
     if(current && versions.some(v=>v.name===current)) this.loadDocument(current);
     else if(versions.length) this.loadDocument(versions[0].name);
     else {this.current=null;this.dirty=false;}
+    this.root.find('.dp-fv-retour').on('click',()=>this.ouvrirVariante(null));
+    this.root.find('.dp-fv').on('toggle',e=>{this.fvOuvert=e.currentTarget.open;});
+    this.renderFichesVariantes();
     this.showStep(this.activeStep);
     this.showState(d);
   }
@@ -702,14 +715,15 @@ class DocumentsProduit {
   async loadDocument(name) {
     const sequence=this.loadSequence=(this.loadSequence||0)+1,dossier=this.name,type=this.typeActif();
     const current=await dpCall('lire_document',{name});
-    if(sequence!==this.loadSequence||dossier!==this.name||type!==this.typeActif()||current.doc.type_document!==type)return;
-    this.current=current;this.selectedVersions[this.activeTab]=name;this.dirty=false;this.root.find('.dp-versions').val(name);this.renderDocument();this.renderLayoutPreview();this.updateBar();
+    if(sequence!==this.loadSequence||dossier!==this.name||type!==this.typeActif()||current.doc.type_document!==type||(current.doc.variante||'')!==this.varianteOuverte())return;
+    this.current=current;this.selectedVersions[this.cleVersions()]=name;this.dirty=false;this.root.find('.dp-versions').val(name);this.renderDocument();this.renderLayoutPreview();this.updateBar();
   }
   renderDocument() {
     const {doc,contenu:c,contexte:ctx}=this.current,z=this.root.find('.dp-document');
-    const info=this.data.documents.find(v=>v.name===doc.name),scope=(value)=>`<option value="">Toute la gamme</option>${ctx.variantes.map(v=>`<option value="${dpEsc(v.name)}" ${value===v.name?'selected':''}>${dpEsc(v.name)}</option>`).join('')}`;
+    const info=this.data.documents.find(v=>v.name===doc.name),scope=(value)=>doc.variante?`<option value="">Repris de la fiche du produit</option><option value="${dpEsc(doc.variante)}" ${value===doc.variante?'selected':''}>Propre à cette variante</option>`:`<option value="">Toute la gamme</option>${ctx.variantes.map(v=>`<option value="${dpEsc(v.name)}" ${value===v.name?'selected':''}>${dpEsc(v.name)}</option>`).join('')}`;
     z.html(`<div class="dp-actions"><span class="dp-badge">${dpEsc(doc.libelle_langue)} · version ${doc.numero} · ${dpEsc(doc.statut)}</span>${doc.langue==='fr'?'<button class="btn btn-default btn-sm dp-translate">Traduire</button>':''}<button class="btn btn-default btn-sm dp-apercu" title="Compose le document avec vos modifications en cours, sans rien enregistrer ni appel IA">Aperçu</button><button class="btn btn-default btn-sm dp-pdf">Générer le PDF</button><button class="btn btn-primary btn-sm dp-validate">Valider et générer le PDF</button>${[['pdf','Télécharger le PDF'],['source_latex','Source LaTeX'],['archive_latex','LaTeX et images (ZIP)']].filter(([k])=>doc[k]).map(([k,label])=>`<a class="btn btn-default btn-sm" href="${dpUrl(doc[k])}" target="_blank" rel="noopener">${label}</a>`).join('')}</div>
-      ${info?.a_actualiser?'<div class="dp-warning" style="margin:12px 0">À actualiser : la marque, la présentation, les articles, les sources ou la version française ont changé depuis cette version.</div>':''}
+      ${info?.a_actualiser?`<div class="dp-warning" style="margin:12px 0">${doc.variante?'À actualiser : la fiche du produit, la variante, ses photos, leurs observations ou la version française ont changé depuis cette version. Utilisez « Créer / actualiser les fiches » dans « Fiches par variante ».':'À actualiser : la marque, la présentation, les articles, les sources ou la version française ont changé depuis cette version.'}</div>`:''}
+      ${doc.variante?'<div class="dp-sub" style="margin-top:8px">Fiche d’une variante : ce qui est « Repris de la fiche du produit » est remplacé à chaque actualisation — corrigez-le dans la fiche du produit. Ce qui est « Propre à cette variante » est conservé tant que la variante, ses photos et leurs observations ne changent pas.</div>':''}
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
       <div class="dp-review dp-review-split"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation <button type="button" class="btn btn-default btn-xs dp-ia-resume" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ Réécrire avec l’IA…</button></label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
@@ -921,11 +935,99 @@ class DocumentsProduit {
   async lancer(action,extra={}) {
     if(this.dirty)await this.saveDocument();await this.saveConfig();
     const doc=this.current?.doc;
-    this.jobTarget={type:DP_TYPES[action]||(action==='les_deux'?this.typeActif():doc?.type_document),langue:extra.langue||(action==='pdf'||action==='valider'?doc?.langue:'fr')};
+    this.jobTarget=['photos','variantes','valider_variantes'].includes(action)?null:{type:DP_TYPES[action]||(action==='les_deux'?this.typeActif():doc?.type_document),langue:extra.langue||(action==='pdf'||action==='valider'?doc?.langue:'fr')};
+    if(DP_TYPES[action]||action==='les_deux')this.varianteActive=null;   // une nouvelle rédaction du produit se relit dans la fiche du produit
     await dpCall('lancer',{name:this.name,action,document_name:doc?.name,...extra});
     this.data.dossier.etat_traitement='En attente';this.showState(this.data.dossier);
     if(['fiche','manuel','les_deux','traduire'].includes(action))this.showStep('relire');
     this.poll();
+  }
+  // ---------------------------------------------------------------- fiches par variante (12/11/2026)
+  async ouvrirVariante(article) {
+    // La fiche d'une variante s'ouvre dans l'éditeur de l'étape Relire, à la place de celle du produit (null : retour).
+    if(this.dirty)await this.saveDocument();
+    this.varianteActive=article||null;this.current=null;this.fvOuvert=true;this.rendre();
+    if(article)this.root.find('.dp-versions-card')[0]?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  etatFiche(l) {
+    if(!l.couverte)return {cle:'hors',txt:'Hors de la fiche du produit',aide:'Cette variante n’était pas cochée quand la fiche du produit a été rédigée : créez une nouvelle fiche du produit.'};
+    if(!l.fiche)return {cle:'creer',txt:'À créer'};
+    if(l.fiche.a_actualiser)return {cle:'actualiser',txt:'À actualiser'};
+    if(l.fiche.statut==='Validé')return {cle:'validee',txt:'Validée'};
+    if(l.fiche.points)return {cle:'points',txt:`${l.fiche.points} point${l.fiche.points>1?'s':''} à vérifier`};
+    return {cle:'prete',txt:'Prête à valider'};
+  }
+  async renderFichesVariantes() {
+    const z=this.root.find('.dp-fv-body');if(!z.length)return;
+    const sequence=this.fvSequence=(this.fvSequence||0)+1,dossier=this.name;
+    let r;
+    try{r=await dpCall('fiches_variantes',{name:this.name});}
+    catch(e){if(sequence===this.fvSequence)z.html('<div class="dp-warning">Le suivi des fiches par variante n’a pas pu être chargé.</div>');return;}
+    if(sequence!==this.fvSequence||dossier!==this.name)return;
+    this.fichesVariantes=r;
+    const etats=r.lignes.map(l=>this.etatFiche(l)),compte=cle=>etats.filter(e=>e.cle===cle).length;
+    const avecFiche=r.lignes.filter(l=>l.fiche).length,dues=compte('creer')+compte('actualiser'),nonLues=r.photos.total-r.photos.lues;
+    this.root.find('.dp-fv-resume').text(`· ${avecFiche} / ${r.lignes.length} fiche${r.lignes.length>1?'s':''}${dues?` · ${dues} à créer ou actualiser`:''}${compte('prete')?` · ${compte('prete')} prête${compte('prete')>1?'s':''} à valider`:''}${compte('validee')?` · ${compte('validee')} validée${compte('validee')>1?'s':''}`:''}`);
+    const ouverte=this.varianteOuverte();
+    z.html(`<p class="dp-muted" style="margin:10px 0">Chaque fiche reprend la fiche du produit et y ajoute ce que la variante a de propre, rédigé d’après ses attributs, sa description et ses photos. ${r.mere?`Fiche du produit reprise : version ${r.mere.numero} · ${dpEsc(r.mere.statut)}${r.mere.statut==='Validé'?'':' — validez-la pour pouvoir valider les fiches des variantes'}.`:''}</p>
+      ${r.mere?'':'<div class="dp-warning">Créez d’abord la fiche technique du produit (étape Rédiger) : les fiches par variante la reprennent.</div>'}
+      <div class="dp-actions" style="margin:10px 0"><button type="button" class="btn btn-primary btn-sm dp-fv-creer">Créer / actualiser les fiches</button><button type="button" class="btn btn-default btn-sm dp-fv-valider">Valider les fiches prêtes</button><button type="button" class="btn btn-default btn-sm dp-fv-zip">Télécharger les PDF (ZIP)</button><button type="button" class="btn btn-default btn-sm dp-fv-photos">Photos lues : ${r.photos.lues} / ${r.photos.total} — observations…</button><input type="search" class="form-control input-sm dp-fv-filtre" placeholder="Filtrer les variantes" aria-label="Filtrer les variantes" style="max-width:220px"></div>
+      <div class="dp-variants"><table class="dp-vtable dp-fv-table"><thead><tr><th><input type="checkbox" class="dp-fv-tout" aria-label="Tout cocher"></th><th></th><th>Variante</th><th>Photos lues</th><th>Fiche</th><th>État</th><th></th></tr></thead><tbody>${r.lignes.map((l,i)=>{const e=etats[i];return `<tr data-article="${dpEsc(l.article)}" class="${l.article===ouverte?'dp-fv-ouverte':''}"><td><input type="checkbox" class="dp-fv-case" aria-label="${dpEsc(l.article)}"></td><td>${dpUrl(l.vignette)?`<img class="dp-fv-vignette" src="${dpUrl(l.vignette)}" alt="" loading="lazy">`:''}</td><td><b>${dpEsc(l.article)}</b><div class="dp-muted">${dpEsc(l.attributs.map(a=>a.valeur).filter(Boolean).join(' · ')||l.nom)}</div></td><td>${l.photos?`${l.photos_lues} / ${l.photos}`:'<span class="dp-muted">aucune photo</span>'}</td><td>${l.fiche?`v${l.fiche.numero} · ${dpEsc(l.fiche.statut)}`:'—'}</td><td><span class="dp-badge dp-fv-etat dp-fv-${e.cle}" ${e.aide?`title="${dpEsc(e.aide)}"`:''}>${dpEsc(e.txt)}</span></td><td class="dp-fv-actions">${l.fiche?`<button type="button" class="btn btn-default btn-xs dp-fv-ouvrir">${l.article===ouverte?'Ouverte':'Ouvrir'}</button>`:''}${l.fiche&&dpUrl(l.fiche.pdf)?` <a class="btn btn-default btn-xs" href="${dpUrl(l.fiche.pdf)}" target="_blank" rel="noopener">PDF</a>`:''}</td></tr>`;}).join('')}</tbody></table></div>`);
+    const cochees=()=>z.find('.dp-fv-case:checked').map((_,el)=>$(el).closest('tr').attr('data-article')).get();
+    z.find('.dp-fv-tout').on('change',e=>z.find('tbody tr:visible .dp-fv-case').prop('checked',e.target.checked));
+    z.find('.dp-fv-filtre').on('input',e=>{const q=e.target.value.trim().toLowerCase();z.find('tbody tr').each((_,tr)=>{tr.hidden=!!q&&!tr.textContent.toLowerCase().includes(q);});});
+    z.find('.dp-fv-ouvrir').on('click',e=>this.ouvrirVariante($(e.currentTarget).closest('tr').attr('data-article')));
+    z.find('.dp-fv-zip').on('click',()=>{
+      if(!r.lignes.some(l=>l.fiche&&l.fiche.pdf))return frappe.msgprint('Aucune fiche de variante n’a encore de PDF.');
+      window.open('/api/method/'+DP_API+'telecharger_fiches_variantes?name='+encodeURIComponent(this.name));
+    });
+    z.find('.dp-fv-photos').on('click',()=>this.ouvrirObservations());
+    z.find('.dp-fv-creer').on('click',()=>{
+      if(!r.mere)return frappe.msgprint('Créez d’abord la fiche technique du produit (étape Rédiger).');
+      const choisies=cochees(),aFaire=r.lignes.filter((l,i)=>['creer','actualiser'].includes(etats[i].cle)).map(l=>l.article);
+      const lectures=nonLues?` ${nonLues} photo${nonLues>1?'s':''} pas encore lue${nonLues>1?'s':''} le ser${nonLues>1?'ont':'a'} d’abord (un appel IA par photo, une seule fois).`:'';
+      if(choisies.length){
+        const aJour=choisies.filter(a=>!aFaire.includes(a)&&r.lignes.find(l=>l.article===a)?.fiche);
+        return frappe.confirm(aJour.length?`${aJour.length} des ${choisies.length} fiche${choisies.length>1?'s':''} cochée${choisies.length>1?'s':''} ${aJour.length>1?'sont':'est'} à jour : l’IA réécrira leurs spécificités (un appel par variante), et vos corrections de ces spécificités seront remplacées. Continuer ?`:`Créer ou actualiser ${choisies.length} fiche${choisies.length>1?'s':''} ?${lectures} L’IA rédige les spécificités de chaque variante dont les données ont changé (un appel par variante).`,
+          ()=>this.lancer('variantes',{articles:JSON.stringify(choisies),forcer:aJour.length?1:0}));
+      }
+      if(!aFaire.length)return frappe.msgprint('Toutes les fiches sont à jour. Pour faire réécrire les spécificités d’une variante, cochez-la puis relancez.');
+      frappe.confirm(`Créer ou actualiser ${aFaire.length} fiche${aFaire.length>1?'s':''} ?${lectures} L’IA rédige les spécificités de chaque variante dont les données ont changé (un appel par variante) ; les autres sont reprises sans appel IA.`,
+        ()=>this.lancer('variantes',{articles:JSON.stringify(aFaire)}));
+    });
+    z.find('.dp-fv-valider').on('click',()=>{
+      const choisies=cochees(),pretes=r.lignes.filter((l,i)=>etats[i].cle==='prete'&&(!choisies.length||choisies.includes(l.article))).map(l=>l.article);
+      if(!pretes.length)return frappe.msgprint('Aucune fiche prête à valider : une fiche se valide quand elle est à jour et sans point à vérifier. Ouvrez les fiches signalées pour résoudre leurs points.');
+      frappe.confirm(`Valider ${pretes.length} fiche${pretes.length>1?'s':''} sans point à vérifier ? Le PDF définitif de chacune sera joint à l’article de sa variante.`,
+        ()=>this.lancer('valider_variantes',{articles:JSON.stringify(pretes)}));
+    });
+    this.showState(this.data.dossier);
+  }
+  async ouvrirObservations() {
+    // Ce que l'IA a vu sur chaque photo des variantes, à relire : une correction enregistrée n'est plus relue par l'IA.
+    const VUES={face:'Vue de face',ensemble:'Vue d’ensemble',cote:'Vue de côté',arriere:'Vue arrière',dessus:'Vue de dessus',detail:'Détail',accessoires:'Accessoires fournis',emballage:'Emballage',schema:'Schéma',autre:'Autre'};
+    const d=new frappe.ui.Dialog({title:'Observations des photos des variantes',size:'extra-large',fields:[{fieldtype:'HTML',fieldname:'zone'}]});
+    const zone=d.fields_dict.zone.$wrapper;zone.html('<p class="dp-muted">Chargement…</p>');d.show();
+    const rows=await dpCall('observations_photos',{name:this.name});
+    const nonLues=rows.filter(p=>!p.observation||p.observation.perimee).length,ecrire=this.data.peut_ecrire&&!this.busy();
+    const lignes=v=>(v||[]).join('\n');
+    zone.html(`<p class="dp-muted">L’IA décrit ce qui est visible sur chaque photo (vue, composants, éléments comptables, textes lisibles) ; elle n’en tire ni dimension, ni performance, ni norme. Une image partagée par plusieurs variantes n’est lue qu’une fois. Corrigez ce qui est faux : une observation corrigée n’est plus relue, et les fiches qui montrent la photo passent « à actualiser ».</p>
+      <div class="dp-actions" style="margin:10px 0"><b>${rows.length-nonLues} / ${rows.length} photo${rows.length>1?'s':''} lue${rows.length-nonLues>1?'s':''}</b>${nonLues?`<button type="button" class="btn btn-primary btn-sm dp-obs-lire" ${ecrire?'':'disabled'}>Lire les ${nonLues} photo${nonLues>1?'s':''} non lue${nonLues>1?'s':''}</button>`:''}</div>
+      <div class="dp-obs-liste">${rows.map(p=>{const o=p.observation||{};return `<div class="dp-obs" data-empreinte="${dpEsc(p.empreinte)}"><a href="${dpUrl(p.image)}" target="_blank" rel="noopener"><img src="${dpUrl(p.image)}" alt="" loading="lazy"></a>
+        <div class="dp-obs-champs"><div class="dp-actions"><b>${dpEsc(p.nom)}</b><span class="dp-badge dp-obs-etat">${!p.observation?'Non lue':o.corrigee?'Corrigée':o.perimee?'À relire':'Lue par l’IA'}</span><span class="dp-muted" title="${dpEsc(p.articles.join(', '))}">${p.articles.length} variante${p.articles.length>1?'s':''} : ${dpEsc(p.articles.slice(0,3).join(', '))}${p.articles.length>3?'…':''}</span></div>
+        <div class="dp-grid"><label class="dp-label">Vue<select class="form-control input-sm dp-obs-vue">${Object.entries(VUES).map(([k,l])=>`<option value="${k}" ${(o.vue||'autre')===k?'selected':''}>${l}</option>`).join('')}</select></label><label class="dp-label">Légende dans le document<input class="form-control input-sm dp-obs-legende" maxlength="120" value="${dpEsc(o.legende||'')}"></label>
+        <label class="dp-label dp-full">Ce que montre la photo<textarea class="form-control dp-obs-description" rows="2">${dpEsc(o.description||'')}</textarea></label>
+        <label class="dp-label">Éléments visibles (un par ligne)<textarea class="form-control dp-obs-elements" rows="4">${dpEsc(lignes(o.elements))}</textarea></label><label class="dp-label">Textes lus sur la photo (un par ligne)<textarea class="form-control dp-obs-textes" rows="4">${dpEsc(lignes(o.textes_lus))}</textarea></label></div>
+        ${(o.incertitudes||[]).length?`<div class="dp-muted">Incertitudes signalées par l’IA : ${dpEsc(o.incertitudes.join(' · '))}</div>`:''}
+        <div class="dp-actions" style="margin-top:8px"><button type="button" class="btn btn-default btn-sm dp-obs-enregistrer" ${ecrire?'':'disabled'}>Enregistrer la correction</button></div></div></div>`;}).join('')||'<p class="dp-muted">Les variantes du dossier n’ont aucune photo (image de l’article ou pièce jointe image).</p>'}</div>`);
+    zone.find('.dp-obs-lire').on('click',async()=>{d.hide();await this.lancer('photos');});
+    zone.find('.dp-obs-enregistrer').on('click',async e=>{
+      const q=$(e.currentTarget).closest('.dp-obs'),avant=rows.find(p=>p.empreinte===q.attr('data-empreinte'))?.observation||{};
+      const observation={vue:q.find('.dp-obs-vue').val(),legende:q.find('.dp-obs-legende').val(),description:q.find('.dp-obs-description').val(),elements:q.find('.dp-obs-elements').val(),textes_lus:q.find('.dp-obs-textes').val(),incertitudes:avant.incertitudes||[]};
+      await dpCall('enregistrer_observation',{name:this.name,empreinte:q.attr('data-empreinte'),observation:JSON.stringify(observation)});
+      q.find('.dp-obs-etat').text('Corrigée');frappe.show_alert({message:'Observation enregistrée',indicator:'green'});
+      this.data=await dpCall('charger',{name:this.name});this.renderFichesVariantes();
+    });
   }
   showState(s) {
     const busy=['En attente','En cours'].includes(s.etat_traitement),zone=this.root.find('.dp-progress');

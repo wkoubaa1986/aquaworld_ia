@@ -60,23 +60,29 @@ def lister(article=None):
 			and not frappe.db.exists("Dossier Produit Variante", {"parent": row.name, "article": article})
 		):
 			continue
-		row["documents"] = frappe.get_list(
-			C.DOCUMENT,
-			filters={"dossier": row.name},
-			fields=[
-				"name",
-				"titre",
-				"type_document",
-				"langue",
-				"libelle_langue",
-				"numero",
-				"statut",
-				"pdf",
-				"modified",
-			],
-			limit_page_length=500,
-			order_by="numero desc, creation desc",
-		)
+		# Les fiches par variante n'apparaissent que sur l'article de leur variante (12/11/2026) : la liste des
+		# dossiers et l'article parent ne montrent que les documents du produit.
+		row["documents"] = [
+			v for v in frappe.get_list(
+				C.DOCUMENT,
+				filters={"dossier": row.name},
+				fields=[
+					"name",
+					"titre",
+					"type_document",
+					"langue",
+					"libelle_langue",
+					"numero",
+					"statut",
+					"pdf",
+					"modified",
+					"variante",
+				],
+				limit_page_length=5000,
+				order_by="numero desc, creation desc",
+			)
+			if not v.variante or v.variante == article
+		]
 		resultat.append(row)
 	return resultat
 
@@ -148,19 +154,35 @@ def charger(name):
 			"source_fr",
 			"empreinte_context",
 			"creation",
+			"variante",
+			"version_mere",
+			"empreinte_variante",
 		],
-		limit_page_length=1000,
+		limit_page_length=5000,
 		order_by="numero desc, creation desc",
 	)
 	references = {}
 	for v in versions:
 		if v.langue == "fr":
-			references.setdefault(v.type_document, v.name)
+			references.setdefault((v.type_document, v.variante or ""), v.name)
+	# Fiche d'une variante : à actualiser quand la fiche du produit, la variante, ses photos ou leurs observations
+	# ont changé depuis (empreinte de la variante), et non d'après le contexte du dossier entier.
+	empreintes_variantes = {}
+	if any(v.variante for v in versions):
+		from aquaworld_ia.documents_produit.variantes import empreintes_courantes
+
+		empreintes_variantes = empreintes_courantes(d)
 	for v in versions:
-		v["a_actualiser"] = v.empreinte_context != empreintes[v.type_document] or (
-			v.langue != "fr" and v.source_fr != references.get(v.type_document)
+		if v.variante:
+			perimee = v.langue == "fr" and v.empreinte_variante != empreintes_variantes.get(v.variante)
+		else:
+			perimee = v.empreinte_context != empreintes[v.type_document]
+		v["a_actualiser"] = perimee or (
+			v.langue != "fr" and v.source_fr != references.get((v.type_document, v.variante or ""))
 		)
+		v.pop("empreinte_variante", None)
 	sources = []
+	pdf_produits = {v.pdf for v in versions if v.pdf}
 	membres = [d.article] + [r.article for r in d.variantes]
 	for a in membres:
 		for f in frappe.get_all(
@@ -168,6 +190,8 @@ def charger(name):
 			filters={"attached_to_doctype": "Item", "attached_to_name": a},
 			fields=["file_url", "file_name"],
 		):
+			if f.file_url in pdf_produits:
+				continue   # le PDF validé d'une fiche de variante, joint à son article : pas une source
 			try:
 				C.fichier_lisible(f.file_url, silencieux=True)
 			except frappe.PermissionError:
@@ -400,7 +424,7 @@ def copier_presentation(name, source, elements):
 	if "plan" in elements:
 		plans = []
 		for genre in S.TYPES:
-			v = frappe.get_all(C.DOCUMENT, filters={"dossier": s.name, "langue": "fr", "type_document": genre},
+			v = frappe.get_all(C.DOCUMENT, filters={"dossier": s.name, "langue": "fr", "type_document": genre, "variante": ["is", "not set"]},
 				fields=["contenu_json"], order_by="numero desc", limit=1)
 			plan = M.plan_rubriques(genre, json.loads(v[0].contenu_json)) if v else ""
 			if plan and plan not in (d.consignes or ""):
@@ -422,12 +446,20 @@ def lire_document(name):
 	}
 
 
-def nouvelle_version(parent, genre, contenu, ctx, langue="fr", libelle="Français", rtl=0, source_fr=None):
+def lien_variante(v):
+	"""Ce qui rattache une version à une variante, à reporter sur la version qui la remplace."""
+	return {k: v.get(k) or None for k in ("variante", "version_mere", "empreinte_variante")}
+
+
+def nouvelle_version(parent, genre, contenu, ctx, langue="fr", libelle="Français", rtl=0, source_fr=None,
+		variante=None, version_mere=None, empreinte_variante=None):
+	"""Les versions se numérotent par document : type, langue et, pour une fiche de variante, la variante."""
 	dossier(parent, "write", True)
 	contenu = S.normaliser(contenu, ctx)
 	maximum = frappe.db.sql(
-		"select coalesce(max(numero),0) from `tabDocument Produit` where dossier=%s and type_document=%s and langue=%s",
-		(parent, genre, langue),
+		"""select coalesce(max(numero),0) from `tabDocument Produit` where dossier=%s and type_document=%s and langue=%s
+		and coalesce(variante,'')=%s""",
+		(parent, genre, langue, variante or ""),
 	)[0][0]
 	v = frappe.get_doc(
 		{
@@ -441,6 +473,9 @@ def nouvelle_version(parent, genre, contenu, ctx, langue="fr", libelle="Françai
 			"numero": int(maximum) + 1,
 			"statut": "Brouillon",
 			"source_fr": source_fr,
+			"variante": variante or None,
+			"version_mere": version_mere or None,
+			"empreinte_variante": empreinte_variante or None,
 			"contenu_json": json.dumps(contenu, ensure_ascii=False),
 			"contexte_json": json.dumps(ctx, ensure_ascii=False),
 			"empreinte_context": S.empreinte({k: val for k, val in ctx.items() if k != "preuves"}),
@@ -462,24 +497,34 @@ def corriger(name, contenu):
 	if S.empreinte(contenu) == S.empreinte(json.loads(v.contenu_json)):
 		return {"name": v.name}
 	nouv = nouvelle_version(
-		v.dossier, v.type_document, contenu, ctx, v.langue, v.libelle_langue, v.rtl, v.source_fr
+		v.dossier, v.type_document, contenu, ctx, v.langue, v.libelle_langue, v.rtl, v.source_fr, **lien_variante(v)
 	)
 	return {"name": nouv.name}
 
 
 def _contexte_presentation(v, d):
 	"""Actualise la présentation sans modifier le contenu ni enregistrer de version."""
+	return presentation_actuelle(json.loads(v.contexte_json), d, v.type_document, v.get("variante"))
+
+
+def presentation_actuelle(ctx, d, genre, variante=None):
+	"""Le contexte avec la présentation actuelle du dossier : en-tête, mise en page, marque et logo, photos. Une
+	fiche de variante garde ses propres photos (celles de son article), choisies quand elle a été créée."""
 	from aquaworld_ia.documents_produit import marques
 	from aquaworld_ia.documents_produit.entetes import contexte_avec_entete, instantane
 
-	ctx = json.loads(v.contexte_json)
 	snapshot = instantane(d.get("entete"))
 	nouveau_ctx = contexte_avec_entete(ctx, snapshot)
-	nouveau_ctx = M.appliquer(nouveau_ctx, d, v.type_document)
-	nouveau_ctx["images"] = C.images_contexte(d)
-	articles = {ctx["article"]["name"]} | {a["name"] for a in ctx.get("variantes", [])}
-	if any(im["article"] and im["article"] not in articles for im in nouveau_ctx["images"]):
-		raise ValueError("Une photo concerne une variante absente de cette version. Créez une nouvelle fiche ou un nouveau manuel avec les variantes choisies.")
+	nouveau_ctx = M.appliquer(nouveau_ctx, d, genre)
+	if variante:
+		from aquaworld_ia.documents_produit.variantes import mise_en_page_variante
+
+		nouveau_ctx = mise_en_page_variante(nouveau_ctx)
+	else:
+		nouveau_ctx["images"] = C.images_contexte(d)
+		articles = {ctx["article"]["name"]} | {a["name"] for a in ctx.get("variantes", [])}
+		if any(im["article"] and im["article"] not in articles for im in nouveau_ctx["images"]):
+			raise ValueError("Une photo concerne une variante absente de cette version. Créez une nouvelle fiche ou un nouveau manuel avec les variantes choisies.")
 	marque_version = ctx.get("marque_document") or ctx["article"].get("brand") or ""
 	if marque_version == marques.effective(d):
 		nouveau_ctx.pop("logo_hash", None)
@@ -501,7 +546,7 @@ def appliquer_entete(v, d):
 
 	return nouvelle_version(
 		v.dossier, v.type_document, legendes(json.loads(v.contenu_json), ctx, nouveau_ctx),
-		nouveau_ctx, v.langue, v.libelle_langue, v.rtl, v.source_fr,
+		nouveau_ctx, v.langue, v.libelle_langue, v.rtl, v.source_fr, **lien_variante(v),
 	)
 
 
@@ -589,6 +634,10 @@ def apercu_document(name, document_name=None, contenu=None, mise_en_page=None, t
 		langue, rtl, numero, valide = "fr", False, 1, False
 	if mise_en_page is not None:
 		ctx["mise_en_page"] = M.normaliser(_json(mise_en_page))
+		if ctx.get("variante"):
+			from aquaworld_ia.documents_produit.variantes import mise_en_page_variante
+
+			ctx = mise_en_page_variante(ctx)   # même galerie que dans le PDF de la fiche de variante
 	for s in c["sections"]:
 		if s.get("image"):
 			C.fichier_lisible(s["image"])
@@ -667,12 +716,27 @@ def illustrer_page(name, fichier, page=1):
 
 
 @frappe.whitelist()
-def lancer(name, action, document_name=None, langue=None, libelle=None, rtl=0):
+def lancer(name, action, document_name=None, langue=None, libelle=None, rtl=0, articles=None, forcer=0):
+	"""`photos`, `variantes` et `valider_variantes` (12/11/2026) portent sur les variantes `articles` du dossier
+	(toutes si absent) ; `forcer` relit les photos déjà lues ou fait réécrire les spécificités des fiches à jour."""
 	from aquaworld_ia.ia import journal
 
 	d = dossier(name, "write", True)
-	if action not in ("fiche", "manuel", "les_deux", "traduire", "pdf", "valider"):
+	if action not in ("fiche", "manuel", "les_deux", "traduire", "pdf", "valider", "photos", "variantes", "valider_variantes"):
 		frappe.throw(_("Action inconnue."))
+	lot = action in ("photos", "variantes", "valider_variantes")
+	if lot:
+		from aquaworld_ia.documents_produit import variantes as V
+
+		document_name = None
+		try:
+			articles = V._articles_du_lot(d, _json(articles) if articles else None)
+		except ValueError as e:
+			frappe.throw(_(str(e)))
+		if not articles:
+			frappe.throw(_("Cochez d’abord les variantes couvertes par le dossier (étape Préparer)."))
+		if action != "photos" and not V.mere_courante(name):
+			frappe.throw(_("Créez d’abord la fiche technique du produit : les fiches par variante la reprennent."))
 	if (
 		d.etat_traitement in ("En attente", "En cours")
 		and d.debut_traitement
@@ -706,7 +770,7 @@ def lancer(name, action, document_name=None, langue=None, libelle=None, rtl=0):
 		if action in ("pdf", "valider"):
 			v = appliquer_entete(v, d)
 			document_name = v.name
-	if action in ("fiche", "manuel", "les_deux", "traduire"):
+	if action in ("fiche", "manuel", "les_deux", "traduire", "photos", "variantes"):
 		journal.verifier_plafond()
 	token = frappe.generate_hash(length=20)
 	d.etat_traitement = "En attente"
@@ -730,8 +794,54 @@ def lancer(name, action, document_name=None, langue=None, libelle=None, rtl=0):
 		libelle=libelle,
 		rtl=cint(rtl),
 		utilisateur=frappe.session.user,
+		articles=articles if lot else None,
+		forcer=cint(forcer),
 	)
 	return {"token": token}
+
+
+@frappe.whitelist()
+def fiches_variantes(name):
+	"""Le suivi des fiches par variante du dossier : une ligne par variante (photos lues, fiche, points, à jour)."""
+	from aquaworld_ia.documents_produit import variantes as V
+
+	return V.etat(dossier(name))
+
+
+@frappe.whitelist()
+def observations_photos(name):
+	"""Les images distinctes des variantes du dossier, avec ce que l'IA y a vu, pour relecture."""
+	from aquaworld_ia.documents_produit import variantes as V
+
+	return V.liste_observations(dossier(name))
+
+
+@frappe.whitelist()
+def enregistrer_observation(name, empreinte, observation):
+	"""La correction d'une observation de photo par l'utilisateur : elle ne sera plus relue par l'IA, et les fiches
+	des variantes qui montrent cette photo passent « à actualiser »."""
+	from aquaworld_ia.documents_produit import observations as O
+	from aquaworld_ia.documents_produit import variantes as V
+
+	d = dossier(name, "write")
+	photo = next((p for p in V.liste_observations(d) if p["empreinte"] == empreinte), None)
+	if not photo:
+		frappe.throw(_("Cette photo n’appartient pas aux variantes du dossier."))
+	propre = O.normaliser(_json(observation))
+	O.enregistrer(photo, propre, corrigee=1)
+	return propre
+
+
+@frappe.whitelist()
+def telecharger_fiches_variantes(name):
+	"""Le ZIP des derniers PDF des fiches de variante du dossier."""
+	from aquaworld_ia.documents_produit import variantes as V
+
+	archive = V.archive_pdf(dossier(name))
+	if not archive:
+		frappe.throw(_("Aucune fiche de variante n’a encore de PDF."))
+	frappe.local.response.filename, frappe.local.response.filecontent = archive
+	frappe.local.response.type = "download"
 
 
 @frappe.whitelist()

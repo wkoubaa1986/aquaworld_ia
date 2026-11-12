@@ -102,6 +102,53 @@ def graphe(spec):
 		"categories": categories, "series": out_series}
 
 
+def depuis_ia(data):
+	"""La réponse JSON d'un modèle, ramenée aux types attendus avant `normaliser` (12/11/2026, essai sur la Mini
+	Fontaine : gpt-5.2 rendait points_a_verifier en objets — [{"texte": "…"}] — et toute la fiche était refusée,
+	« Le contenu doit être du texte » ; même risque pour « valeur: 75 » ou une unité `null`).
+	Un nombre devient son texte, `null` un texte vide, un point rendu en objet son texte ; le reste est laissé tel
+	quel, et sera refusé par `normaliser`. Ne s'applique qu'à ce que rend l'IA : la saisie de l'écran reste
+	contrôlée strictement."""
+	if not isinstance(data, dict):
+		return data
+
+	out = dict(data)
+	scalaire = scalaire_ia
+
+	for cle in ("titre", "resume"):
+		if cle in out:
+			out[cle] = scalaire(out[cle])
+	for cle, champs in (("sections", ("titre", "texte", "article", "source")),
+			("caracteristiques", ("nom", "valeur", "unite", "article", "source"))):
+		if isinstance(out.get(cle), list):
+			out[cle] = [{**x, **{k: scalaire(x[k]) for k in champs if k in x}} if isinstance(x, dict) else x for x in out[cle]]
+	if isinstance(out.get("points_a_verifier"), list):
+		out["points_a_verifier"] = [texte_de_liste_ia(x) for x in out["points_a_verifier"]]
+	return out
+
+
+def scalaire_ia(v):
+	"""Un champ texte rendu par un modèle : `null` -> « », nombre -> son texte, le reste inchangé."""
+	if v is None:
+		return ""
+	if isinstance(v, (int, float)) and not isinstance(v, bool):
+		return str(v)
+	return v
+
+
+def texte_de_liste_ia(v):
+	"""Une entrée d'une liste de textes rendue par un modèle : le texte lui-même, ou celui d'un objet qui n'en porte
+	qu'un ({"texte": "…"}, {"point": "…"})."""
+	if isinstance(v, dict):
+		for cle in ("texte", "text", "point", "description"):
+			if isinstance(v.get(cle), str):
+				return v[cle]
+		textes = [x for x in v.values() if isinstance(x, str)]
+		if len(textes) == 1:
+			return textes[0]
+	return scalaire_ia(v)
+
+
 def rubrique(s, portee):
 	"""Une rubrique : titre, texte, portée, source — et, si l'utilisateur les a posés, une illustration (image :
 	graphe exporté, schéma — ou graphe de données composé par le PDF) avec sa disposition, et un tableau (première

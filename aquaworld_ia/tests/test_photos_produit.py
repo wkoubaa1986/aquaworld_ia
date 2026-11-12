@@ -19,6 +19,9 @@ from aquaworld_ia.tests import test_documents_produit as fixtures
 
 
 class TestPhotosProduit(unittest.TestCase):
+	# Même garde que la classe dont le setUp est emprunté : sans site connecté, les tests sont ignorés au lieu de
+	# planter sur frappe.set_user (constaté le 12/11/2026).
+	setUpClass = fixtures.TestDocumentsBase.setUpClass
 	setUp = fixtures.TestDocumentsBase.setUp
 
 	def tearDown(self):

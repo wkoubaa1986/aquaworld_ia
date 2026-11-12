@@ -406,6 +406,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		return texte(s, rtl)
 
 	labels = contenu["libelles"]
+	# Fiche d'UNE variante (12/11/2026) : sa référence sous le titre, un bloc « référence et attributs » à la place du
+	# tableau des variantes, et plus de mention « Modèles concernés » — tout le document la concerne.
+	fiche_variante = ctx.get("variante") or ""
 	police = POLICES.get(langue.split("-")[0], "Noto Sans")
 	en_tete = r"""\documentclass[TAILLEpt,a4paper]{article}
 \usepackage[margin=18mm,headheight=16pt]{geometry}
@@ -539,7 +542,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	body.append(r"\begingroup" + alignement[disposition["alignement_titre"]])
 	body += [
 		r"{\LARGE\bfseries\color{aqua}\titrefont " + t(contenu["titre"]) + r"}\par",
-		t(ctx.get("marque_document") or ctx["article"].get("brand") or "") + r"\quad " + t(ctx["article"]["name"]) + r"\par",
+		t(ctx.get("marque_document") or ctx["article"].get("brand") or "") + r"\quad " + t(fiche_variante or ctx["article"]["name"]) + r"\par",
 		t(labels["version"]) + " " + str(numero) + r"\par",
 	]
 	if not valide:
@@ -708,7 +711,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		if s.get("saut_page"):
 			blocs["rubriques"].append(r"\clearpage")
 		blocs["rubriques"].append(r"\docsection{" + t(s["titre"]) + "}")
-		if s.get("article"):
+		if s.get("article") and not fiche_variante:
 			blocs["rubriques"].append(r"{\small " + t(labels["portee"] + " : " + s["article"]) + r"}\par")
 		corps = t(s["texte"]) + r"\par"
 		fichier = (assets.get("sections") or {}).get(i)
@@ -751,26 +754,22 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				corps = corps + "\n" + tableau_rubrique(s["tableau"])
 		blocs["rubriques"].append(corps)
 	if contenu["caracteristiques"]:
+		# Trois colonnes (caractéristique, valeur, modèles concernés) ; deux dans la fiche d'une variante.
+		colonnes_caracs = ("parametre", "valeur") if fiche_variante else ("parametre", "valeur", "portee")
+		largeurs_caracs = (".36", ".56") if fiche_variante else (".27", ".42", ".19")
 		blocs["caracteristiques"] += [
 			r"\docsection{" + t(labels["caracteristiques"]) + "}",
 			ZEBRE,
-			r"\begin{longtable}{>{\raggedright\arraybackslash}p{.27\linewidth}>{\raggedright\arraybackslash}p{.42\linewidth}>{\raggedright\arraybackslash}p{.19\linewidth}}",
+			r"\begin{longtable}{" + "".join(r">{\raggedright\arraybackslash}p{" + l + r"\linewidth}" for l in largeurs_caracs) + "}",
 			r"\toprule\rowcolor{aquafort}"
-			+ " & ".join(r"\bfseries\color{aqua} " + t(labels[k]) for k in ("parametre", "valeur", "portee"))
+			+ " & ".join(r"\bfseries\color{aqua} " + t(labels[k]) for k in colonnes_caracs)
 			+ r"\\\endhead",
 		]
 		for c in contenu["caracteristiques"]:
-			blocs["caracteristiques"].append(
-				" & ".join(
-					t(s)
-					for s in [
-						c["nom"],
-						c["valeur"] + (" " + c["unite"] if c["unite"] else ""),
-						c["article"] or labels["commun"],
-					]
-				)
-				+ r"\\"
-			)
+			cellules_carac = [c["nom"], c["valeur"] + (" " + c["unite"] if c["unite"] else "")]
+			if not fiche_variante:
+				cellules_carac.append(c["article"] or labels["commun"])
+			blocs["caracteristiques"].append(" & ".join(t(s) for s in cellules_carac) + r"\\")
 		blocs["caracteristiques"].append(r"\bottomrule\end{longtable}")
 	mode_photos = disposition.get("photos_variantes", 0)
 	regrouper = mode_photos == 1
@@ -794,6 +793,23 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	illustrees = [v for v in contenu["variantes"] if photos_variantes[v["article"]]] if regrouper else []
 	ordre = ctx.get("ordre_attributs") or {}
 	tabulees = trier_variantes([v for v in contenu["variantes"] if v not in illustrees], ordre)
+	if fiche_variante:
+		# Bloc de référence : la référence, la marque et un attribut par ligne (libellé à gauche, valeur à droite).
+		illustrees, tabulees = [], []
+		for v in contenu["variantes"]:
+			lignes_reference = [(labels["reference"], v["article"])]
+			if v.get("marque"):
+				lignes_reference.append((labels["marque"], v["marque"]))
+			lignes_reference += [(a["nom"], a["valeur"]) for a in v["attributs"] if a.get("valeur")]
+			blocs["variantes"] += [
+				r"\docsection{" + t(labels["variantes"]) + "}",
+				ZEBRE.replace("{2}", "{1}"),
+				r"\begin{longtable}{>{\raggedright\arraybackslash}p{.36\linewidth}>{\raggedright\arraybackslash}p{.56\linewidth}}",
+				r"\toprule",
+			]
+			# \leavevmode : une couleur en tête de cellule p{} ouvre le paragraphe trop tôt et décale le libellé d'une ligne.
+			blocs["variantes"] += [r"\leavevmode\bfseries\color{aqua} " + t(nom) + " & " + t(valeur) + r"\\" for nom, valeur in lignes_reference]
+			blocs["variantes"].append(r"\bottomrule\end{longtable}")
 	for v in tabulees:
 		v["nom_court"] = nom_court(v.get("nom", ""), ctx["article"].get("item_name", ""), v.get("attributs", []))
 	if illustrees:

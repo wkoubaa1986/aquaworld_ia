@@ -27,6 +27,9 @@ class DocumentProduit(Document):
 				"contexte_json",
 				"source_fr",
 				"empreinte_context",
+				"variante",
+				"version_mere",
+				"empreinte_variante",
 			)
 		):
 			frappe.throw("Chaque correction doit être enregistrée dans une nouvelle version.")
