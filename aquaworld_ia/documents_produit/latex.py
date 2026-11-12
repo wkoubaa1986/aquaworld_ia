@@ -211,7 +211,8 @@ def plan_tableau_croise(variantes, labels, ordre=None):
 	le plus varié en lignes (ex. configuration), le moins varié en colonnes (ex. membrane), les autres attributs
 	en complément dans la cellule avec la référence. PURE.
 	-> {"mode": "croise", "entetes": [attribut_lignes, valeur_col…], "lignes": [[valeur_ligne, [items…]…]…]}
-	item = {"article", "complement"}. None si moins de deux attributs."""
+	item = {"article", "complement"}. None si moins de deux attributs, ou si l'attribut des colonnes prend plus de
+	six valeurs (illisible sur une page A4 : la liste groupée prend le relais)."""
 	noms = []
 	for v in variantes:
 		for a in v.get("attributs", []):
@@ -228,6 +229,8 @@ def plan_tableau_croise(variantes, labels, ordre=None):
 		colonnes = noms[0]
 	else:
 		colonnes = min(noms, key=lambda n: (len(valeurs[n]), noms.index(n)))
+	if len(valeurs[colonnes]) > 6:
+		return None
 	lignes_attr = max((n for n in noms if n != colonnes), key=lambda n: (len(valeurs[n]), -noms.index(n)))
 	autres = [n for n in noms if n not in (colonnes, lignes_attr)]
 	lignes = []
@@ -845,7 +848,10 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	for v in tabulees:
 		v["nom_court"] = nom_court(v.get("nom", ""), ctx["article"].get("item_name", ""), v.get("attributs", []))
 	# Titre du bloc, puis le texte qui présente la gamme (gamme.py) avant le tableau.
-	titre_gamme = [r"\docsection{" + t(labels["variantes"]) + "}"] + ([t(contenu["gamme"]) + r"\par"] if contenu.get("gamme") else [])
+	# \needspace : le titre ne reste pas seul en bas de page, et le tableau ne s'ouvre pas sur son seul filet (vu le
+	# 12/11/2026 : « Gamme et configurations » en bas de page, tableau à la page suivante).
+	titre_gamme = [r"\needspace{60mm}\docsection{" + t(labels["variantes"]) + "}"] + (
+		[t(contenu["gamme"]) + r"\par", r"\needspace{45mm}"] if contenu.get("gamme") else [])
 	if illustrees:
 		blocs["variantes"] += titre_gamme
 		for v in illustrees:
@@ -857,7 +863,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	if tabulees:
 		if not illustrees:
 			blocs["variantes"] += titre_gamme
-		croise = plan_tableau_croise(tabulees, labels, ordre) if disposition.get("tableau_variantes") == "croise" else None
+		croise = (plan_tableau_croise(tabulees, labels, ordre)
+			if disposition.get("tableau_variantes", M.PHOTOS_DEFAUTS["tableau_variantes"]) == "croise" else None)
 		if croise:
 			n = len(croise["entetes"])
 			# Parts de la ligne, marges des cellules comprises : le tableau fait exactement la largeur du texte (avec

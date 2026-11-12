@@ -63,7 +63,10 @@ class TestRenduTableauVariantes(unittest.TestCase):
 	def test_pdf_groupes_et_colonnes(self):
 		import pymupdf
 
+		from aquaworld_ia.documents_produit import mise_en_page as M
+
 		ctx, c = gamme()
+		ctx["mise_en_page"] = M.normaliser({"tableau_variantes": "liste"})   # la liste groupée, devenue un choix
 		_tex, pdf, _ = L.composer(c, ctx)
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 			texte = " ".join("".join(p.get_text() for p in doc).split())
@@ -102,6 +105,27 @@ class TestLignesColorees(unittest.TestCase):
 class TestTableauCroiseEtVignettes(unittest.TestCase):
 	"""06/11/2026 : « si j'ai plusieurs configurations ça ne s'organise pas convenablement ; je préfère que le
 	tableau montre les photos des variantes »."""
+
+	def test_croise_par_defaut_et_replis_sur_la_liste(self):
+		"""12/11/2026 : « je veux que le tableau croisé soit par défaut »."""
+		from aquaworld_ia.documents_produit import mise_en_page as M
+
+		self.assertEqual(M.PHOTOS_DEFAUTS["tableau_variantes"], "croise")
+		self.assertNotIn("tableau_variantes", M.normaliser({"tableau_variantes": "croise"}))      # défaut : non écrit
+		self.assertEqual(M.normaliser({"tableau_variantes": "liste"})["tableau_variantes"], "liste")
+		ctx, c = gamme()
+		tex = L.source(c, ctx)                                                                     # aucune mise en page choisie
+		self.assertIn(r"\multicolumn{3}", tex)                                                    # le chapeau « Marque de membrane »
+		ctx["mise_en_page"] = M.normaliser({"tableau_variantes": "liste"})
+		self.assertNotIn(r"\multicolumn{3}", L.source(c, ctx))
+		# Sans deux attributs à croiser, ou au-delà de six colonnes : la liste groupée.
+		un_attribut = [{"article": f"X{i}", "nom": "X", "marque": "M", "attributs": [{"nom": "Taille", "valeur": str(i)}]} for i in range(3)]
+		self.assertIsNone(L.plan_tableau_croise(un_attribut, c["libelles"]))
+		sept = [{"article": f"X{i}{j}", "nom": "X", "marque": "M", "attributs": [{"nom": "Couleur", "valeur": f"c{i}"}, {"nom": "Taille", "valeur": f"t{j}"}]}
+			for i in range(7) for j in range(8)]
+		self.assertIsNone(L.plan_tableau_croise(sept, c["libelles"]))
+		six = [v for v in sept if v["attributs"][0]["valeur"] != "c6"]
+		self.assertEqual(len(L.plan_tableau_croise(six, c["libelles"])["entetes"]), 7)             # 6 colonnes de valeurs : croisé
 
 	def test_plan_croise(self):
 		_, c = gamme()
