@@ -106,7 +106,7 @@ class TestMiseEnPage(unittest.TestCase):
 					elif position == "apres_titre":
 						self.assertGreater(logo.y0, page.search_for("Fiche technique")[0].y1)
 					else:
-						self.assertGreater(logo.y0, page.search_for("Variantes couvertes")[0].y1)
+						self.assertGreater(logo.y0, page.search_for("Gamme et configurations")[0].y1)
 				self.assertIn(r"{\bfseries ecoPurium}\par", tex)
 
 	def test_lien_woocommerce_du_produit(self):

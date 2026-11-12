@@ -326,7 +326,7 @@ class TestCompositionVariante(unittest.TestCase):
 		# La fiche du produit garde ses trois colonnes et son tableau des variantes.
 		gamme = L.source(contenu_mere(), {k: v for k, v in contexte_mere().items() if k != "images"} | {"images": []})
 		self.assertIn("Modèles concernés", gamme)
-		self.assertIn("Variantes couvertes", gamme)
+		self.assertIn("Gamme et configurations", gamme)
 
 	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis pour les tests PDF")
 	def test_pdf_d_une_fiche_de_variante(self):

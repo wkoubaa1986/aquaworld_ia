@@ -140,8 +140,8 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 				pdf, _ = L.compiler(L.source(c, ctx, assets=assets), fichiers)
 				with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 					texte = " ".join(" ".join(p.get_text() for p in doc).split())
-					debut = next(i for i, p in enumerate(doc) if p.search_for("Variantes couvertes"))
-					y = doc[debut].search_for("Variantes couvertes")[0].y1
+					debut = next(i for i, p in enumerate(doc) if p.search_for("Gamme et configurations"))
+					y = doc[debut].search_for("Gamme et configurations")[0].y1
 					vignettes = [r for i in range(debut, len(doc)) for x in doc[i].get_images()
 						for r in doc[i].get_image_rects(x[0]) if i > debut or r.y0 > y]
 					self.assertEqual(len(vignettes), 5)                                      # une par variante illustrée
@@ -219,8 +219,8 @@ class TestOrdreNomCourtEtImageArticle(unittest.TestCase):
 		assets = {"images": [], "dimensions": {}, "variantes": {r: f"images/variante-{i}.png" for i, r in enumerate(refs)}}
 		pdf, _ = L.compiler(L.source(c, ctx, assets=assets), {f"images/variante-{i}.png": png(i) for i in range(4)})
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
-			page = next(p for p in doc if p.search_for("Variantes couvertes"))
-			y = page.search_for("Variantes couvertes")[0].y1
+			page = next(p for p in doc if p.search_for("Gamme et configurations"))
+			y = page.search_for("Gamme et configurations")[0].y1
 			vignettes = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > y]
 			self.assertEqual(len(vignettes), 4)
 			self.assertLessEqual(max(r.height for r in vignettes), 12 * 72 / 25.4 + 1)

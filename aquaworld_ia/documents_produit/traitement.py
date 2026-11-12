@@ -8,6 +8,7 @@ import json
 import frappe
 
 from aquaworld_ia.documents_produit import contexte as C
+from aquaworld_ia.documents_produit import gamme as G
 from aquaworld_ia.documents_produit import mise_en_page as M
 from aquaworld_ia.documents_produit import service as API
 from aquaworld_ia.documents_produit import structure as S
@@ -43,14 +44,41 @@ def fonctionnalite(genre):
 	return "Document produit — fiche technique" if genre == S.TYPES[0] else "Document produit — manuel"
 
 
+def _contexte_gamme(ctx):
+	axes = G.axes(ctx.get("variantes"))
+	return {"gamme": axes} if axes else {}
+
+
+def _points_gamme(texte_gamme, requete):
+	"""Un nombre de l'introduction de la gamme absent des données fournies -> un point à vérifier."""
+	if not texte_gamme:
+		return []
+	from aquaworld_ia.documents_produit import illustrations as I
+	from aquaworld_ia.documents_produit.variantes import nombres_connus
+
+	inconnus = G.nombres_a_confirmer(texte_gamme, nombres_connus(requete))
+	if not inconnus:
+		return []
+	return ["Nombres de « Gamme et configurations » absents des données, à confirmer : " + ", ".join(I.formater(n) for n in inconnus[:20])]
+
+
 def reecrire(d, genre, ctx, contenu, cible, instruction):
 	"""Réécrit UNE partie (le résumé ou une rubrique) selon l'instruction de l'utilisateur (demande 06/11/2026 :
 	« changer cette partie par IA en ajoutant une instruction »). Mêmes règles que la rédaction ; le reste du
 	document est fourni pour la cohérence mais n'est pas modifié. -> {titre?, texte, source, points_a_verifier}"""
 	instruction = S.texte(instruction or "", 1500)
+	gamme = cible.get("type") == "gamme"
+	if gamme and not instruction:
+		# Première rédaction de l'introduction sur une fiche qui n'en a pas : pas besoin d'instruction.
+		instruction = "Rédige cette introduction." if not contenu.get("gamme") else "Améliore cette introduction."
 	if not instruction:
 		raise ValueError("Indiquez ce que l'IA doit changer dans cette partie.")
-	if cible.get("type") == "resume":
+	if gamme:
+		if not _contexte_gamme(ctx):
+			raise ValueError("Ce document ne couvre qu'une variante : il n'y a pas de gamme à présenter.")
+		partie = {"type": "gamme", "texte": contenu.get("gamme", "")}
+		format_sortie = "{texte, points_a_verifier:[texte]}"
+	elif cible.get("type") == "resume":
 		partie = {"type": "resume", "texte": contenu["resume"]}
 		format_sortie = "{texte, points_a_verifier:[texte]}"
 	else:
@@ -63,19 +91,23 @@ def reecrire(d, genre, ctx, contenu, cible, instruction):
 	system = ("Tu réécris en français UNE partie d'un document produit technique existant, selon l'instruction de l'utilisateur. "
 		"Réponds uniquement en JSON " + format_sortie + ". Garde le sujet de la partie ; ne réécris pas le reste du document, fourni "
 		"seulement pour la cohérence (ne répète pas ce que d'autres rubriques disent déjà). L'instruction porte sur la forme ou "
-		"l'angle (détail, ton, longueur, public, ajout d'un aspect) : elle ne crée pas de fait.\n" + REGLES_COMMUNES)
+		"l'angle (détail, ton, longueur, public, ajout d'un aspect) : elle ne crée pas de fait.\n"
+		+ ("La partie à réécrire est « gamme ». " + G.CONSIGNE + "\n" if gamme else "") + REGLES_COMMUNES)
 	if ctx.get("connaissances_generales"):
 		system += CONNAISSANCES_GENERALES
 	autres = [{"titre": s["titre"], "texte": s["texte"][:400]} for i, s in enumerate(contenu["sections"])
 		if not (partie["type"] == "rubrique" and i == cible.get("index"))]
 	user = {"type_document": genre, "instruction": instruction, "partie_a_reecrire": partie,
 		"document": {"titre": contenu["titre"], "resume": contenu["resume"][:600] if partie["type"] != "resume" else "", "autres_rubriques": autres},
-		"contexte": {k: v for k, v in ctx.items() if k != "entete"}}
+		"contexte": {**{k: v for k, v in ctx.items() if k != "entete"}, **(_contexte_gamme(ctx) if gamme else {})}}
 	with journal.suivre_generation(d.name, frappe.generate_hash(length=12), "reecrire", "fr"):
 		data = chat_json(system, json.dumps(user, ensure_ascii=False), fonctionnalite=fonctionnalite(genre), doc=d)
 	if not isinstance(data, dict) or not str(data.get("texte", "")).strip():
 		raise ValueError("L'IA n'a pas renvoyé de texte pour cette partie. Reformulez l'instruction.")
 	resultat = {"texte": S.texte(data["texte"]), "points_a_verifier": [S.texte(str(x), 1000) for x in data.get("points_a_verifier", []) or [] if x][:10]}
+	if gamme:
+		resultat["texte"] = S.texte(resultat["texte"], G.LIMITE)
+		resultat["points_a_verifier"] += _points_gamme(resultat["texte"], user)
 	if partie["type"] == "rubrique":
 		resultat["titre"] = S.texte(data.get("titre") or partie["titre"], 200) or partie["titre"]
 		resultat["source"] = S.texte(data.get("source") or partie["source"], 600)
@@ -84,7 +116,7 @@ def reecrire(d, genre, ctx, contenu, cible, instruction):
 
 def generer(d, genre, ctx):
 	system = """Tu rédiges en français un document produit technique.
-Réponds uniquement en JSON avec titre, resume, sections:[{titre,texte,article,source}], caracteristiques:[{nom,valeur,unite,article,source}], points_a_verifier:[texte].
+Réponds uniquement en JSON avec titre, resume, sections:[{titre,texte,article,source}], caracteristiques:[{nom,valeur,unite,article,source}], gamme:texte, points_a_verifier:[texte].
 Les caractéristiques communes doivent être confirmées communes. Une source attribuée à une variante ne justifie que cette variante.
 Les attributs des variantes (contexte.variantes[].attributs : membrane, configuration, options…) sont déjà présentés par le système dans le tableau des variantes : ne les recopie jamais en caracteristiques. Les caracteristiques sont des valeurs techniques (débit, pression, dimensions, raccords, alimentation…), communes ou propres à une variante.
 Signale toute contradiction entre article, variantes et manuels dans points_a_verifier. Les passages illisibles doivent rester à vérifier.
@@ -93,21 +125,27 @@ Le champ resume EST la présentation du produit : ne crée pas de rubrique « Pr
 Pour un manuel : présentation, consignes de sécurité documentées, installation, mise en service, utilisation, entretien et dépannage. Ajoute seulement les instructions justifiées par les sources ; signale les rubriques essentielles sans source.
 Les étapes d'utilisation doivent préciser le modèle concerné si elles ne s'appliquent pas à toute la gamme.
 Le tableau des variantes et les photos sont ajoutés par le système.
-""" + REGLES_COMMUNES
+""" + G.CONSIGNE + "\n" + REGLES_COMMUNES
 	if ctx.get("connaissances_generales"):
 		# Demande 06/11/2026 (« pourquoi ça ne se génère pas automatiquement ? ») : sans source, l'IA ne remplissait
 		# ni applications ni entretien. Option par dossier, désactivée par défaut.
 		system += CONNAISSANCES_GENERALES
+	# Les nombres de la gamme sont comptés ici et fournis à l'IA (gamme.py) ; ils n'entrent pas dans le contexte
+	# enregistré de la version.
+	requete = {"type_document": genre, "contexte": {**{k: v for k, v in ctx.items() if k != "entete"}, **_contexte_gamme(ctx)}}
 	data = chat_json(
 		system,
-		json.dumps({"type_document": genre, "contexte": {k: v for k, v in ctx.items() if k != "entete"}}, ensure_ascii=False),
+		json.dumps(requete, ensure_ascii=False),
 		fonctionnalite=fonctionnalite(genre),
 		doc=d,
 	)
 	data.pop("variantes", None)
 	data.pop("legendes", None)
 	data.pop("libelles", None)
+	if "gamme" not in requete["contexte"]:
+		data.pop("gamme", None)   # pas de gamme à présenter : un texte rendu quand même n'est pas gardé
 	contenu = S.normaliser(S.depuis_ia(data), ctx)
+	contenu["points_a_verifier"] += _points_gamme(contenu.get("gamme"), requete)
 	if not contenu["sections"] and not contenu["caracteristiques"]:
 		raise ValueError(
 			"La proposition IA ne contient aucune rubrique ni caractéristique. Relancez la génération."

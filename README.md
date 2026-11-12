@@ -526,6 +526,21 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Gamme et configurations (12/11/2026, v0.50.0)
+
+Le bloc des variantes s’appelle « Gamme et configurations » (il s’appelait « Variantes couvertes ») et commence
+par un **texte d’introduction** (`contenu["gamme"]`), suivi du tableau. Ce texte présente comment la gamme se
+décline et ce que change chaque option ; il n’énumère pas les variantes — avant, l’IA écrivait une rubrique libre
+qui recopiait les noms des configurations, loin du tableau.
+
+- Les **nombres** (variantes, valeurs par attribut) sont comptés par l’app (`documents_produit/gamme.py`, module
+  pur) et fournis à l’IA dans `contexte.gamme` ; un nombre du texte absent de ces données devient un point à
+  vérifier. Une option dont les données ne disent rien est seulement nommée.
+- Rédigé avec la fiche à l’étape Rédiger ; à l’étape Relire, un champ « Gamme et configurations » avec
+  **✦ Rédiger / Réécrire avec l’IA…** (instruction facultative) le crée sur une fiche existante. Vide : le
+  tableau seul. Traduit avec le reste ; absent d’une fiche de variante.
+- La clé `gamme` n’existe que remplie : les versions qui n’en ont pas gardent leur empreinte.
+
 ### Unités métriques des caractéristiques (12/11/2026, v0.49.0)
 
 Dans le tableau « Caractéristiques techniques » (et les colonnes de caractéristiques du tableau des variantes),

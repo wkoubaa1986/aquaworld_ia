@@ -844,8 +844,10 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			blocs["variantes"].append(r"\bottomrule\end{longtable}")
 	for v in tabulees:
 		v["nom_court"] = nom_court(v.get("nom", ""), ctx["article"].get("item_name", ""), v.get("attributs", []))
+	# Titre du bloc, puis le texte qui présente la gamme (gamme.py) avant le tableau.
+	titre_gamme = [r"\docsection{" + t(labels["variantes"]) + "}"] + ([t(contenu["gamme"]) + r"\par"] if contenu.get("gamme") else [])
 	if illustrees:
-		blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
+		blocs["variantes"] += titre_gamme
 		for v in illustrees:
 			blocs["variantes"].append(r"\Needspace{" + ("110" if photos_variantes[v["article"]] else "35") + "mm}")
 			blocs["variantes"].append(r"\subsection*{" + t(v["article"] + " — " + v["nom"]) + "}")
@@ -854,7 +856,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			blocs["variantes"].extend(galerie(photos_variantes[v["article"]], portee=False))
 	if tabulees:
 		if not illustrees:
-			blocs["variantes"].append(r"\docsection{" + t(labels["variantes"]) + "}")
+			blocs["variantes"] += titre_gamme
 		croise = plan_tableau_croise(tabulees, labels, ordre) if disposition.get("tableau_variantes") == "croise" else None
 		if croise:
 			n = len(croise["entetes"])

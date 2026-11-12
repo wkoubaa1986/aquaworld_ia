@@ -11,7 +11,7 @@ from collections import Counter
 TYPES = ("Fiche technique", "Manuel d'utilisation")
 LIBELLES = dict(
 	caracteristiques="Caractéristiques techniques",
-	variantes="Variantes couvertes",
+	variantes="Gamme et configurations",
 	reference="Référence",
 	configuration="Configuration",
 	marque="Marque",
@@ -28,7 +28,8 @@ LIBELLES = dict(
 	sommaire="Sommaire",
 )
 # Anciens noms français d'un libellé : « Photos et illustrations » est devenu « Le produit en images » le 12/11/2026.
-ANCIENS_LIBELLES = {"illustrations": ("Photos et illustrations",)}
+# « Variantes couvertes » est devenu « Gamme et configurations » le même jour (titre, texte d'introduction, tableau).
+ANCIENS_LIBELLES = {"illustrations": ("Photos et illustrations",), "variantes": ("Variantes couvertes",)}
 
 
 def empreinte(value):
@@ -117,7 +118,7 @@ def depuis_ia(data):
 	out = dict(data)
 	scalaire = scalaire_ia
 
-	for cle in ("titre", "resume"):
+	for cle in ("titre", "resume", "gamme"):
 		if cle in out:
 			out[cle] = scalaire(out[cle])
 	for cle, champs in (("sections", ("titre", "texte", "article", "source")),
@@ -257,6 +258,11 @@ def normaliser(data, contexte):
 	resolus = [texte(p, 1000) for p in data.get("points_resolus", []) or [] if p]
 	if resolus:
 		out["points_resolus"] = resolus
+	# Texte d'introduction du tableau des variantes (gamme.py, 12/11/2026). La clé n'existe que remplie, pour ne pas
+	# changer l'empreinte des versions qui n'en ont pas.
+	intro_gamme = texte(data.get("gamme") or "", 3000)
+	if intro_gamme:
+		out["gamme"] = intro_gamme
 	# Ces données proviennent des articles, pas d'une invention du modèle.
 	out["variantes"] = copy.deepcopy(
 		data.get("variantes")
@@ -298,7 +304,7 @@ def normaliser(data, contexte):
 
 
 def champs_traduisibles(contenu):
-	paths = [("titre",), ("resume",)]
+	paths = [("titre",), ("resume",)] + ([("gamme",)] if contenu.get("gamme") else [])
 	paths += [("libelles", k) for k in LIBELLES]
 	for cle, champs in (("sections", ("titre", "texte")), ("caracteristiques", ("nom", "valeur"))):
 		for i, _row in enumerate(contenu[cle]):

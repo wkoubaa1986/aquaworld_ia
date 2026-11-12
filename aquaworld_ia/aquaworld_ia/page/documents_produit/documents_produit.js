@@ -12,7 +12,7 @@ const dpUrl = url => typeof url==='string' && /^\/(private\/)?files\//.test(url)
 const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFractionDigits:4,maximumFractionDigits:4})+' $';
 const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)',photos:'Lecture des photos des variantes',variantes:'Fiches par variante'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
-const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Tableau des variantes',illustrations:'Le produit en images'};
+const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Gamme et configurations',illustrations:'Le produit en images'};
 // Les quatre étapes du travail, dans l'ordre où on les fait : l'écran suit cet ordre (refonte du 06/11/2026).
 const DP_POLICES={'':'Noto Sans (par défaut)',noto_sans:'Noto Sans',open_sans:'Open Sans',lato:'Lato',montserrat:'Montserrat',roboto:'Roboto',poppins:'Poppins',oswald:'Oswald',noto_serif:'Noto Serif',eb_garamond:'EB Garamond'};
 const DP_AIDE_LIBRE='Galerie libre : chaque photo a sa largeur (% de la ligne). Les photos s’enchaînent de gauche à droite et passent à la ligne quand la ligne est pleine : 100 = une photo par ligne, 50 + 50 = deux côte à côte, 30 + 30 + 40 = trois. La hauteur suit les proportions de chaque photo.';
@@ -330,7 +330,7 @@ class DocumentsProduit {
       <p class="dp-muted">La photo principale (★, étape Préparer) avec le texte de présentation (résumé).</p>`;
     if(cle==='rubriques')return `<p class="dp-muted">Les rubriques (textes, images et tableaux de rubrique) se règlent à l’étape Relire, rubrique par rubrique. Elles reprennent la couleur des titres.</p>`;
     if(cle==='caracteristiques')return `<p class="dp-muted">Tableau Caractéristique · Valeur · Modèles concernés, lignes colorées dans la couleur des titres. Son contenu se corrige à l’étape Relire.</p>`;
-    if(cle==='variantes')return `<div class="dp-grid"><label class="dp-label">Tableau des variantes<select class="form-control dp-variant-table"><option value="liste" ${m.tableau_variantes==='liste'?'selected':''}>Liste groupée (par le premier attribut)</option><option value="croise" ${m.tableau_variantes==='croise'?'selected':''}>Tableau croisé : configurations en lignes × membranes en colonnes</option></select></label>
+    if(cle==='variantes')return `<p class="dp-muted">Le titre, le texte d’introduction de la gamme (rédigé à l’étape Rédiger, corrigé à l’étape Relire), puis le tableau des variantes.</p><div class="dp-grid"><label class="dp-label">Tableau des variantes<select class="form-control dp-variant-table"><option value="liste" ${m.tableau_variantes==='liste'?'selected':''}>Liste groupée (par le premier attribut)</option><option value="croise" ${m.tableau_variantes==='croise'?'selected':''}>Tableau croisé : configurations en lignes × membranes en colonnes</option></select></label>
       <label class="dp-label">Où placer les vues des variantes<select class="form-control dp-photo-group"><option value="2">En vignette dans le tableau des variantes</option><option value="1">Avec la référence et les caractéristiques de chaque variante</option><option value="0">Dans les illustrations à la fin</option></select></label>
       <label class="dp-label">Libellé dans le tableau croisé<select class="form-control dp-libelle-croise">${options({nom_sans_parent:'Nom de la variante sans le nom du produit',nom:'Nom complet de la variante',reference:'Référence (ex. AP-M-AJ-5-SM)'},m.libelle_croise)}</select></label></div>
       <p class="dp-muted">Une vignette n’apparaît que pour une variante qui a sa propre photo (champ Produit / variante de la photo, étape Préparer).</p>`;
@@ -732,6 +732,7 @@ class DocumentsProduit {
       <div class="dp-sections">${c.sections.map((s,i)=>this.sectionHtml(s,i,c.sections.length,scope,doc)).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
       <label class="dp-label">Caractéristiques techniques</label><p class="dp-muted">Saisissez la valeur comme dans vos données (3,2 G, 75 GPD, 116 psi, 10") : le PDF l’imprime en unités métriques, calculées, avec la valeur d’origine entre parenthèses — « 12,1 L (3,2 G) ». Une référence, un texte, une valeur déjà métrique ou les pouces d’un raccord restent tels quels.</p><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
+      ${!doc.variante&&(c.variantes||[]).length>1?`<label class="dp-label">Gamme et configurations — texte d’introduction du tableau des variantes <button type="button" class="btn btn-default btn-xs dp-ia-gamme" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ ${c.gamme?'Réécrire':'Rédiger'} avec l’IA…</button></label><p class="dp-muted">Ce texte présente comment la gamme se décline et ce que change chaque option ; il s’imprime sous le titre « Gamme et configurations », juste avant le tableau des variantes. Les nombres (variantes, valeurs par attribut) sont comptés par l’outil. Vide : le tableau seul.</p><textarea class="form-control dp-gamme" rows="5">${dpEsc(c.gamme||'')}</textarea>`:''}
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
       <label class="dp-label">Points à vérifier avant validation — cliquez un point pour le marquer résolu (barré), cliquez de nouveau pour le rouvrir ; × le retire. Seuls les points ouverts bloquent la validation.</label>
       <ul class="dp-checks">${[...c.points_a_verifier.map(p=>[p,0]),...(c.points_resolus||[]).map(p=>[p,1])].map(([p,ok])=>`<li class="dp-check ${ok?'resolu':''}" data-resolu="${ok}"><button type="button" class="dp-check-toggle" aria-pressed="${!!ok}" title="${ok?'Rouvrir ce point':'Marquer résolu'}">${ok?'✔':''}</button><span class="dp-check-text">${dpEsc(p)}</span><button type="button" class="btn btn-xs btn-default dp-check-remove" title="Retirer ce point">×</button></li>`).join('')||'<li class="dp-muted dp-check-none">Aucun point en attente</li>'}</ul>
@@ -758,6 +759,7 @@ class DocumentsProduit {
     z.find('.dp-pdf').on('click',()=>this.lancer('pdf'));
     z.find('.dp-apercu').on('click',()=>this.apercuDocument());
     z.find('.dp-ia-resume').on('click',()=>this.reecrireAvecIA({type:'resume'}));
+    z.find('.dp-ia-gamme').on('click',()=>this.reecrireAvecIA({type:'gamme'}));
     z.find('.dp-ia-rubrique').on('click',e=>this.reecrireAvecIA({type:'section',index:+$(e.currentTarget).closest('.dp-section').attr('data-index')}));
     z.find('.dp-validate').on('click',()=>this.lancer('valider'));
     z.find('.dp-source-fr').on('click',async e=>{e.preventDefault();if(this.dirty)await this.saveDocument();await this.loadDocument(doc.source_fr);});
@@ -869,16 +871,17 @@ class DocumentsProduit {
     // n'est enregistré avant « Enregistrer » (demande 06/11/2026).
     if(!this.current)return;
     const z=this.root.find('.dp-editor'),rubrique=cible.type==='section'?z.find('.dp-section').eq(cible.index):null;
-    const titre=rubrique?rubrique.find('.dp-section-name').val():'Présentation';
+    const gamme=cible.type==='gamme',titre=gamme?'Gamme et configurations':rubrique?rubrique.find('.dp-section-name').val():'Présentation';
     const d=new frappe.ui.Dialog({title:'Réécrire avec l’IA · '+dpEsc(titre),fields:[
-      {fieldtype:'Small Text',fieldname:'instruction',label:'Que doit changer l’IA ?',reqd:1,description:'Ex. « Plus détaillé, en trois paragraphes : prétraitement, membrane, post-traitement » · « Plus court, pour un particulier » · « Ajoute les précautions avant intervention » · « Ton plus commercial ». L’instruction change la forme ou l’angle ; elle ne crée pas de fait : ce qui manque reste à vérifier.'},
+      {fieldtype:'Small Text',fieldname:'instruction',label:'Que doit changer l’IA ?',reqd:gamme?0:1,description:(gamme?'Facultatif pour cette partie : sans instruction, l’IA rédige (ou améliore) l’introduction de la gamme. ':'')+'Ex. « Plus détaillé, en trois paragraphes : prétraitement, membrane, post-traitement » · « Plus court, pour un particulier » · « Ajoute les précautions avant intervention » · « Ton plus commercial ». L’instruction change la forme ou l’angle ; elle ne crée pas de fait : ce qui manque reste à vérifier.'},
       {fieldtype:'HTML',fieldname:'etat',options:'<p class="dp-muted">Un appel IA (coût visible dans l’historique du dossier). Le texte actuel est remplacé à l’écran ; relisez, puis Enregistrer.</p>'}],
       primary_action_label:'Réécrire',primary_action:async v=>{
         d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">Réécriture en cours… (10 à 40 s)</p>');
         try{
-          const r=await dpCall('reecrire_partie',{name:this.name,document_name:this.current.doc.name,cible,instruction:v.instruction,contenu:this.captureDocument()});
+          const r=await dpCall('reecrire_partie',{name:this.name,document_name:this.current.doc.name,cible,instruction:v.instruction||'',contenu:this.captureDocument()});
           const c=this.captureDocument();
-          if(cible.type==='resume')c.resume=r.texte;
+          if(gamme)c.gamme=r.texte;
+          else if(cible.type==='resume')c.resume=r.texte;
           else{const s=c.sections[cible.index];s.texte=r.texte;if(r.titre)s.titre=r.titre;if(r.source)s.source=r.source;}
           if(r.points_a_verifier?.length)c.points_a_verifier=[...c.points_a_verifier,...r.points_a_verifier];
           this.current.contenu=c;this.renderDocument();this.dirty=true;this.updateBar();d.hide();
@@ -901,6 +904,7 @@ class DocumentsProduit {
   captureDocument() {
     const c=JSON.parse(JSON.stringify(this.current.contenu)),z=this.root.find('.dp-editor');
     c.titre=z.find('.dp-title').val();c.resume=z.find('.dp-summary').val();
+    const g=z.find('.dp-gamme');if(g.length){const texteGamme=g.val().trim();if(texteGamme)c.gamme=texteGamme;else delete c.gamme;}
     c.sections=z.find('.dp-section').map((_,el)=>{const q=$(el),s={titre:q.find('.dp-section-name').val(),texte:q.find('.dp-section-text').val(),article:q.find('.dp-section-scope').val(),source:q.find('.dp-section-source').val()};if(q.find('.dp-section-break').hasClass('active'))s.saut_page=1;
       const im=q.find('.dp-section-image');if(im.length){const g=im.attr('data-graphe');if(g)s.graphe=JSON.parse(g);else s.image=im.attr('data-image');const pos=im.find('.dp-si-position').val()||'droite';s.image_position=pos;s.image_largeur=Math.max(20,Math.min(['droite','gauche'].includes(pos)?60:100,Math.round(Number(im.find('.dp-si-largeur').val())||40)));s.image_legende=im.find('.dp-si-legende').val();}
       const rows=q.find('.dp-st tr');if(rows.length){s.tableau=rows.map((_,tr)=>[$(tr).find('input').map((_,inp)=>inp.value).get()]).get();const pos=q.find('.dp-st-position').val()||'dessous';if(pos!=='dessous')s.tableau_position=pos;const tl=q.find('.dp-st-largeur');if(tl.length&&['droite','gauche'].includes(pos))s.tableau_largeur=Math.max(30,Math.min(70,Math.round(Number(tl.val())||50)));}
