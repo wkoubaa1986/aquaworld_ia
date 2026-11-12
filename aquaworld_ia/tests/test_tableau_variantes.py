@@ -147,7 +147,7 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 					self.assertEqual(len(vignettes), 5)                                      # une par variante illustrée
 					self.assertLessEqual(max(r.height for r in vignettes), hauteur * 72 / 25.4 + 1)
 					self.assertIn("Avec mixage", texte)
-					self.assertNotIn("Photos et illustrations", texte)                       # les vues sont dans le tableau
+					self.assertNotIn("Le produit en images", texte)                       # les vues sont dans le tableau
 					if mode == "croise":
 						import re
 						# Une couleur par valeur de l'attribut restant : carré devant la référence, légende sous le tableau,

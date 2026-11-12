@@ -20,13 +20,15 @@ LIBELLES = dict(
 	unite="Unité",
 	portee="Modèles concernés",
 	commun="Toute la gamme",
-	illustrations="Photos et illustrations",
+	illustrations="Le produit en images",
 	brouillon="BROUILLON — À RELIRE",
 	version="Version",
 	sources="Sources documentaires",
 	photo="Photo",
 	sommaire="Sommaire",
 )
+# Anciens noms français d'un libellé : « Photos et illustrations » est devenu « Le produit en images » le 12/11/2026.
+ANCIENS_LIBELLES = {"illustrations": ("Photos et illustrations",)}
 
 
 def empreinte(value):
@@ -223,7 +225,9 @@ def normaliser(data, contexte):
 		"sections": [],
 		"caracteristiques": [],
 		"points_a_verifier": [],
-		"libelles": {k: texte(data.get("libelles", {}).get(k, v), 200) for k, v in LIBELLES.items()},
+		# Un libellé enregistré sous son ancien nom français suit le nouveau (les traductions gardent le leur).
+		"libelles": {k: (v if data.get("libelles", {}).get(k) in ANCIENS_LIBELLES.get(k, ()) else texte(data.get("libelles", {}).get(k, v), 200))
+			for k, v in LIBELLES.items()},
 	}
 	if not out["titre"]:
 		raise ValueError("Le titre est obligatoire.")

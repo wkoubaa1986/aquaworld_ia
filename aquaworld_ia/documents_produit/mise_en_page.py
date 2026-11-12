@@ -7,7 +7,10 @@ import json
 import math
 import re
 
-ORDRE = ["presentation", "rubriques", "caracteristiques", "variantes", "illustrations"]
+ORDRE = ["presentation", "rubriques", "caracteristiques", "variantes", "illustrations"]   # les blocs (clés, ordre canonique)
+# Ordre d'un document neuf (demande 12/11/2026 : « Le produit en images » par défaut en deuxième position, juste
+# après la présentation). ORDRE reste l'ancien défaut : un dossier qui le porte tel quel n'a jamais été réordonné.
+ORDRE_DEFAUT = ["presentation", "illustrations", "rubriques", "caracteristiques", "variantes"]
 TYPES = {"Fiche technique": "fiche", "Manuel d'utilisation": "manuel"}
 MARQUE_DEFAUTS = {
 	"position_marque": "avant_titre", "alignement_marque": "gauche",
@@ -29,7 +32,7 @@ PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignette
 # les photos s'enchaînent de gauche à droite et passent à la ligne quand la somme dépasse 100.
 # alignement_galerie : « gauche » (lignes alignées à gauche) ou « centre » (chaque ligne centrée, dernière ligne
 # incomplète comprise). largeur_galerie : % de la ligne occupé par la grille ou la galerie libre, centrée en dessous
-# de 100. galerie_pleine_page : le bloc « Autres illustrations » commence sur une nouvelle page et la hauteur des
+# de 100. galerie_pleine_page : le bloc « Le produit en images » commence sur une nouvelle page et la hauteur des
 # vignettes de la grille est calculée pour remplir cette page.
 # police / police_titres : une des familles livrées (public/fonts, voir latex.POLICES_LIVREES), vide = Noto Sans ;
 # police_titres vide = la police du texte. taille_police : corps du texte en points (9, 10, 11, 12).
@@ -76,7 +79,7 @@ def normaliser(valeur=None):
 		raise ValueError("Mise en page invalide.")
 	defauts = {
 		"position_photo": "apres", "largeur_photo": 65, "hauteur_photo": 65,
-		"alignement_titre": "gauche", "couleur": "#087E8B", "ordre": list(ORDRE),
+		"alignement_titre": "gauche", "couleur": "#087E8B", "ordre": list(ORDRE_DEFAUT),
 	}
 	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS) | set(PHOTOS_DEFAUTS) | set(QR_DEFAUTS)):
 		raise ValueError("Réglage de mise en page inconnu.")

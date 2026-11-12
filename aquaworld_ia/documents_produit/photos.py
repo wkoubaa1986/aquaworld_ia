@@ -86,7 +86,7 @@ def candidates_initiales(parent, article):
 def initiales(parent, article):
 	"""Les photos d'un dossier à sa création (demande 12/11/2026 : « s'il y a plusieurs images du produit, pourquoi
 	elles ne viennent pas automatiquement dans la fiche ? »). La première est la photo principale ; les suivantes
-	vont au bloc « Autres illustrations ». Les photos des autres variantes restent à choisir (« Choisir les photos
+	vont au bloc « Le produit en images ». Les photos des autres variantes restent à choisir (« Choisir les photos
 	des articles ») : chaque fiche de variante prend déjà les siennes."""
 	return retenir_initiales(candidates_initiales(parent, article))
 

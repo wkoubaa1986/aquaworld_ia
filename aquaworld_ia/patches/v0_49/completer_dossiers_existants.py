@@ -4,6 +4,7 @@
 - les images de l'article parent absentes du dossier, ajoutées À LA SUITE de ses photos (la photo principale et
   l'ordre choisis ne changent pas) ;
 - le QR code du produit sur le site, sur la fiche et le manuel, là où aucun lien n'est encore saisi.
+- le bloc « Le produit en images » en deuxième position, là où l'ordre des blocs est resté celui d'origine.
 
 Une seule fois : une photo ou un QR retirés ensuite ne reviennent pas. Rien d'autre n'est modifié (ni textes, ni
 versions, ni reste de la mise en page) ; les versions passent « à actualiser », comme après tout changement de
@@ -69,6 +70,14 @@ def completer(name):
 		if poses:
 			d.mises_en_page = json.dumps(dispositions, ensure_ascii=False)
 			changes.append("QR code du site (" + ", ".join(poses) + ")")
+	# « Le produit en images » en deuxième position, là où l'ordre des blocs n'a jamais été changé (ancien défaut).
+	dispositions = M.configuration(d.get("mises_en_page"))
+	deplaces = [cle for cle, disposition in dispositions.items() if disposition.get("ordre") == M.ORDRE]
+	if deplaces:
+		for cle in deplaces:
+			dispositions[cle] = M.normaliser({**dispositions[cle], "ordre": list(M.ORDRE_DEFAUT)})
+		d.mises_en_page = json.dumps(dispositions, ensure_ascii=False)
+		changes.append("« Le produit en images » en 2e position (" + ", ".join(deplaces) + ")")
 	if changes:
 		d.save(ignore_permissions=True)
 	return changes

@@ -431,6 +431,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \setlength{\emergencystretch}{4em}
 \newcommand{\titrefont}{}
 \newcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\phantomsection\addcontentsline{toc}{section}{#1}}
+\makeatletter
+\newcommand{\docsectionsouple}[1]{\@secpenalty=\z@ \docsection{#1}\@secpenalty=-300\relax}
+\makeatother
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
@@ -935,15 +938,22 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	# Les vues passées en vignette (la première de chaque variante) sortent des illustrations ; les autres y restent.
 	regroupees = set(vignette_de.values()) if vignettes else {i for indices in photos_variantes.values() for i in indices}
 	illustrations = [i for i in range(1, len(assets.get("images", []))) if i not in regroupees]
-	# Le QR peut rejoindre le bloc « Autres illustrations » (demande 06/11/2026) : après la galerie, ou seul
+	# Le QR peut rejoindre le bloc « Le produit en images » (demande 06/11/2026) : après la galerie, ou seul
 	# sous le titre du bloc quand il n'y a pas d'autre illustration — le bloc suit alors l'ordre choisi.
 	qr_illustrations = "\n".join(zone_qr) if qr["qr_position"] == "illustrations" and zone_qr else None
 	if illustrations or qr_illustrations:
 		if disposition.get("galerie_pleine_page"):
 			blocs["illustrations"].append(r"\clearpage")   # le bloc commence sur une page neuve (07/11/2026)
+		# « Le produit en images » est une section à part entière (12/11/2026) : son titre est toujours imprimé — avant,
+		# une galerie d'une photo par ligne n'en avait pas.
 		if regrouper or disposition.get("colonnes_photos", 1) > 1 or disposition.get("style_galerie") in ("mosaique", "libre") or (qr_illustrations and not illustrations):
 			# Le titre ne reste pas seul en bas de page quand la première rangée ne tient pas dessous.
 			blocs["illustrations"].append(r"\needspace{60mm}\docsection{" + t(labels["illustrations"]) + "}")
+		else:
+			# Une photo par ligne : de grands blocs insécables. Un titre ordinaire attire le saut de page avant lui dès
+			# que tout le bloc ne tient pas, et laissait la moitié de la page vide ; ce titre-ci ne l'attire pas — la
+			# page se remplit (titre et première photo), la suite passe à la page suivante.
+			blocs["illustrations"].append(r"\docsectionsouple{" + t(labels["illustrations"]) + "}")
 		blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
 		if disposition.get("galerie_pleine_page"):
 			blocs["illustrations"].append(r"\clearpage")   # la page lui est réservée : les blocs suivants repartent sur une page neuve

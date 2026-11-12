@@ -274,6 +274,35 @@ class TestMiseEnPage(unittest.TestCase):
 		self.assertTrue(pdf.startswith(b"%PDF"))
 
 
+class TestLeProduitEnImages(unittest.TestCase):
+	"""12/11/2026 : la section s'appelle « Le produit en images », vient en deuxième par défaut, titre toujours imprimé."""
+
+	def test_ordre_par_defaut_et_libelle(self):
+		from aquaworld_ia.documents_produit import structure as S
+
+		self.assertEqual(M.normaliser()["ordre"], ["presentation", "illustrations", "rubriques", "caracteristiques", "variantes"])
+		self.assertEqual(sorted(M.ORDRE_DEFAUT), sorted(M.ORDRE))
+		ancien = M.normaliser({"ordre": list(M.ORDRE)})                         # un ordre choisi est respecté
+		self.assertEqual(ancien["ordre"][-1], "illustrations")
+		ctx = contexte_simple()
+		c = contenu_simple(ctx)
+		self.assertEqual(c["libelles"]["illustrations"], "Le produit en images")
+		# Une version enregistrée sous l'ancien nom suit le nouveau ; une traduction garde le sien.
+		self.assertEqual(S.normaliser({**c, "libelles": {**c["libelles"], "illustrations": "Photos et illustrations"}}, ctx)["libelles"]["illustrations"], "Le produit en images")
+		self.assertEqual(S.normaliser({**c, "libelles": {**c["libelles"], "illustrations": "Product pictures"}}, ctx)["libelles"]["illustrations"], "Product pictures")
+
+	def test_titre_imprime_et_bloc_avant_les_rubriques(self):
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": "/files/a.png", "legende": "Principale", "article": ""}, {"image": "/files/b.png", "legende": "Vue arrière", "article": ""}]
+		tex = L.source(contenu_simple(ctx), ctx, assets={"images": ["images/image-0.png", "images/image-1.png"]})
+		titre = r"\docsectionsouple{Le produit en images}"
+		self.assertIn(titre, tex)                                               # même avec une photo par ligne
+		self.assertLess(tex.index(titre), tex.index(r"\docsection{Utilisation}"))
+		self.assertLess(tex.index(titre), tex.index(r"\docsection{Caractéristiques techniques}"))
+		ctx["images"] = ctx["images"][:1]                                       # rien à montrer : pas de titre
+		self.assertNotIn(titre, L.source(contenu_simple(ctx), ctx, assets={"images": ["images/image-0.png"]}))
+
+
 class TestDossierPrerempli(unittest.TestCase):
 	"""12/11/2026 : à la création d'un dossier, les photos de l'article et le QR code du produit sur le site."""
 
@@ -432,7 +461,7 @@ class TestGalerieCompacte(unittest.TestCase):
 
 		ctx = contexte_simple()
 		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(13)]
-		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 4, "hauteur_vignettes": 32})
+		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 4, "hauteur_vignettes": 32, "ordre": list(M.ORDRE)})   # galerie en fin de document
 		assets = {"images": [f"images/image-{i}.png" for i in range(13)]}
 		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(13)})
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
@@ -466,12 +495,12 @@ class TestGalerieMosaique(unittest.TestCase):
 
 		ctx = contexte_simple()
 		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(8)]
-		ctx["mise_en_page"] = M.normaliser({"style_galerie": "mosaique", "hauteur_vignettes": 32, "colonnes_photos": 3})
+		ctx["mise_en_page"] = M.normaliser({"style_galerie": "mosaique", "hauteur_vignettes": 32, "colonnes_photos": 3, "ordre": list(M.ORDRE)})
 		assets = {"images": [f"images/image-{i}.png" for i in range(8)], "dimensions": {f"images/image-{i}.png": (400, 300) for i in range(8)}}
 		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(8)})
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 			page = next(p for p in doc if p.search_for("Vue 1"))
-			haut = page.search_for("Photos et illustrations")[0].y1
+			haut = page.search_for("Le produit en images")[0].y1
 			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
 			grande = max(rects, key=lambda r: r.width * r.height)
 			self.assertAlmostEqual(grande.x0, 18 * 72 / 25.4, delta=1)                     # à gauche
@@ -515,7 +544,7 @@ class TestGalerieMosaique(unittest.TestCase):
 		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), fichiers)
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 			page = next(p for p in doc if p.search_for("Voir en ligne"))
-			haut = page.search_for("Photos et illustrations")[0].y1
+			haut = page.search_for("Le produit en images")[0].y1
 			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
 			grande = max(rects, key=lambda r: r.width * r.height)
 			legende = page.search_for("Vue 3")[0]
@@ -559,8 +588,8 @@ class TestLegendesEtLargeurGrande(unittest.TestCase):
 			texte = " ".join(" ".join(p.get_text() for p in doc).split())
 			self.assertNotIn("Vue 1", texte)                                  # légendes des photos masquées
 			self.assertIn("Voir en ligne", texte)                             # celle du QR reste
-			page = next(p for p in doc if p.search_for("Photos et illustrations"))
-			haut = page.search_for("Photos et illustrations")[0].y1
+			page = next(p for p in doc if p.search_for("Le produit en images"))
+			haut = page.search_for("Le produit en images")[0].y1
 			grande = max((r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut), key=lambda r: r.width * r.height)
 			self.assertAlmostEqual(grande.width, 0.45 * 174 * 72 / 25.4, delta=1 * 72 / 25.4)
 		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 2, "legende_alignement": "centre", "legende_couleur": "titres"})
@@ -594,8 +623,8 @@ class TestLargeurMosaique(unittest.TestCase):
 		assets = {"images": [f"images/image-{i}.png" for i in range(5)], "dimensions": {f"images/image-{i}.png": (400, 300) for i in range(5)}}
 		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(5)})
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
-			page = next(p for p in doc if p.search_for("Photos et illustrations"))
-			haut = page.search_for("Photos et illustrations")[0].y1
+			page = next(p for p in doc if p.search_for("Le produit en images"))
+			haut = page.search_for("Le produit en images")[0].y1
 			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
 			grande = max(rects, key=lambda r: r.width * r.height)
 			self.assertAlmostEqual(grande.width, 174 * 0.7 * 0.6 * 72 / 25.4, delta=1 * 72 / 25.4)   # 60 % de 70 % de la ligne
@@ -733,7 +762,7 @@ class TestGalerieLibreEtPolices(unittest.TestCase):
 			self.assertTrue(any("Montserrat" in f for f in polices), polices)
 			self.assertTrue(any("Oswald" in f for f in polices), polices)
 		# Page entière : le bloc commence sur une page neuve, la grille prend la hauteur calculée.
-		m2 = {"style_galerie": "grille", "colonnes_photos": 2, "galerie_pleine_page": 1}
+		m2 = {"style_galerie": "grille", "colonnes_photos": 2, "galerie_pleine_page": 1, "ordre": list(M.ORDRE)}
 		with patch.object(C, "octets", side_effect=lambda u: octets[u]):
 			tex2, pdf2, _ = L.composer(c, {**ctx, "mise_en_page": m2})
 		self.assertEqual(tex2.count(r"\clearpage"), 2)                            # une page réservée : saut avant et après

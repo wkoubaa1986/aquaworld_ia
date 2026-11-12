@@ -482,7 +482,7 @@ après l’avoir cochée).
 
 **À la création d’un dossier** (12/11/2026, v0.47.0), sans rien cliquer : l’image de l’article parent et ses
 pièces jointes image entrent dans les photos du dossier (la première est la photo principale, les suivantes
-vont aux « Autres illustrations » ; une même image n’entre qu’une fois, 20 au plus), et le **QR code du
+vont aux « Le produit en images » ; une même image n’entre qu’une fois, 20 au plus), et le **QR code du
 produit sur le site** est posé sur la fiche et le manuel quand l’article est lié à WooCommerce (légende
 « Voir le produit en ligne », en fin de document — à déplacer ou à vider à l’étape Présenter). Le logo
 vient déjà seul de l’image de la marque de l’article (fiche Marque, champ Image). Les photos des variantes
@@ -724,7 +724,7 @@ choisir la police de tout le document, créer un autre document pour un autre pr
   ligne, dernière incomplète comprise, avec 3 % d’écart entre les cases ; les parts sont réduites si besoin pour que la
   ligne tienne, jamais agrandies. **Largeur de la galerie** (50–100 % de la ligne) : en dessous de 100, la grille ou la
   galerie libre est centrée dans un cadre, proportions internes conservées (comme la mosaïque).
-- **Remplir une page entière** : le bloc « Autres illustrations » a sa page à lui (`\clearpage` avant et après, les
+- **Remplir une page entière** : le bloc « Le produit en images » a sa page à lui (`\clearpage` avant et après, les
   blocs suivants repartent sur une page neuve) et la
   hauteur des vignettes de la grille est calculée d’après le nombre de rangées (`latex.hauteur_pleine_page`, 232 mm
   utiles, légendes comprises, 25–150 mm) ; une photo large reste bornée par sa colonne. Le titre du bloc ne reste
@@ -796,7 +796,7 @@ disposition ; le PDF final dépend du contenu et de la pagination A4.
 
 **QR code d’un lien internet** (06/11/2026) : dans la mise en page de chaque onglet, saisir
 le lien (https://…, par exemple la page du produit sur le site), une légende affichée sous
-le code, sa position (au-dessus du titre, sous le titre, dans « Autres illustrations » comme
+le code, sa position (au-dessus du titre, sous le titre, dans « Le produit en images » comme
 dernière vignette de la galerie — il prend la case libre de la grille, ou reste seul sous le titre
 du bloc s’il n’y a pas d’autre photo —, à la fin du document), son alignement
 et sa taille (15 à 40 mm). **Reprendre le lien WooCommerce de l’article** remplit le lien depuis
