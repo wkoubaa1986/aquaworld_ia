@@ -7,3 +7,4 @@
 aquaworld_ia.patches.v0_7.tarifs_texte_auto
 aquaworld_ia.patches.v0_25.reparer_fichiers_doubles
 aquaworld_ia.patches.v0_44.role_aquaworld_ia_equipe
+aquaworld_ia.patches.v0_48.entete_officiel_fiches_manuels

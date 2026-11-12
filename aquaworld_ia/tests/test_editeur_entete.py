@@ -18,6 +18,27 @@ from aquaworld_ia.documents_produit import service as API
 from aquaworld_ia.documents_produit import structure as S
 
 
+class TestPatchEnteteOfficiel(unittest.TestCase):
+	"""12/11/2026 : le modèle « AquaWorld — En-tête officiel · Fiches techniques & manuels » créé en prod par patch."""
+
+	def test_le_patch_est_complet(self):
+		from aquaworld_ia import transfert
+		from aquaworld_ia.patches.v0_48 import entete_officiel_fiches_manuels as P
+
+		self.assertEqual(P.NOM, "AquaWorld — En-tête officiel · Fiches techniques & manuels")
+		self.assertLessEqual(len(P.NOM), 140)
+		self.assertNotRegex(P.NOM, "[<>]")                       # refusés dans un nom Frappe
+		c = V.normaliser(P.CONFIGURATION)                         # acceptée telle quelle par l'éditeur visuel
+		self.assertEqual((c["logo"], c["disposition"], c["alignement_contact_1"]), (P.LOGO, "gauche", "droite"))
+		self.assertIn("sales@aquaworldservicing.com", c["contact_1"])
+		self.assertIn("support@aquaworldservicing.com", c["contact_2"])
+		logo = Path(transfert.DOSSIER) / "entetes" / Path(P.LOGO).name
+		with Image.open(logo) as im:                              # le logo voyage avec l'app
+			self.assertGreater(min(im.size), 50)
+		racine = Path(transfert.DOSSIER).parent
+		self.assertIn("aquaworld_ia.patches.v0_48.entete_officiel_fiches_manuels", (racine / "patches.txt").read_text().split())
+
+
 class TestConfigurationEntete(unittest.TestCase):
 	def test_validation_et_texte_echappe(self):
 		base = {**V.DEFAUTS, "nom_societe": '<script>alert("x")</script> & Société'}
