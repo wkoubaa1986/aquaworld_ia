@@ -15,6 +15,7 @@
   "consignes",
   "connaissances_generales",
   "mises_en_page",
+  "plans",
   "variantes",
   "sources",
   "images",
@@ -31,6 +32,12 @@
    "fieldname": "mises_en_page",
    "fieldtype": "Long Text",
    "label": "Mises en page des documents",
+   "hidden": 1
+  },
+  {
+   "fieldname": "plans",
+   "fieldtype": "Long Text",
+   "label": "Plans des documents",
    "hidden": 1
   },
   {
@@ -195,7 +202,7 @@
   }
  ],
  "creation": "2026-11-04 10:00:00.000000",
- "modified": "2026-11-04 10:00:00.000000",
+ "modified": "2026-11-12 18:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "sort_field": "modified",

@@ -240,13 +240,3 @@ def portable(disposition):
 	m.pop("photo_grande", None)
 	m.pop("largeurs_photos", None)
 	return m
-
-
-def plan_rubriques(genre, contenu):
-	"""Les titres des rubriques d'une version, en consigne de rédaction pour un autre produit : « Plan des rubriques
-	à suivre (Fiche technique), dans cet ordre : A ; B ; C. » -> '' sans rubrique."""
-	titres = [s.get("titre", "").strip() for s in (contenu or {}).get("sections", []) if s.get("titre", "").strip()]
-	if not titres:
-		return ""
-	return f"Plan des rubriques à suivre ({genre}), dans cet ordre : " + " ; ".join(titres) + "."
-

@@ -12,6 +12,7 @@ from frappe.utils.file_manager import save_file
 
 from aquaworld_ia.documents_produit import contexte as C
 from aquaworld_ia.documents_produit import mise_en_page as M
+from aquaworld_ia.documents_produit import plan as PL
 from aquaworld_ia.documents_produit import structure as S
 
 
@@ -140,7 +141,7 @@ def charger(name):
 		except (ValueError, frappe.PermissionError, frappe.DoesNotExistError, OSError):
 			erreur_entete = "L’en-tête sélectionné est incomplet ou inaccessible. Choisissez un autre modèle ou corrigez-le."
 			ctx["entete"] = {"nom": d.entete, "indisponible": True}
-	empreintes = {genre: S.empreinte(M.appliquer(ctx, d, genre)) for genre in S.TYPES}
+	empreintes = {genre: S.empreinte(M.appliquer(PL.appliquer(ctx, d, genre), d, genre)) for genre in S.TYPES}
 	versions = frappe.get_list(
 		C.DOCUMENT,
 		filters={"dossier": d.name},
@@ -389,6 +390,9 @@ def enregistrer(name, data, modified=None):
 			d.set(k, data[k])
 	if "mises_en_page" in data:
 		d.mises_en_page = json.dumps(M.configuration(data["mises_en_page"]), ensure_ascii=False)
+	if "plans" in data:
+		plans = PL.configuration(data["plans"])
+		d.plans = json.dumps(plans, ensure_ascii=False) if plans else ""
 	for table, champs in (
 		("variantes", ("article",)),
 		("sources", ("fichier", "pages", "article")),
@@ -405,8 +409,9 @@ def copier_presentation(name, source, elements):
 	"""Reprend d'un autre dossier sa présentation pour ce produit (demande 07/11/2026 : « créer un autre document pour un
 	autre produit en respectant la même mise en forme »). `elements` : mise_en_page (fiche et manuel, sans ce qui désigne
 	des photos du dossier d'origine), marque (marque, logo avec en-tête, en-tête), consignes (consignes et connaissances
-	générales), plan (titres des rubriques des dernières versions françaises, ajoutés aux consignes pour que l'IA suive le
-	même plan). Photos, variantes, sources et textes restent ceux de ce dossier. -> {source, repris, modified}"""
+	générales), plan (le plan du document du dossier modèle — fiche et manuel — ou, s'il n'en a pas, les rubriques et
+	sous-rubriques de ses dernières versions françaises : l'IA suit le même plan pour ce produit). Photos, variantes,
+	sources et textes restent ceux de ce dossier. -> {source, repris, modified}"""
 	d = dossier(name, "write", True)
 	s = dossier(source)
 	if s.name == d.name:
@@ -426,18 +431,32 @@ def copier_presentation(name, source, elements):
 		d.connaissances_generales = s.get("connaissances_generales") or 0
 		repris.append("consignes")
 	if "plan" in elements:
-		plans = []
+		plans = PL.configuration(d.get("plans"))
 		for genre in S.TYPES:
-			v = frappe.get_all(C.DOCUMENT, filters={"dossier": s.name, "langue": "fr", "type_document": genre, "variante": ["is", "not set"]},
-				fields=["contenu_json"], order_by="numero desc", limit=1)
-			plan = M.plan_rubriques(genre, json.loads(v[0].contenu_json)) if v else ""
-			if plan and plan not in (d.consignes or ""):
-				plans.append(plan)
+			plan = PL.pour_document(s, genre) or _plan_derniere_version(s.name, genre)
+			if plan:
+				plans[PL.TYPES[genre]] = plan
 		if plans:
-			d.consignes = ((d.consignes or "").rstrip() + "\n\n" + "\n".join(plans)).strip()
-			repris.append("plan des rubriques")
+			d.plans = json.dumps(plans, ensure_ascii=False)
+			repris.append("plan du document")
 	d.save()
 	return {"source": s.titre, "repris": repris, "modified": d.modified}
+
+
+def _plan_derniere_version(name, genre):
+	"""Le plan tiré de la dernière version française du produit : ses rubriques et leurs sous-titres."""
+	v = frappe.get_all(C.DOCUMENT, filters={"dossier": name, "langue": "fr", "type_document": genre, "variante": ["is", "not set"]},
+		fields=["contenu_json"], order_by="numero desc, creation desc", limit=1)
+	return PL.depuis_contenu(json.loads(v[0].contenu_json)) if v else []
+
+
+@frappe.whitelist()
+def plan_depuis_version(name, type_document):
+	"""Pour partir de l'existant à l'étape Préparer : le plan de la dernière version française de ce type."""
+	d = dossier(name)
+	if type_document not in S.TYPES:
+		frappe.throw(_("Type de document invalide."))
+	return _plan_derniere_version(d.name, type_document)
 
 
 @frappe.whitelist()
@@ -594,6 +613,24 @@ def traiter_point(name, document_name, point, information, destination=None, con
 		ctx["connaissances_generales"] = 1
 	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
 	return traitement.traiter_point(d, v.type_document, ctx, c, point, information, _json(destination) if destination else None)
+
+
+@frappe.whitelist()
+def completer_caracteristiques(name, document_name, information="", contenu=None):
+	"""Complète le tableau des caractéristiques avec l'IA, depuis le contenu à l'écran : avec le texte collé par
+	l'utilisateur, ou, sans texte, en relisant l'article et les sources de la version. Rien n'est enregistré : l'écran
+	reprend le contenu, l'utilisateur relit puis enregistre. Un appel IA, compté dans les coûts du dossier."""
+	from aquaworld_ia.documents_produit import traitement
+
+	d = dossier(name, "write")
+	v = document(document_name, "write")
+	if v.dossier != name:
+		frappe.throw(_("Choisissez une version de ce dossier."))
+	if v.langue != "fr":
+		frappe.throw(_("Complétez la version française, puis traduisez-la : la traduction repart du français."))
+	ctx = json.loads(v.contexte_json)
+	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
+	return traitement.completer_caracteristiques(d, v.type_document, ctx, c, information)
 
 
 @frappe.whitelist()

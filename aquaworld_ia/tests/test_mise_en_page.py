@@ -764,14 +764,11 @@ class TestGalerieLibreEtPolices(unittest.TestCase):
 			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
 				M.normaliser(mauvais)
 
-	def test_portable_et_plan_des_rubriques(self):
+	def test_portable(self):
 		m = M.portable({"photo_grande": "/files/a.png", "largeurs_photos": {"/files/a.png": 50}, "police": "lato", "colonnes_photos": 3})
 		self.assertEqual((m.get("police"), m.get("colonnes_photos")), ("lato", 3))
 		self.assertNotIn("photo_grande", m)
 		self.assertNotIn("largeurs_photos", m)
-		plan = M.plan_rubriques("Fiche technique", {"sections": [{"titre": "Applications"}, {"titre": " "}, {"titre": "Entretien"}]})
-		self.assertEqual(plan, "Plan des rubriques à suivre (Fiche technique), dans cet ordre : Applications ; Entretien.")
-		self.assertEqual(M.plan_rubriques("Manuel d'utilisation", {"sections": []}), "")
 
 	def test_empaquetage_polices_et_hauteur_pleine_page(self):
 		self.assertEqual(L.empaqueter([(1, 50), (2, 50), (3, 30), (4, 30), (5, 40), (6, 100), (None, 25)]),

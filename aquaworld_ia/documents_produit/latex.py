@@ -20,6 +20,7 @@ from frappe.utils.file_manager import save_file
 
 from aquaworld_ia.documents_produit import contexte as C
 from aquaworld_ia.documents_produit import mise_en_page as M
+from aquaworld_ia.documents_produit import plan as PL
 from aquaworld_ia.documents_produit import unites
 
 ECHAPPE = {
@@ -438,6 +439,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \newcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\phantomsection\addcontentsline{toc}{section}{#1}}
 \makeatletter
 \newcommand{\docsectionsouple}[1]{\@secpenalty=\z@ \docsection{#1}\@secpenalty=-300\relax}
+% Sous-titre dans une rubrique (ligne « ## Titre » du texte) : jamais séparé du paragraphe qui le suit.
+\newcommand{\docsoustitre}[1]{\@startsection{subsection}{2}{\z@}{-1.6ex \@plus -.5ex \@minus -.2ex}{.3ex \@plus .2ex}{\normalfont\normalsize\bfseries\color{aqua}\titrefont}*{#1}}
 \newdimen\dpreste\newdimen\dppetite\newdimen\dpcolonne
 % Mosaïque à la mesure de la page : #1 écarts entre petites (mm), #2 nombre de petites, #3 hauteur voulue d'une
 % petite (mm), #4 hauteur minimale (mm). \dppetite et \dpcolonne (hauteur de la colonne = de la grande photo)
@@ -769,7 +772,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		blocs["rubriques"].append(r"\docsection{" + t(s["titre"]) + "}")
 		if s.get("article") and not fiche_variante:
 			blocs["rubriques"].append(r"{\small " + t(labels["portee"] + " : " + s["article"]) + r"}\par")
-		corps = t(s["texte"]) + r"\par"
+		# Une ligne « ## Titre » du texte est un sous-titre de la rubrique (plan du document, 12/11/2026).
+		corps = "\n".join(r"\docsoustitre{" + t(m) + "}" if nature == "titre" else t(m) + r"\par"
+			for nature, m in PL.decouper(s["texte"])) or r"\par"
 		fichier = (assets.get("sections") or {}).get(i)
 		position = s.get("image_position", "droite")
 		largeur = s.get("image_largeur", 40) / 100

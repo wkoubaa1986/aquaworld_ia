@@ -47,6 +47,13 @@ const dpGraphSvg=g=>{const W=140,H=90,p=8,cats=g.categories||[],series=g.series|
   else{const horiz=g.type==='barres_horizontales',n=cats.length||1,m=series.length||1,slot=(horiz?H-2*p:W-2*p)/n,bw=slot*0.7/m;body=series.map((s,k)=>(s.valeurs||[]).map((v,i)=>{const len=(horiz?W-2*p:H-2*p)*Math.max(0,v)/max,off=p+i*slot+slot*0.15+k*bw;return horiz?`<rect x="${p}" y="${off}" width="${len}" height="${bw}" fill="${cols[k%cols.length]}"/>`:`<rect x="${off}" y="${H-p-len}" width="${bw}" height="${len}" fill="${cols[k%cols.length]}"/>`;}).join('')).join('');}
   return `<svg viewBox="0 0 ${W} ${H}" aria-label="Aperçu du graphe">${body}</svg>`;};
 
+// Plan du document (12/11/2026) : rubriques proposées par type ; l'utilisateur coche, ordonne, ajoute les siennes.
+const DP_PLAN_SUGGESTIONS={fiche:['Applications','Points forts','Fonctionnement','Composition','Installation','Utilisation','Entretien','Options et accessoires'],
+  manuel:['Consignes de sécurité','Contenu de l’emballage','Installation','Mise en service','Utilisation','Entretien','Dépannage','Garantie et service']};
+// Même règle que plan.cle côté serveur : casse, accents et ponctuation ne distinguent pas deux rubriques.
+const dpPlanCle=t=>String(t||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const dpPlanResume=plan=>plan.map(r=>r.titre+(r.sous.length?' ('+r.sous.join(' ; ')+')':'')).join(' → ');
+
 class DocumentsProduit {
   constructor(page, root) { this.page=page; this.root=root; this.name=null; this.current=null; this.dirty=false; this.activeTab='fiche'; this.activeStep='preparer'; this.selectedVersions={}; }
   async ouvrir() {
@@ -164,7 +171,7 @@ class DocumentsProduit {
         <p>${manuel?'Cet onglet prépare un manuel pour accompagner l’installation, l’utilisation, l’entretien et le dépannage du produit, à partir des informations disponibles.':'Cet onglet prépare une fiche pour présenter le produit, ses applications, ses caractéristiques techniques et les variantes sélectionnées.'}</p>
         <ol class="dp-help-steps">
           <li><strong>Préparer.</strong> Cochez les variantes couvertes, ajoutez vos sources avec <b>Ajouter un document</b> et choisissez les photos avec <b>Choisir les photos des articles</b> (plusieurs vues par variante, ou <b>Suggérer les photos principales</b>). <b>Importer des photos</b> accepte plusieurs fichiers. Chaque photo garde sa variante, sa légende et son ordre ; la première est la <b>Photo principale</b>.
-            <p>${manuel?'Ajoutez les notices du fabricant, les schémas et les photos utiles aux étapes d’installation ou d’entretien. Dans Consignes de rédaction, indiquez le public visé et les rubriques souhaitées.':'Vérifiez les données de l’article en cliquant sur sa référence en haut de la page. Renseignez les dimensions, matériaux, performances et applications dans l’article ou les documents sources. Utilisez Consignes de rédaction pour indiquer le public visé et le style souhaité.'}</p>
+            <p>${manuel?'Ajoutez les notices du fabricant, les schémas et les photos utiles aux étapes d’installation ou d’entretien. Dans Plan du manuel, choisissez les rubriques à rédiger ; dans Consignes de rédaction, indiquez le public visé et le style.':'Vérifiez les données de l’article en cliquant sur sa référence en haut de la page. Renseignez les dimensions, matériaux, performances et applications dans l’article ou les documents sources. Dans Plan de la fiche technique, choisissez les rubriques à rédiger ; utilisez Consignes de rédaction pour le public visé et le style.'}</p>
             <p><b>Sans PDF de référence :</b> l’IA part des données de l’article et des variantes. Vos consignes guident la rédaction, mais ne remplacent pas une source technique. Les informations manquantes restent à vérifier${manuel?', notamment les procédures d’installation, d’utilisation et de sécurité':''}.</p>
           </li>
           <li><strong>Présenter.</strong> Réglez <b>Marque et logo</b>, <b>En-tête des PDF</b> et <b>Mise en page</b>. La marque, l’en-tête, les sources et les photos sont communs à la fiche et au manuel ; la mise en page est propre à chaque onglet.</li>
@@ -308,7 +315,7 @@ class DocumentsProduit {
       {fieldtype:'Check',fieldname:'mise_en_page',label:'Mise en page de la fiche technique et du manuel (polices, titres, galeries, ordre des blocs, QR)',default:1},
       {fieldtype:'Check',fieldname:'marque',label:'Marque, logo et en-tête des PDF',default:1},
       {fieldtype:'Check',fieldname:'consignes',label:'Consignes de rédaction (et connaissances générales)',default:1},
-      {fieldtype:'Check',fieldname:'plan',label:'Plan des rubriques de ses dernières versions françaises, ajouté aux consignes : l’IA suit les mêmes rubriques pour ce produit',default:1},
+      {fieldtype:'Check',fieldname:'plan',label:'Plan du document (fiche et manuel) : ses rubriques et sous-rubriques, que l’IA suivra aussi pour ce produit',default:1},
       {fieldtype:'HTML',fieldname:'info',options:'<p class="text-muted small">Les photos, variantes et sources restent celles de ce dossier ; la photo en grand de la mosaïque et les largeurs par photo ne sont pas reprises. Aucun texte n’est copié : le contenu sera rédigé pour cet article à l’étape Rédiger, puis relu.</p>'}],
       primary_action_label:'Reprendre',primary_action:async v=>{
         d.hide();if(this.dirty)await this.saveDocument();await this.saveConfig();
@@ -514,6 +521,7 @@ class DocumentsProduit {
     this.loadSequence=(this.loadSequence||0)+1;
     this.brandInfo=null;this.brandLoading=true;
     this.layouts=typeof this.data.dossier.mises_en_page==='string'?JSON.parse(this.data.dossier.mises_en_page||'{}'):(this.data.dossier.mises_en_page||{});
+    this.plans=typeof this.data.dossier.plans==='string'?JSON.parse(this.data.dossier.plans||'{}'):(this.data.dossier.plans||{});
     const d=this.data.dossier, selected=new Set(d.variantes.map(v=>v.article)),versions=this.documentsActifs(),manuel=this.activeTab==='manuel';
     const c=this.data.couts_ia,total=c?dpMoney(c.total):'';
     this.root.html(`<div class="dp-top"><div><a href="/app/documents-produit" class="dp-muted">← Tous les dossiers</a><h2>${dpEsc(d.titre)}</h2><div class="dp-sub"><a href="/app/item/${encodeURIComponent(d.article)}">${dpEsc(d.article)}</a> · ${dpEsc(this.data.contexte.marque_document||this.data.contexte.article.brand)} · français de référence${c?` · coût IA du dossier : ${total}`:''}</div></div>
@@ -528,6 +536,7 @@ class DocumentsProduit {
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Consignes de rédaction <span class="dp-muted dp-shared">commun à la fiche et au manuel</span></h3><select class="form-control input-sm dp-consignes-modele" aria-label="Modèle de consignes" style="max-width:260px"><option value="">Partir d’un modèle…</option>${DP_CONSIGNES.map(m=>`<option value="${dpEsc(m.nom)}">${dpEsc(m.nom)}</option>`).join('')}</select></div><textarea class="form-control dp-consignes" rows="3" placeholder="Facultatif. Public visé, ton, longueur, rubriques à privilégier… L’IA s’en sert pour la forme, jamais comme source technique.">${dpEsc(d.consignes)}</textarea>
       <label class="dp-label" style="margin-top:12px"><input type="checkbox" class="dp-connaissances" ${d.connaissances_generales?'checked':''}> Compléter avec les connaissances générales sur ce type de produit</label>
       <p class="dp-muted" style="margin:4px 0 0">Sans source, l’IA décrit alors les usages, le fonctionnement et l’entretien habituels de ce type de produit, en le signalant dans les points à vérifier. Les chiffres, normes et garanties restent interdits sans source. Décoché : les rubriques sans source restent vides.</p></div>
+      <div class="dp-card dp-plan-card"></div>
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Variantes couvertes <span class="dp-muted dp-variant-count"></span></h3><input class="form-control input-sm dp-search" placeholder="Filtrer…" style="max-width:220px"><button class="btn btn-xs btn-default" data-select-all="1">Toutes</button><button class="btn btn-xs btn-default" data-select-all="0">Aucune</button></div>
       <div class="dp-variants">${this.variantTable(selected)}</div></div>
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Sources <span class="dp-muted">manuels PDF, photos de pages</span></h3><button class="btn btn-default btn-sm dp-upload-source">Ajouter un document</button><button class="btn btn-default btn-sm dp-existing">Documents déjà liés aux articles</button></div>
@@ -557,6 +566,7 @@ class DocumentsProduit {
       <section class="dp-step" data-step="rediger" hidden>
       <div class="dp-card"><h3>${manuel?'Rédiger le manuel d’utilisation':'Rédiger la fiche technique'}</h3>
       <p class="dp-sub">${manuel?'L’IA rédige les instructions d’installation, d’utilisation et d’entretien à partir des sources et des données des articles, puis enregistre une version française à relire.':'L’IA rédige la présentation, les rubriques et les caractéristiques à partir des sources et des données des articles, puis enregistre une version française à relire.'}</p>
+      <p class="dp-sub dp-plan-resume" style="margin-top:8px"></p>
       <div class="dp-actions" style="margin-top:14px"><button class="btn btn-primary" data-generate="${this.activeTab}">${manuel?'Créer le manuel':'Créer la fiche technique'}</button><button class="btn btn-default" data-generate="les_deux">Créer les deux</button><span class="dp-muted dp-bar-hint"></span></div></div>
       <div class="dp-card dp-costs"></div>
       </section>
@@ -614,7 +624,7 @@ class DocumentsProduit {
   }
   configValues() {
     const d=this.data.dossier;
-    return {mises_en_page:this.layouts||{},marque_document:this.root.find('.dp-brand').val()||'',logo_marque_avec_entete:this.root.find('.dp-brand-with-header').prop('checked')?1:0,entete:this.root.find('.dp-letterhead').val()||'',consignes:this.root.find('.dp-consignes').val()||'',connaissances_generales:this.root.find('.dp-connaissances').prop('checked')?1:0,variantes:this.root.find('.dp-variants .dp-variant input:checked').map((_,el)=>({article:el.value})).get(),
+    return {mises_en_page:this.layouts||{},plans:this.plansPropres(),marque_document:this.root.find('.dp-brand').val()||'',logo_marque_avec_entete:this.root.find('.dp-brand-with-header').prop('checked')?1:0,entete:this.root.find('.dp-letterhead').val()||'',consignes:this.root.find('.dp-consignes').val()||'',connaissances_generales:this.root.find('.dp-connaissances').prop('checked')?1:0,variantes:this.root.find('.dp-variants .dp-variant input:checked').map((_,el)=>({article:el.value})).get(),
       sources:this.root.find('.dp-sources-row').map((_,el)=>{const z=$(el),s=d.sources[+z.attr('data-index')];return {fichier:s.fichier,pages:z.find('.dp-pages').val(),article:z.find('.dp-source-scope').val()};}).get(),
       images:this.root.find('.dp-image').map((_,el)=>{const z=$(el),im=d.images[+z.attr('data-index')];return {image:im.image,legende:z.find('.dp-caption').val(),article:z.find('.dp-image-scope').val()};}).get()};
   }
@@ -632,7 +642,49 @@ class DocumentsProduit {
     Object.assign(this.data.dossier,values,{modified:r.modified});this.lastConfig=JSON.stringify(values);
     if(redraw){this.data=await dpCall('charger',{name:this.name});this.rendre();frappe.show_alert({message:'Dossier enregistré',indicator:'green'});}
   }
+  // ---- plan du document : les rubriques (et sous-rubriques) que l'IA doit rédiger, par type de document.
+  planActif() { return this.plans?.[this.activeTab]||[]; }
+  plansPropres() {
+    // Ce qui est enregistré : sans les lignes laissées vides, sans les plans vides.
+    const propres={};
+    for(const [cle,plan] of Object.entries(this.plans||{})){const p=(plan||[]).filter(r=>(r.titre||'').trim()).map(r=>({titre:r.titre.trim(),sous:(r.sous||[]).map(x=>x.trim()).filter(Boolean)}));if(p.length)propres[cle]=p;}
+    return propres;
+  }
+  renderPlan(focus=null) {
+    const z=this.root.find('.dp-plan-card');if(!z.length)return;
+    const manuel=this.activeTab==='manuel',plan=this.planActif(),ecrire=!!this.data.peut_ecrire;
+    const pris=new Set(plan.map(r=>dpPlanCle(r.titre)));
+    const existe=this.data.documents.some(v=>v.type_document===DP_TYPES[this.activeTab]&&v.langue==='fr'&&!v.variante);
+    z.html(`<div class="dp-actions dp-card-head"><h3>Plan ${manuel?'du manuel':'de la fiche technique'} <span class="dp-muted dp-shared">propre ${manuel?'au manuel':'à la fiche'}</span></h3></div>
+      <p class="dp-muted" style="margin:0 0 8px">Choisissez les rubriques que l’IA doit rédiger, dans l’ordre voulu. Elle suit ce plan à la prochaine rédaction : une rubrique sans information devient un point à vérifier, pas un texte inventé. Sans plan, elle choisit elle-même les rubriques.</p>
+      <div class="dp-plan-suggestions">${DP_PLAN_SUGGESTIONS[this.activeTab].map(t=>{const on=pris.has(dpPlanCle(t));return `<button type="button" class="btn btn-xs dp-plan-chip ${on?'btn-primary':'btn-default'}" data-titre="${dpEsc(t)}" aria-pressed="${on}">${on?'✓':'+'} ${dpEsc(t)}</button>`;}).join('')}</div>
+      ${plan.length?`<ol class="dp-plan-list">${plan.map((r,i)=>`<li class="dp-plan-row" data-index="${i}"><span class="dp-section-num">${i+1}</span><input class="form-control input-sm dp-plan-titre" value="${dpEsc(r.titre)}" maxlength="120" placeholder="Titre de la rubrique" aria-label="Titre de la rubrique ${i+1}"><input class="form-control input-sm dp-plan-sous" value="${dpEsc((r.sous||[]).join(' ; '))}" placeholder="Sous-rubriques, séparées par ; (facultatif)" aria-label="Sous-rubriques de la rubrique ${i+1}"><span class="dp-section-tools"><button type="button" class="btn btn-xs btn-default dp-plan-up" title="Monter" ${i?'':'disabled'}>↑</button><button type="button" class="btn btn-xs btn-default dp-plan-down" title="Descendre" ${i<plan.length-1?'':'disabled'}>↓</button><button type="button" class="btn btn-xs btn-default dp-plan-remove" title="Retirer du plan">×</button></span></li>`).join('')}</ol>`:'<p class="dp-muted dp-plan-vide">Aucune rubrique imposée : l’IA choisit.</p>'}
+      <div class="dp-actions"><button type="button" class="btn btn-default btn-xs dp-plan-add">Ajouter une rubrique</button>${existe?'<button type="button" class="btn btn-default btn-xs dp-plan-version">Reprendre les rubriques de la dernière version</button>':''}${plan.length?'<button type="button" class="btn btn-default btn-xs dp-plan-clear">Vider le plan</button>':''}</div>`);
+    const poser=(p,f=null)=>{this.plans={...(this.plans||{}),[this.activeTab]:p};this.renderPlan(f);this.planChange();};
+    const lire=()=>z.find('.dp-plan-row').map((_,el)=>({titre:$(el).find('.dp-plan-titre').val(),sous:String($(el).find('.dp-plan-sous').val()||'').split(/[;\n]/).map(x=>x.trim()).filter(Boolean)})).get();
+    // La saisie met le plan à jour sans redessiner la liste (le curseur reste en place) ; les puces suivent.
+    z.find('.dp-plan-titre,.dp-plan-sous').on('input',()=>{this.plans={...(this.plans||{}),[this.activeTab]:lire()};const p=new Set(this.planActif().map(r=>dpPlanCle(r.titre)));z.find('.dp-plan-chip').each((_,el)=>{const on=p.has(dpPlanCle(el.dataset.titre));$(el).toggleClass('btn-primary',on).toggleClass('btn-default',!on).attr('aria-pressed',String(on)).text((on?'✓ ':'+ ')+el.dataset.titre);});this.planChange();});
+    z.find('.dp-plan-chip').on('click',e=>{const t=e.currentTarget.dataset.titre,p=lire();const i=p.findIndex(r=>dpPlanCle(r.titre)===dpPlanCle(t));if(i>=0)p.splice(i,1);else p.push({titre:t,sous:[]});poser(p);});
+    z.find('.dp-plan-up,.dp-plan-down').on('click',e=>{const p=lire(),i=+$(e.currentTarget).closest('.dp-plan-row').attr('data-index'),j=i+($(e.currentTarget).hasClass('dp-plan-up')?-1:1);if(j<0||j>=p.length)return;[p[i],p[j]]=[p[j],p[i]];poser(p);});
+    z.find('.dp-plan-remove').on('click',e=>{const p=lire();p.splice(+$(e.currentTarget).closest('.dp-plan-row').attr('data-index'),1);poser(p);});
+    z.find('.dp-plan-add').on('click',()=>{const p=lire();if(p.length>=20)return frappe.msgprint('Vingt rubriques au plus dans un plan.');p.push({titre:'',sous:[]});poser(p,p.length-1);});
+    z.find('.dp-plan-clear').on('click',()=>frappe.confirm('Vider le plan ? L’IA choisira elle-même les rubriques à la prochaine rédaction.',()=>poser([])));
+    z.find('.dp-plan-version').on('click',async()=>{
+      const p=await dpCall('plan_depuis_version',{name:this.name,type_document:DP_TYPES[this.activeTab]});
+      if(!p.length)return frappe.msgprint('La dernière version n’a aucune rubrique.');
+      if(lire().length)frappe.confirm(`Remplacer le plan actuel par les ${p.length} rubrique${p.length>1?'s':''} de la dernière version ?`,()=>poser(p));else poser(p);
+    });
+    if(!ecrire)z.find('button,input').prop('disabled',true);
+    if(focus!==null)z.find('.dp-plan-row').eq(focus).find('.dp-plan-titre').trigger('focus');
+    this.planResume();
+  }
+  planResume() {
+    const plan=(this.plansPropres()[this.activeTab]||[]),manuel=this.activeTab==='manuel';
+    this.root.find('.dp-plan-resume').text(plan.length?`Plan imposé (${plan.length} rubrique${plan.length>1?'s':''}) : ${dpPlanResume(plan)}`:`Sans plan : l’IA choisit les rubriques. Pour les imposer, étape Préparer, « Plan ${manuel?'du manuel':'de la fiche technique'} ».`);
+  }
+  planChange() { this.planResume();this.updateBar(); }
   bindConfig() {
+    this.renderPlan();
     this.lastConfig=JSON.stringify(this.configValues());
     this.root.find('.dp-consignes-modele').on('change',e=>{
       const modele=DP_CONSIGNES.find(m=>m.nom===e.target.value),ta=this.root.find('.dp-consignes');e.target.value='';
@@ -732,9 +784,10 @@ class DocumentsProduit {
       <div class="dp-sub" style="margin-top:8px">${doc.source_fr?`Traduction de la version française <a href="#" class="dp-source-fr">${dpEsc(doc.source_fr)}</a> · `:''}En-tête : ${dpEsc(ctx.entete?.nom||'Logo de la marque')} · Marque : ${dpEsc(ctx.marque_document||ctx.article.brand||'Non renseignée')}</div>
       ${(ctx.marque_document||ctx.article.brand||'')!==(this.data.contexte.marque_document||this.data.contexte.article.brand||'')?'<div class="dp-warning" style="margin-top:10px">Pour utiliser la marque sélectionnée, rédigez une nouvelle version (étape Rédiger).</div>':''}
       <div class="dp-review dp-review-split"><div class="dp-editor" ${doc.rtl?'dir="rtl"':''}><label class="dp-label">Titre</label><input class="form-control dp-title" value="${dpEsc(c.titre)}"><label class="dp-label">Présentation <button type="button" class="btn btn-default btn-xs dp-ia-resume" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ Réécrire avec l’IA…</button></label><textarea class="form-control dp-summary">${dpEsc(c.resume)}</textarea>
+      ${c.sections.length?'<p class="dp-muted" style="margin:10px 0 0">Dans le texte d’une rubrique, une ligne qui commence par ## devient un sous-titre dans le PDF — par exemple « ## Remplacement des cartouches ».</p>':''}
       <div class="dp-sections">${c.sections.map((s,i)=>this.sectionHtml(s,i,c.sections.length,scope,doc)).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
-      <label class="dp-label">Caractéristiques techniques</label><p class="dp-muted">Saisissez la valeur comme dans vos données (3,2 G, 75 GPD, 116 psi, 10") : le PDF l’imprime en unités métriques, calculées, avec la valeur d’origine entre parenthèses — « 12,1 L (3,2 G) ». Une référence, un texte, une valeur déjà métrique ou les pouces d’un raccord restent tels quels.</p><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button>
+      <label class="dp-label">Caractéristiques techniques</label><p class="dp-muted">Saisissez la valeur comme dans vos données (3,2 G, 75 GPD, 116 psi, 10") : le PDF l’imprime en unités métriques, calculées, avec la valeur d’origine entre parenthèses — « 12,1 L (3,2 G) ». Une référence, un texte, une valeur déjà métrique ou les pouces d’un raccord restent tels quels.</p><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button><button type="button" class="btn btn-default btn-xs dp-ia-caracs" style="margin-left:6px" ${doc.langue==='fr'?'':'disabled'} title="L’IA tire les valeurs d’un texte que vous collez, ou relit les sources du dossier">✦ Compléter avec l’IA…</button>
       ${!doc.variante&&(c.variantes||[]).length>1?`<label class="dp-label">Gamme et configurations — texte d’introduction du tableau des variantes <button type="button" class="btn btn-default btn-xs dp-ia-gamme" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ ${c.gamme?'Réécrire':'Rédiger'} avec l’IA…</button></label><p class="dp-muted">Ce texte présente comment la gamme se décline et ce que change chaque option ; il s’imprime sous le titre « Gamme et configurations », juste avant le tableau des variantes. Les nombres (variantes, valeurs par attribut) sont comptés par l’outil. Vide : le tableau seul.</p><textarea class="form-control dp-gamme" rows="5">${dpEsc(c.gamme||'')}</textarea>`:''}
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
       <label class="dp-label">Points à vérifier avant validation</label>
@@ -765,6 +818,7 @@ class DocumentsProduit {
     z.find('.dp-apercu').on('click',()=>this.apercuDocument());
     z.find('.dp-ia-resume').on('click',()=>this.reecrireAvecIA({type:'resume'}));
     z.find('.dp-ia-gamme').on('click',()=>this.reecrireAvecIA({type:'gamme'}));
+    z.find('.dp-ia-caracs').on('click',()=>this.completerCaracsAvecIA());
     z.find('.dp-ia-rubrique').on('click',e=>this.reecrireAvecIA({type:'section',index:+$(e.currentTarget).closest('.dp-section').attr('data-index')}));
     z.find('.dp-validate').on('click',()=>this.lancer('valider'));
     z.find('.dp-source-fr').on('click',async e=>{e.preventDefault();if(this.dirty)await this.saveDocument();await this.loadDocument(doc.source_fr);});
@@ -894,6 +948,25 @@ class DocumentsProduit {
           cibles.forEach(q=>q.addClass('dp-modifie'));cibles[0]?.[0]?.scrollIntoView({behavior:'smooth',block:'center'});
           frappe.msgprint({title:'Point traité par l’IA',indicator:'green',message:`<p>${dpEsc(r.action||'')}</p><ul>${r.changements.map(m=>`<li>${dpEsc(m.libelle)}</li>`).join('')}</ul><p class="dp-muted">Les parties modifiées sont surlignées en vert dans le document. Relisez, puis Enregistrer.</p>`});
         }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'Le traitement a échoué. Précisez l’information et réessayez.')}</div>`);}
+      }});
+    d.show();
+  }
+  completerCaracsAvecIA() {
+    // Compléter le tableau des caractéristiques avec l'IA (demande 12/11/2026) : depuis un texte collé (fiche
+    // fournisseur, notes) ou, sans texte, depuis l'article et les sources de la version. Rien n'est enregistré.
+    if(!this.current)return;
+    const d=new frappe.ui.Dialog({title:'Compléter les caractéristiques avec l’IA',fields:[
+      {fieldtype:'Text',fieldname:'information',label:'Texte à exploiter (facultatif)',description:'Collez un extrait de fiche fournisseur ou vos notes : « Pression de service 1 à 4 bar. Débit 75 GPD. Raccords 1/4". Dimensions 38 × 14 × 42 cm. » L’IA en fait des lignes du tableau (nom, valeur, unité, modèle concerné) et n’ajoute rien que le texte ne dise pas. Laissez vide pour qu’elle relise l’article et les sources du dossier, et ajoute les valeurs qui manquent au tableau.'},
+      {fieldtype:'HTML',fieldname:'etat',options:'<p class="dp-muted">Un appel IA (coût visible dans l’historique du dossier). Le tableau est complété à l’écran ; relisez les lignes surlignées en vert, puis Enregistrer.</p>'}],
+      primary_action_label:'Compléter',primary_action:async v=>{
+        d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">L’IA complète le tableau… (10 à 40 s)</p>');
+        try{
+          const r=await dpCall('completer_caracteristiques',{name:this.name,document_name:this.current.doc.name,information:v.information||'',contenu:this.captureDocument()});
+          this.current.contenu=r.contenu;this.renderDocument();this.dirty=true;this.updateBar();d.hide();
+          const lignes=this.root.find('.dp-editor .dp-caracs tbody tr'),cibles=r.changements.map(m=>lignes.eq(m.index));
+          cibles.forEach(q=>q.addClass('dp-modifie'));cibles[0]?.[0]?.scrollIntoView({behavior:'smooth',block:'center'});
+          frappe.msgprint({title:'Caractéristiques complétées par l’IA',indicator:'green',message:`<p>${dpEsc(r.action||'')}</p><ul>${r.changements.map(m=>`<li>${dpEsc(m.libelle)}</li>`).join('')}</ul><p class="dp-muted">Les lignes ajoutées ou corrigées sont surlignées en vert. Relisez, puis Enregistrer.</p>`});
+        }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'Le tableau n’a pas pu être complété. Réessayez.')}</div>`);}
       }});
     d.show();
   }

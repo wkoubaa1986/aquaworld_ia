@@ -98,6 +98,73 @@ class TestAppliquerLesModifications(unittest.TestCase):
 			S.normaliser({**contenu(), "points_traites": "x"}, contexte_simple())
 
 
+class TestCompleterLesCaracteristiques(unittest.TestCase):
+	TEXTE = "Pression de service 1 à 4 bar. Débit 75 GPD. Raccords 1/4 pouce."
+
+	def _completer(self, reponse, information=TEXTE, ctx=None, c=None):
+		from aquaworld_ia.documents_produit import traitement as T
+
+		with patch.object(T, "chat_json", return_value=reponse) as chat, \
+				patch.object(T.journal, "suivre_generation"), patch.object(T.frappe, "generate_hash", return_value="x"):
+			r = T.completer_caracteristiques(type("D", (), {"name": "DPR-TEST"})(), "Fiche technique", ctx or contexte_simple(), c or contenu(), information)
+		return r, chat.call_args.args[0], json.loads(chat.call_args.args[1])
+
+	def test_les_valeurs_du_texte_colle_deviennent_des_lignes(self):
+		r, system, user = self._completer({"modifications": [
+			{"type": "caracteristique", "nom": "Pression de service", "valeur": "1 à 4", "unite": "bar", "article": ""},
+			{"type": "caracteristique", "nom": "Débit", "valeur": "75", "unite": "GPD", "article": "TEST-P-V"},
+			{"type": "caracteristique", "nom": "pression", "valeur": "3", "unite": "bar", "article": ""},   # déjà au tableau, même valeur
+			{"type": "resume", "texte": "Texte que la consigne interdit."},
+		], "action": "Deux valeurs ajoutées.", "reste_a_verifier": []})
+		c = r["contenu"]
+		self.assertEqual([m["libelle"] for m in r["changements"]],
+			["Caractéristique « Pression de service » ajoutée", "Caractéristique « Débit » ajoutée"])
+		self.assertEqual(len(c["caracteristiques"]), 3)
+		self.assertEqual((c["caracteristiques"][2]["valeur"], c["caracteristiques"][2]["unite"], c["caracteristiques"][2]["article"]), ("75", "GPD", "TEST-P-V"))
+		self.assertTrue(all(x["source"].startswith("Information de l’entreprise (") for x in c["caracteristiques"][1:]))
+		self.assertEqual(c["resume"], contenu()["resume"])                    # seules les caractéristiques sont écrites
+		self.assertEqual(c["points_a_verifier"], contenu()["points_a_verifier"])   # aucun point ajouté, aucun retiré
+		self.assertEqual(r["action"], "Deux valeurs ajoutées.")
+		self.assertEqual(user["information_de_l_entreprise"], self.TEXTE)
+		self.assertIn("caracteristiques", user["document"])
+		self.assertIn("ne les recopie pas", system)
+		self.assertIn("Ne convertis pas", system)
+
+	def test_sans_texte_l_ia_relit_les_sources_et_cite_la_sienne(self):
+		ctx = {**contexte_simple(), "preuves": [{"source": "S1", "fichier": "notice.pdf", "texte": "Pression maximale 6 bar. Poids 4,5 kg.", "incertitudes": []}]}
+		r, _, user = self._completer({"modifications": [
+			{"type": "caracteristique", "nom": "Pression maximale", "valeur": "6", "unite": "bar", "article": "", "source": "S1 p.1"},
+			{"type": "caracteristique", "nom": "Poids", "valeur": "4,5", "unite": "kg", "article": "", "source": "catalogue 2019"},
+			{"type": "caracteristique", "nom": "Tension", "valeur": "24", "unite": "V", "article": "", "source": "Article TEST-P"},
+		], "action": "", "reste_a_verifier": ["Débit illisible page 2."]}, information="", ctx=ctx)
+		lignes = {x["nom"]: x for x in r["contenu"]["caracteristiques"]}
+		self.assertEqual(user["information_de_l_entreprise"], "")
+		self.assertEqual(lignes["Pression maximale"]["source"], "S1 p.1")       # source connue : gardée
+		self.assertEqual(lignes["Poids"]["source"], "Source à confirmer")       # source inconnue : à confirmer
+		ouverts = r["contenu"]["points_a_verifier"]
+		self.assertIn("Source à confirmer : Poids", ouverts)
+		self.assertIn("Débit illisible page 2.", ouverts)
+		self.assertTrue(any("absents de votre texte et des sources" in p and "24" in p for p in ouverts))   # 24 n'est nulle part
+		self.assertFalse(any("4,5" in p for p in ouverts if "absents" in p))
+		self.assertTrue(r["action"].startswith("Caractéristique « Pression maximale » ajoutée"))   # sans phrase de l'IA
+
+	def test_rien_a_ajouter(self):
+		for information in (self.TEXTE, ""):
+			with self.subTest(information=information), self.assertRaises(ValueError) as e:
+				self._completer({"modifications": [{"type": "caracteristique", "nom": "Pression", "valeur": "3", "unite": "bar", "article": ""}]}, information=information)
+			self.assertIn("Aucune valeur technique" if information else "Rien à ajouter", str(e.exception))
+
+	def test_dans_la_fiche_d_une_variante_la_ligne_lui_est_propre(self):
+		ctx = {**contexte_simple(), "variante": "TEST-P-V"}
+		r, _, _ = self._completer({"modifications": [
+			{"type": "caracteristique", "nom": "Pression", "valeur": "4", "unite": "bar", "article": ""},
+			{"type": "caracteristique", "nom": "Débit", "valeur": "75", "unite": "GPD", "article": ""}]},
+			information="Pression 4 bar, débit 75 GPD.", ctx=ctx)
+		lignes = r["contenu"]["caracteristiques"]
+		self.assertEqual(len(lignes), 2)                                       # la ligne reprise du produit est corrigée, pas doublée
+		self.assertEqual([(x["nom"], x["valeur"], x["article"]) for x in lignes], [("Pression", "4", "TEST-P-V"), ("Débit", "75", "TEST-P-V")])
+
+
 class TestTraiterUnPoint(unittest.TestCase):
 	def _traiter(self, reponse, information="La pression d’entrée va de 1 à 4 bar.", destination=None):
 		from aquaworld_ia.documents_produit import traitement as T

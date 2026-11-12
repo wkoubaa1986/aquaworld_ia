@@ -526,6 +526,48 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Plan du document et tableau des caractéristiques complété par l’IA (12/11/2026, v0.53.0)
+
+Demande : « le tableau des caractéristiques, est-ce que je peux l’enrichir par IA ? Lorsque je crée la fiche, les
+parties dont l’IA va parler, est-ce que je peux la guider — utilisation, entretien, les sous-rubriques ? »
+
+**Plan du document** (`documents_produit/plan.py`, module pur). À l’étape **Préparer**, la carte « Plan de la fiche
+technique » (ou « Plan du manuel », un plan par type de document) liste les rubriques que l’IA doit rédiger : des
+puces proposent les rubriques courantes, on en ajoute d’autres, on les ordonne (↑ ↓), et chaque rubrique peut avoir
+des sous-rubriques séparées par « ; ». « Reprendre les rubriques de la dernière version » part de l’existant.
+- Rangement : champ `plans` du dossier (`{"fiche": […], "manuel": […]}`, vingt rubriques et huit sous-rubriques au
+  plus). Le plan entre dans le contexte de la version (clé `plan`, absente sans plan : les empreintes existantes ne
+  bougent pas) ; le modifier fait donc passer les versions du type concerné « à actualiser », comme les consignes.
+- Rédaction : `plan.CONSIGNE` impose ces rubriques, ces titres et cet ordre ; l’outil ne s’en remet pas à l’IA et
+  rétablit lui-même l’ordre et les titres (`plan.ordonner`). Une rubrique ou une sous-rubrique du plan sans
+  information, et une rubrique ajoutée hors plan, deviennent des points à vérifier (`plan.points`) : jamais de
+  texte inventé pour remplir. Avec « connaissances générales », l’IA remplit les rubriques d’usage courant.
+- **Sous-rubriques** : dans le texte d’une rubrique, une ligne qui commence par « ## » est un sous-titre
+  (`plan.decouper`), imprimé en gras de la couleur des titres (`\docsoustitre`, jamais séparé du paragraphe qui
+  suit). La convention vaut aussi à la main dans n’importe quelle rubrique, est conservée par la réécriture IA et
+  par la traduction (« ## » gardé, le reste traduit), et passe dans les fiches par variante avec la partie commune.
+- Sans plan, rien ne change : l’IA choisit les rubriques. Les consignes de rédaction restent pour le public, le ton
+  et la longueur.
+
+**✦ Compléter avec l’IA…** sous le tableau des caractéristiques, à l’étape Relire
+(`traitement.completer_caracteristiques`, `points.CONSIGNE_CARACTERISTIQUES`) :
+- avec un texte collé (extrait de fiche fournisseur, notes), l’IA en tire une ligne par grandeur — nom, valeur,
+  unité, modèle concerné —, source « Information de l’entreprise (date) » ;
+- sans texte, elle relit l’article, les variantes et les sources de la version et ajoute les valeurs qui manquent,
+  chacune avec sa source (« Article REF », « S1 p.3 ») ; une source inconnue donne « Source à confirmer » et un point ;
+- elle n’écrit que des caractéristiques (quarante au plus par appel), ne répète pas une ligne déjà là avec la même
+  valeur, corrige celle de même nom, garde les unités d’origine (le PDF calcule l’équivalent métrique) ;
+- un nombre absent du texte collé, du document et des sources devient un point à vérifier ;
+- dans la fiche d’une variante, ce qui est écrit lui est propre (sinon l’actualisation depuis la fiche du produit
+  l’effacerait) — la même règle vaut désormais pour « Traiter avec l’IA ».
+Rien n’est enregistré avant « Enregistrer » ; les lignes ajoutées ou corrigées sont surlignées en vert. Un appel IA
+par clic, compté dans les coûts du dossier.
+
+Essais réels du 12/11/2026 (rien d’enregistré) : Mini Fontaine rédigée avec le plan Applications / Utilisation
+(Mise en route ; Au quotidien) / Entretien (Nettoyage ; Remplacement du filtre) / Garantie — sans source, trois
+rubriques en points rouges ; avec connaissances générales, les sous-titres rédigés et « Garantie » en point rouge.
+AP-M : cinq lignes tirées d’un texte collé, quatre lignes relues dans l’article.
+
 ### Traiter un point à vérifier avec l’IA (12/11/2026, v0.52.0)
 
 À l’étape Relire, chaque point à vérifier est **rouge** tant qu’il est ouvert et porte un bouton
@@ -787,10 +829,10 @@ choisir la police de tout le document, créer un autre document pour un autre pr
 - **Reprendre la présentation d’un autre dossier…** (à côté de « Disposition initiale ») : choisir un dossier modèle et
   cocher ce qui est repris — la mise en page de la fiche et du manuel (`mise_en_page.portable` : tout sauf la photo en
   grand de la mosaïque et les largeurs par photo, qui désignent des fichiers de l’autre dossier), la marque, le logo
-  avec en-tête et l’en-tête, les consignes de rédaction (et connaissances générales), et le **plan des rubriques** des
-  dernières versions françaises du modèle, ajouté aux consignes (« Plan des rubriques à suivre (Fiche technique), dans
-  cet ordre : A ; B ; C. », `mise_en_page.plan_rubriques`) pour que l’IA rédige le nouveau produit avec les mêmes
-  rubriques. Photos, variantes, sources et textes restent ceux du dossier courant : le contenu est rédigé pour le nouvel
+  avec en-tête et l’en-tête, les consignes de rédaction (et connaissances générales), et le **plan du document**
+  du modèle (fiche et manuel) ou, s’il n’en a pas, les rubriques et sous-rubriques de ses dernières versions
+  françaises (`plan.depuis_contenu`), pour que l’IA rédige le nouveau produit avec les mêmes rubriques (depuis la
+  v0.53.0 ; auparavant une phrase ajoutée aux consignes). Photos, variantes, sources et textes restent ceux du dossier courant : le contenu est rédigé pour le nouvel
   article à l’étape Rédiger, puis relu. Service : `copier_presentation(name, source, elements)`.
 
 **Réglages dans l’ordre du document** (06/11/2026) : le panneau de mise en page est découpé en blocs

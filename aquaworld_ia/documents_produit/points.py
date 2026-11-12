@@ -31,6 +31,21 @@ Garde chaque valeur dans l'unité donnée par l'entreprise (gallons, GPD, psi, p
 article est une référence exacte du contexte, ou une chaîne vide pour toute la gamme.
 action : une phrase courte qui dit ce que tu as écrit et où. reste_a_verifier : ce que l'information ne permet pas de lever (liste vide si le point est levé)."""
 
+# Compléter le tableau des caractéristiques (demande 12/11/2026 : « le tableau des caractéristiques, est-ce que je
+# peux l'enrichir par IA ? »). Deux façons, une seule consigne : l'utilisateur colle un texte (extrait de fiche
+# fournisseur, notes) dont l'IA tire les valeurs ; ou, sans texte, elle relit l'article et les sources du dossier et
+# ajoute les valeurs qui manquent au tableau. Elle n'écrit que des caractéristiques.
+MAX_CARACTERISTIQUES = 40
+CONSIGNE_CARACTERISTIQUES = """Tu complètes le tableau des caractéristiques techniques d'un document produit existant (document.caracteristiques).
+Réponds uniquement en JSON {modifications:[{type:"caracteristique", nom, valeur, unite, article, source}], action:texte, reste_a_verifier:[texte]}.
+Si « information_de_l_entreprise » est fournie : c'est un fait donné par l'entreprise. Tires-en chaque valeur technique, une ligne par grandeur (nom court et usuel, valeur, unité), sans rien ajouter qu'elle ne dise pas ; n'exploite alors que ce texte.
+Si elle est vide : relis contexte (article, variantes, preuves) et ajoute les valeurs techniques qui y figurent et manquent au tableau, avec leur source (« Article REF » ou une preuve comme « S1 p.3 »).
+Une caractéristique est une valeur technique : débit, pression, température, dimensions, poids, volume, raccords, alimentation, matériaux, nombre d'étages… Les attributs des variantes (contexte.variantes[].attributs) sont déjà dans le tableau des variantes : ne les recopie pas.
+Ne répète pas une ligne déjà au tableau avec la même valeur. Pour corriger une valeur existante, reprends exactement son nom. Une valeur qui dépend du modèle donne une ligne par modèle, avec article.
+Garde chaque valeur dans l'unité donnée (gallons, GPD, psi, pouces…) : le système calcule lui-même l'équivalent métrique à l'impression. Ne convertis pas, et ne demande ni conversion ni source de conversion.
+article est une référence exacte du contexte, ou une chaîne vide pour toute la gamme.
+action : une phrase courte qui dit ce que tu as ajouté ou corrigé. reste_a_verifier : les valeurs ambiguës, contradictoires ou illisibles que tu n'as pas écrites (liste vide sinon)."""
+
 
 def document_pour_ia(contenu):
 	"""Ce que l'IA voit du document : les parties qu'elle peut modifier, numérotées."""
@@ -49,11 +64,15 @@ def _texte(valeur, limite):
 	return str(valeur).strip()[:limite] if isinstance(valeur, (str, int, float)) and not isinstance(valeur, bool) else ""
 
 
-def appliquer(contenu, data, articles, source, destination=None):
+def appliquer(contenu, data, articles, source, destination=None, maximum=MAX_MODIFICATIONS, sources_admises=None,
+		portee_imposee=""):
 	"""Applique les modifications proposées à une copie du contenu.
 
 	`articles` : les références admises comme portée ; `source` : ce qui est noté comme source des ajouts ;
-	`destination` : {"type", "index"?} si l'utilisateur a imposé l'endroit (les autres modifications sont écartées).
+	`destination` : {"type", "index"?} si l'utilisateur a imposé l'endroit (les autres modifications sont écartées) ;
+	`sources_admises` : les références qu'une caractéristique peut citer elle-même (« Article REF », « S1 ») — une
+	source citée qui n'en contient aucune est remplacée par `source` ; `portee_imposee` : dans la fiche d'une
+	variante, ce qui est écrit lui est propre (sinon l'actualisation depuis la fiche du produit l'effacerait).
 	Une modification mal formée est ignorée. -> (contenu, changements, textes_ecrits)
 	changements = [{"type", "index"?, "libelle"}] ; textes_ecrits sert au contrôle des nombres."""
 	nouveau = copy.deepcopy(contenu)
@@ -64,7 +83,7 @@ def appliquer(contenu, data, articles, source, destination=None):
 	impose = (destination or {}).get("type") if isinstance(destination, dict) else None
 	if impose not in TYPES:
 		impose = None
-	for m in modifications[:MAX_MODIFICATIONS]:
+	for m in modifications[:maximum]:
 		if not isinstance(m, dict) or m.get("type") not in TYPES:
 			continue
 		genre = m["type"]
@@ -72,7 +91,7 @@ def appliquer(contenu, data, articles, source, destination=None):
 			continue
 		texte = _texte(m.get("texte"), 12000)
 		portee = _texte(m.get("article"), 140)
-		portee = portee if portee in articles else ""
+		portee = portee_imposee or (portee if portee in articles else "")
 		if genre == "resume" and texte:
 			nouveau["resume"] = texte
 			changements.append({"type": "resume", "libelle": "Présentation modifiée"})
@@ -104,15 +123,22 @@ def appliquer(contenu, data, articles, source, destination=None):
 			if not nom or not valeur:
 				continue
 			lignes = nouveau.setdefault("caracteristiques", [])
-			existante = next((i for i, c in enumerate(lignes)
-				if c.get("nom", "").strip().casefold() == nom.casefold() and (c.get("article") or "") == portee), None)
+			citee = _texte(m.get("source"), 600)
+			origine = citee if sources_admises and any(ref in citee for ref in sources_admises) else source
+			memes = [i for i, c in enumerate(lignes) if c.get("nom", "").strip().casefold() == nom.casefold()]
+			existante = next((i for i in memes if (lignes[i].get("article") or "") == portee), None)
+			if existante is None and portee_imposee:
+				existante = next((i for i in memes if not lignes[i].get("article")), None)   # reprise du produit
 			if existante is None:
 				if len(lignes) >= 250:
 					continue
-				lignes.append({"nom": nom, "valeur": valeur, "unite": unite, "article": portee, "source": source})
+				lignes.append({"nom": nom, "valeur": valeur, "unite": unite, "article": portee, "source": origine})
 				changements.append({"type": "caracteristique", "index": len(lignes) - 1, "libelle": "Caractéristique « " + nom + " » ajoutée"})
 			else:
-				lignes[existante].update({"valeur": valeur, "unite": unite, "source": source})
+				ligne = lignes[existante]
+				if (ligne.get("valeur"), ligne.get("unite") or "", ligne.get("article") or "") == (valeur, unite, portee):
+					continue   # rien de nouveau : la ligne est déjà là
+				ligne.update({"valeur": valeur, "unite": unite, "source": origine, "article": portee})
 				changements.append({"type": "caracteristique", "index": existante, "libelle": "Caractéristique « " + nom + " » modifiée"})
 			textes.append(f"{nom} {valeur} {unite}")
 	return nouveau, changements, textes
