@@ -26,7 +26,9 @@ FONCTIONNALITE = "Document produit — fiche technique"
 TITRE_SPECIFICITES = "Spécificités de ce modèle"
 LIBELLE_REFERENCE = "Référence et configuration"
 POINT_MERE = "La fiche du produit n’est pas validée"
-MAX_PHOTOS = 8
+# Toutes les photos propres à la variante entrent dans sa fiche (demande 12/11/2026) : 12 couvre le catalogue
+# (9 au plus par variante à cette date ; à 8, quinze variantes perdaient une photo).
+MAX_PHOTOS = 12
 PARALLELE = 4
 
 SYSTEME = """Tu rédiges en français ce qu'UNE variante a de propre, pour sa fiche technique destinée aux clients. La fiche de la gamme (fiche_produit) est reprise telle quelle dans le document, après ton texte : ne la répète pas et ne la contredis pas.
