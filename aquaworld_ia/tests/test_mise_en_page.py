@@ -164,9 +164,16 @@ class TestMiseEnPage(unittest.TestCase):
 					else:
 						self.assertAlmostEqual(qr.x1, page.rect.width - 18 * 72 / 25.4, delta=1)
 					self.assertEqual(qr.y1 < titre.y0, position == "avant_titre")
-		# Dans « Autres illustrations », sans autre photo : le bloc n'a que son titre et le QR, à sa place dans l'ordre.
-		ctx["mise_en_page"] = M.normaliser({"qr_url": url, "qr_legende": "Fiche produit en ligne", "qr_position": "illustrations",
+		# Dans le bloc des photos, sans autre photo : le bloc n'a que son titre et le QR, à sa place dans l'ordre.
+		# C'est la position par défaut depuis le 12/11/2026 (« toujours intégré dans photos et illustrations ») :
+		# elle n'est pas écrite, alors que « fin_document », devenu un choix, l'est.
+		ctx["mise_en_page"] = M.normaliser({"qr_url": url, "qr_legende": "Fiche produit en ligne",
 			"ordre": ["presentation", "illustrations", "rubriques", "caracteristiques", "variantes"]})
+		self.assertNotIn("qr_position", ctx["mise_en_page"])
+		self.assertNotIn("qr_position", M.normaliser({"qr_url": url, "qr_position": "illustrations"}))
+		self.assertEqual(M.normaliser({"qr_url": url, "qr_position": "fin_document"})["qr_position"], "fin_document")
+		self.assertEqual(M.QR_DEFAUTS["qr_position"], "illustrations")
+		self.assertNotIn("qr_position", M.initiale(url)["fiche"])                      # le QR posé d'office y va aussi
 		_, pdf, _ = L.composer(contenu_simple(ctx), ctx)
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
 			page = doc[0]

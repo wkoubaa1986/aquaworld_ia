@@ -52,7 +52,11 @@ IMAGE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
 # suivantes en grille.
 # QR code d'un lien internet (demande utilisateur 06/11/2026 : « le lien du produit en QR code sur mon site »),
 # avec une légende sous le code. Absent du PDF tant que l'adresse est vide.
-QR_DEFAUTS = {"qr_url": "", "qr_legende": "", "qr_position": "fin_document", "qr_alignement": "droite", "qr_taille": 22}
+# Position par défaut : dans le bloc des photos (demande 12/11/2026 : « le QR code du lien, je veux qu'il soit toujours
+# intégré, s'il existe, dans photos et illustrations ») — il y prend une case de la galerie. Une disposition
+# enregistrée sans position (l'ancien défaut « fin_document » n'était pas écrit) suit ce nouveau défaut ; les autres
+# positions restent au choix dans l'étape Présenter.
+QR_DEFAUTS = {"qr_url": "", "qr_legende": "", "qr_position": "illustrations", "qr_alignement": "droite", "qr_taille": 22}
 QR_URL = re.compile(r"https?://[A-Za-z0-9](?:[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]*)")
 
 
