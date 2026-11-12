@@ -36,7 +36,7 @@ class TestPlanTableauVariantes(unittest.TestCase):
 		self.assertEqual(plan["entetes"], ["Référence", "Configuration de filtration", "Système de mélange", "Débit"])
 		self.assertEqual([(g, len(l)) for g, l in plan["groupes"]],
 			[("Marque de membrane : AquaJad", 4), ("Marque de membrane : DowFilmtec", 4), ("Marque de membrane : Vontron", 4)])
-		self.assertEqual(plan["groupes"][0][1][0], [c["variantes"][0]["article"], "Classique 5 Stages", "Avec mixage", "75 GPD"])
+		self.assertEqual(plan["groupes"][0][1][0], [c["variantes"][0]["article"], "Classique 5 Stages", "Avec mixage", "284 L/jour (75 GPD)"])   # unité métrique calculée (12/11/2026)
 		self.assertEqual(plan["groupes"][0][1][1][3], "")                         # pas de débit propre : cellule vide
 
 	def test_petite_gamme_sans_groupe_marques_differentes_et_sans_attributs(self):

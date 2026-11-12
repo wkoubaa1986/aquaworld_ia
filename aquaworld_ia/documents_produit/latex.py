@@ -20,6 +20,7 @@ from frappe.utils.file_manager import save_file
 
 from aquaworld_ia.documents_produit import contexte as C
 from aquaworld_ia.documents_produit import mise_en_page as M
+from aquaworld_ia.documents_produit import unites
 
 ECHAPPE = {
 	"\\": r"\textbackslash{}",
@@ -242,7 +243,7 @@ def plan_tableau_croise(variantes, labels, ordre=None):
 		"attribut_lignes": lignes_attr, "attribut_colonnes": colonnes, "autres": autres}
 
 
-def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6):
+def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristiques=3, seuil_groupes=6, langue="fr"):
 	"""Le tableau des variantes résumé par caractéristiques (demande 06/11/2026). PURE.
 
 	- une colonne par attribut de variante (membrane, configuration, mixage…) au lieu d'une phrase
@@ -267,7 +268,7 @@ def plan_tableau_variantes(variantes, caracteristiques, labels, max_caracteristi
 	pivot = {}
 	for c in caracteristiques:
 		if c.get("article") and c.get("nom"):
-			pivot.setdefault(c["nom"], {})[c["article"]] = (c.get("valeur", "") + (" " + c["unite"] if c.get("unite") else "")).strip()
+			pivot.setdefault(c["nom"], {})[c["article"]] = unites.afficher(c.get("valeur", ""), c.get("unite", ""), c["nom"], langue)
 	colonnes_carac = sorted(pivot, key=lambda k: (-len(pivot[k]), k))[:max_caracteristiques]
 	grouper = len(variantes) > seuil_groupes and len(noms) >= 2 and len({valeur(v, noms[0]) for v in variantes}) >= 2
 	attributs_colonnes = noms[1:] if grouper else noms
@@ -793,7 +794,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			+ r"\\\endhead",
 		]
 		for c in contenu["caracteristiques"]:
-			cellules_carac = [c["nom"], c["valeur"] + (" " + c["unite"] if c["unite"] else "")]
+			# Unités métriques calculées ici, valeur d'origine entre parenthèses (12/11/2026) : voir unites.py.
+			cellules_carac = [c["nom"], unites.afficher(c["valeur"], c["unite"], c["nom"], langue)]
 			if not fiche_variante:
 				cellules_carac.append(c["article"] or labels["commun"])
 			blocs["caracteristiques"].append(" & ".join(t(s) for s in cellules_carac) + r"\\")
@@ -912,7 +914,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				blocs["variantes"].append(r"\vspace{-6pt}{\small " + (t(legende_attr + " : ") if legende_attr else "")
 					+ r"\quad ".join(pastille(c) + t(c) for c in complements) + r"}\par\medskip")
 		else:
-			plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels)
+			plan = plan_tableau_variantes(tabulees, contenu.get("caracteristiques", []), labels, langue=langue)
 			avec_photo = vignettes and any(v["article"] in vignette_de or v["article"] in (assets.get("variantes") or {}) for v in tabulees)
 			entetes = ([labels["photo"]] if avec_photo else []) + plan["entetes"]
 			n = len(entetes)

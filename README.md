@@ -526,6 +526,22 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Unités métriques des caractéristiques (12/11/2026, v0.49.0)
+
+Dans le tableau « Caractéristiques techniques » (et les colonnes de caractéristiques du tableau des variantes),
+une valeur en unité anglo-saxonne est imprimée en unité métrique, avec la valeur d’origine entre parenthèses :
+« 12,1 L (3,2 G) », « 284 L/jour (75 GPD) », « 8 bar (116 psi) », « 254 mm (10") ». Unités reconnues : gallon US
+(G, gal), GPD, GPM, psi, pouce, °F, lb, ft ; trois chiffres significatifs.
+
+- C’est un **calcul fait à la composition** (`documents_produit/unites.py`, module pur), pas une réécriture par
+  l’IA : un nombre converti par l’IA serait absent des données de l’article et refusé par les contrôles. Le
+  contenu enregistré garde la valeur d’origine ; toutes les fiches existantes en profitent au prochain PDF.
+- Seules les valeurs « nombre (ou plage) + unité » sont converties : une référence (« PFC-1812-75G »), un texte
+  ou une valeur déjà métrique restent tels quels.
+- Les pouces d’un raccord, d’un filetage, d’une entrée ou d’une sortie sont une désignation nominale (un filetage
+  1/4" ne mesure pas 6,35 mm) : ils ne sont pas convertis.
+- Les textes (résumé, rubriques) ne sont pas modifiés.
+
 ### Fiches par variante (12/11/2026, v0.45.0)
 
 Demande : « automatiser en plus la génération de fiche technique par variante, en plus des parents, en se basant sur
