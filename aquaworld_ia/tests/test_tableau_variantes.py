@@ -158,6 +158,19 @@ class TestTableauCroiseEtVignettes(unittest.TestCase):
 						self.assertGreaterEqual(len(re.findall(r"■\s*Osmoseur", texte)), 12)
 					if mode == "croise":
 						self.assertIn("Configuration de filtration Marque de membrane AquaJad DowFilmtec Vontron", texte)   # chapeau de l'attribut des colonnes, puis ses valeurs
+						# 12/11/2026 : le bandeau « Marque de membrane » couvre toutes les colonnes de valeurs (plus de
+						# rectangle blanc à droite) et le tableau reste dans la largeur du texte.
+						page = next(p for p in doc if p.search_for("Marque de membrane") and p.search_for("DowFilmtec"))
+						marge_droite = page.rect.width - 18 * 72 / 25.4
+						fonds = [d["rect"] for d in page.get_drawings() if d.get("fill") and d["rect"].width > 2]
+
+						def bord_droit(mot):
+							r = page.search_for(mot)[0]
+							return max(f.x1 for f in fonds if f.y0 <= (r.y0 + r.y1) / 2 <= f.y1)
+
+						self.assertAlmostEqual(bord_droit("Marque de membrane"), bord_droit("DowFilmtec"), delta=1)
+						self.assertAlmostEqual(bord_droit("DowFilmtec"), marge_droite, delta=1.5)
+						self.assertLessEqual(max(f.x1 for f in fonds), marge_droite + 1.5)
 
 
 class TestOrdreNomCourtEtImageArticle(unittest.TestCase):

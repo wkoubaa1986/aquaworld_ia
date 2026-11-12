@@ -853,11 +853,17 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		croise = plan_tableau_croise(tabulees, labels, ordre) if disposition.get("tableau_variantes") == "croise" else None
 		if croise:
 			n = len(croise["entetes"])
-			largeurs = [.22] + [(.96 - .22) / (n - 1)] * (n - 1)
+			# Parts de la ligne, marges des cellules comprises : le tableau fait exactement la largeur du texte (avec
+			# des parts hors marges, il débordait de 1 cm dans la marge de droite — vu le 12/11/2026).
+			largeurs = [.22] + [(1 - .22) / (n - 1)] * (n - 1)
+
+			def largeur(part):
+				return r"\dimexpr" + f"{part:.4f}" + r"\linewidth-2\tabcolsep\relax"
+
 			# Colonnes m{} : cellules centrées verticalement, les vignettes ne poussent pas le texte en bas.
 			# Première colonne à gauche, cellules de variantes centrées (image, libellé, complément).
-			colonnes = r">{\raggedright\arraybackslash}m{" + f"{largeurs[0]:.3f}" + r"\linewidth}" + "".join(
-				r">{\centering\arraybackslash}m{" + f"{l:.3f}" + r"\linewidth}" for l in largeurs[1:])
+			colonnes = r">{\raggedright\arraybackslash}m{" + largeur(largeurs[0]) + "}" + "".join(
+				r">{\centering\arraybackslash}m{" + largeur(l) + "}" for l in largeurs[1:])
 			mode_libelle = disposition.get("libelle_croise", "nom_sans_parent")
 			par_nom = mode_libelle in ("nom", "nom_sans_parent")
 			parent_nom = ctx["article"].get("item_name", "")
@@ -890,9 +896,11 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			# En-tête sur deux lignes (demande 06/11/2026) : une cellule qui chapeaute toutes les colonnes avec le nom de
 			# l'attribut des colonnes (ex. « Marque de membrane »), puis la ligne de ses valeurs ; l'attribut des lignes
 			# titre la première colonne. Tout vient des libellés d'attributs.
+			# La cellule qui chapeaute a exactement la largeur des colonnes qu'elle couvre : plus étroite (largeur
+			# approchée jusqu'au 12/11/2026), son fond s'arrêtait avant le bord et laissait un rectangle blanc à droite.
 			nb_val = n - 1
 			chapeau = (r"\toprule\rowcolor{aquafort}" + r"\bfseries\color{aqua} " + t(croise["attribut_lignes"]) + " & "
-				+ r"\multicolumn{" + str(nb_val) + r"}{>{\centering\arraybackslash}m{" + f"{sum(largeurs[1:]) + 0.012 * (nb_val - 1):.3f}" + r"\linewidth}}{\bfseries\color{aqua} "
+				+ r"\multicolumn{" + str(nb_val) + r"}{>{\centering\arraybackslash}m{" + largeur(sum(largeurs[1:])) + r"}}{\bfseries\color{aqua} "
 				+ t(croise["attribut_colonnes"]) + r"}\\")
 			valeurs_ligne = r"\rowcolor{aquafort}" + " & " + " & ".join(r"\bfseries\color{aqua} " + t(e) for e in croise["entetes"][1:]) + r"\\\endhead"
 			blocs["variantes"] += [ZEBRE, r"\begin{longtable}{" + colonnes + "}", chapeau, valeurs_ligne]
