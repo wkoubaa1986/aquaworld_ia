@@ -526,6 +526,21 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Le produit en images : mosaïque par défaut, à la mesure de la page (12/11/2026, v0.51.0)
+
+La section « Le produit en images » est par défaut en **mosaïque** : une grande photo à gauche, jusqu’à trois
+petites à droite (le QR code du lien compte pour une petite).
+
+- **À la mesure de la page** : la « hauteur des vignettes » est un maximum. S’il reste moins de place sur la page,
+  les petites — donc la grande, qui fait la hauteur de leur colonne — se réduisent pour y tenir, jusqu’à 26 mm
+  (`latex.MOSAIQUE_MIN`). En dessous, le titre et la mosaïque passent ensemble à la page suivante. La mesure se
+  fait à la composition (`\dpmesuremosaique` : `\pagegoal − \pagetotal`), pas en Python.
+- **Plus de quatre photos** : les quatre premières font la mosaïque, les suivantes viennent en grille dessous,
+  rangée par rangée (trois par ligne si le nombre de colonnes n’a pas été choisi), et passent à la page suivante
+  au besoin. La grande photo se choisit à l’étape Présenter ; l’ordre des autres suit celui de la galerie.
+- Avec une seule autre photo et pas de QR, il n’y a pas de mosaïque : la photo est imprimée seule.
+- La grille régulière et la galerie libre restent au choix ; un dossier qui n’avait rien choisi suit le défaut.
+
 ### Gamme et configurations (12/11/2026, v0.50.0)
 
 Le bloc des variantes s’appelle « Gamme et configurations » (il s’appelait « Variantes couvertes ») et commence

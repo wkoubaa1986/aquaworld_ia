@@ -178,6 +178,8 @@ def qr_png(url):
 # Lignes des tableaux colorées en alternance (demande 06/11/2026) : deux teintes de la couleur des titres (5 % et
 # 13 %), en-têtes et titres de groupe à 22 % — la palette suit donc la couleur choisie dans la mise en page.
 ZEBRE = r"\rowcolors{2}{aquaclair}{aquamoyen}"
+# Hauteur minimale (mm) d'une petite photo de la mosaïque quand elle se réduit pour tenir dans la page.
+MOSAIQUE_MIN = 26
 # Couleurs des valeurs de l'attribut restant dans le tableau croisé (carré + légende) : lisibles sur fond clair.
 PALETTE_CROISE = ("C00000", "1F5FBF", "2E7D32", "E65100", "6A1B9A", "00838F", "6D4C41", "546E7A")
 
@@ -436,6 +438,17 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 \newcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\phantomsection\addcontentsline{toc}{section}{#1}}
 \makeatletter
 \newcommand{\docsectionsouple}[1]{\@secpenalty=\z@ \docsection{#1}\@secpenalty=-300\relax}
+\newdimen\dpreste\newdimen\dppetite\newdimen\dpcolonne
+% Mosaïque à la mesure de la page : #1 écarts entre petites (mm), #2 nombre de petites, #3 hauteur voulue d'une
+% petite (mm), #4 hauteur minimale (mm). \dppetite et \dpcolonne (hauteur de la colonne = de la grande photo)
+% tiennent dans la place qui reste sur la page ; sur une page vide, la hauteur voulue.
+\newcommand{\dpmesuremosaique}[4]{\par\if@nobreak\nobreak\else\penalty\z@\fi
+  \dpreste=\dimexpr\pagegoal-\pagetotal-10mm\relax
+  \ifdim\pagegoal=\maxdimen\dpreste=\dimexpr\textheight-10mm\relax\fi
+  \dppetite=\dimexpr(\dpreste-#1mm-8mm)/#2\relax
+  \ifdim\dppetite>#3mm\dppetite=#3mm\fi
+  \ifdim\dppetite<#4mm\dppetite=#4mm\fi
+  \dpcolonne=\dimexpr#2\dppetite+#1mm\relax}
 \makeatother
 \pagestyle{fancy}
 \fancyhf{}
@@ -575,8 +588,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	def photo(index, largeur, hauteur, portee=True, sur_axe=False):
 		"""`sur_axe` : l'image est centrée en hauteur sur sa ligne de base (ses légendes pendent dessous), pour qu'un
 		bloc voisin centré `[c]` soit au milieu de l'image seule, légendes non comptées."""
-		image = (r"\includegraphics[width=" + f"{largeur:.2f}" + r"\linewidth,height=" + str(hauteur)
-			+ "mm,keepaspectratio]{" + assets["images"][index] + "}")
+		# `hauteur` : des millimètres, ou une dimension LaTeX (« \dppetite ») calculée à la composition.
+		image = (r"\includegraphics[width=" + f"{largeur:.2f}" + r"\linewidth,height=" + (hauteur if isinstance(hauteur, str) else str(hauteur) + "mm")
+			+ ",keepaspectratio]{" + assets["images"][index] + "}")
 		lignes = [
 			(r"{\centering$\vcenter{\hbox{" + image + r"}}$\par}") if sur_axe else (r"\begin{center}" + image + r"\end{center}"),
 			legende(contenu["legendes"][index]),
@@ -590,8 +604,9 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		prend ainsi la case libre de la grille au lieu de pendre sous la galerie (demande 06/11/2026)."""
 		colonnes = disposition.get("colonnes_photos", 1)
 		hauteur = disposition.get("hauteur_vignettes", 55)
+		style_galerie = M.valeur(disposition, "style_galerie")
 		tete = []
-		if disposition.get("style_galerie") == "mosaique" and len(indices) + (1 if extra else 0) >= 2 and indices:
+		if style_galerie == "mosaique" and len(indices) + (1 if extra else 0) >= 2 and indices:
 			# Mosaïque : la photo désignée (photo_grande, sinon la première) en grand à gauche, jusqu'à trois petites
 			# empilées à droite — le QR des illustrations compte comme une petite ; le reste suit en grille.
 			voulue = disposition.get("photo_grande") or ""
@@ -608,23 +623,30 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			espace = 11 if disposition.get("legendes_galerie", 1) else 4  # entre deux petites : légende éventuelle, \par, centrage
 			# Les petites gardent la hauteur réglée (une grande très large et basse — un logo — les écrasait, 06/11/2026) ;
 			# la grande prend la hauteur de la colonne et s'y centre verticalement, à largeur bornée par sa colonne.
-			petite = hauteur
-			hauteur_colonne = petite * nb + espace * (nb - 1)
-			grande = photo(indices[0], 1, round(hauteur_colonne, 1), portee)
-			colonne = "\n".join([photo(i, 1, round(petite, 1), portee) for i in petites] + ([extra_dans_mosaique] if extra_dans_mosaique else []))
-			ligne = (r"\noindent\begin{minipage}[c][" + f"{hauteur_colonne + 8:.0f}" + r"mm][c]{" + f"{part:.2f}" + r"\linewidth}\small " + grande + r"\end{minipage}\hfill"
-				+ r"\begin{minipage}[c][" + f"{hauteur_colonne + 8:.0f}" + r"mm][c]{" + f"{0.97 - part:.2f}" + r"\linewidth}\small " + colonne + r"\end{minipage}")
+			# À la mesure de la page (demande 12/11/2026 : « resizer automatiquement les photos dans l'espace de la page
+			# d'avant ») : la hauteur réglée est un maximum ; s'il reste moins de place sur la page, les petites — donc la
+			# grande, qui fait la hauteur de leur colonne — se réduisent pour y tenir, jusqu'à MOSAIQUE_MIN mm. La
+			# mesure se fait à la composition (\dpmesuremosaique), là où la mosaïque est posée.
+			ecarts = espace * (nb - 1)
+			mesure = r"\dpmesuremosaique{" + f"{ecarts}" + "}{" + str(nb) + "}{" + f"{hauteur}" + "}{" + str(MOSAIQUE_MIN) + "}"
+			grande = photo(indices[0], 1, r"\dpcolonne", portee)
+			colonne = "\n".join([photo(i, 1, r"\dppetite", portee) for i in petites] + ([extra_dans_mosaique] if extra_dans_mosaique else []))
+			haut_bloc = r"\dimexpr\dpcolonne+8mm\relax"
+			ligne = (r"\noindent\begin{minipage}[c][" + haut_bloc + r"][c]{" + f"{part:.2f}" + r"\linewidth}\small " + grande + r"\end{minipage}\hfill"
+				+ r"\begin{minipage}[c][" + haut_bloc + r"][c]{" + f"{0.97 - part:.2f}" + r"\linewidth}\small " + colonne + r"\end{minipage}")
 			totale = disposition.get("largeur_mosaique", 100) / 100
 			if totale < 1:
 				# Mosaïque moins large que la ligne : centrée, ses proportions internes conservées.
 				ligne = r"\begin{center}\begin{minipage}{" + f"{totale:.2f}" + r"\linewidth}" + ligne + r"\end{minipage}\end{center}"
-			tete = [ligne + r"\par\medskip"]
+			tete = [mesure, ligne + r"\par\medskip"]
 			indices = indices[4:]
 			if extra_dans_mosaique:
 				extra = None
 			if not indices and not extra:
 				return tete
-			colonnes = max(colonnes, 2)
+			# Au-delà de quatre photos : les suivantes en grille sous la mosaïque, rangée par rangée (elles passent à
+			# la page suivante au besoin) — trois par ligne si le nombre de colonnes n'a pas été choisi.
+			colonnes = colonnes if colonnes > 1 else 3
 		centre = disposition.get("alignement_galerie", "gauche") == "centre"
 		largeur_galerie = disposition.get("largeur_galerie", 100) / 100
 
@@ -652,7 +674,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				return r"\noindent " + r"\hspace{0.03\linewidth}".join(cases) + r"\par\medskip"
 			return r"\noindent " + r"\hfill ".join(cases) + r"\hfill\null\par\medskip"
 
-		if disposition.get("style_galerie") == "libre" and indices:
+		if style_galerie == "libre" and indices:
 			# Galerie libre (07/11/2026) : chaque photo a sa largeur (% de la ligne), les photos s'enchaînent et passent à
 			# la ligne quand la somme dépasse 100 ; 100 = une photo par ligne. Le QR suit, à 25 %.
 			largeurs = disposition.get("largeurs_photos") or {}
@@ -955,7 +977,15 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			blocs["illustrations"].append(r"\clearpage")   # le bloc commence sur une page neuve (07/11/2026)
 		# « Le produit en images » est une section à part entière (12/11/2026) : son titre est toujours imprimé — avant,
 		# une galerie d'une photo par ligne n'en avait pas.
-		if regrouper or disposition.get("colonnes_photos", 1) > 1 or disposition.get("style_galerie") in ("mosaique", "libre") or (qr_illustrations and not illustrations):
+		style_bloc = M.valeur(disposition, "style_galerie")
+		cases = len(illustrations) + (1 if qr_illustrations else 0)
+		if style_bloc == "mosaique" and cases >= 2 and illustrations:
+			# Assez de place pour le titre et la mosaïque à sa hauteur minimale, sinon page suivante ; au-delà, la
+			# mosaïque prend la place qui reste (voir galerie).
+			petites = min(3, cases - 1)
+			besoin = MOSAIQUE_MIN * petites + (11 if disposition.get("legendes_galerie", 1) else 4) * (petites - 1) + 8 + 28
+			blocs["illustrations"].append(r"\Needspace{" + str(besoin) + r"mm}\docsection{" + t(labels["illustrations"]) + "}")
+		elif regrouper or disposition.get("colonnes_photos", 1) > 1 or style_bloc == "libre" or (qr_illustrations and not illustrations):
 			# Le titre ne reste pas seul en bas de page quand la première rangée ne tient pas dessous.
 			blocs["illustrations"].append(r"\needspace{60mm}\docsection{" + t(labels["illustrations"]) + "}")
 		else:

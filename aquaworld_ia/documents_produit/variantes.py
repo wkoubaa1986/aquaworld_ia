@@ -160,7 +160,7 @@ def mise_en_page_variante(ctx):
 
 	disposition = M.normaliser(ctx.get("mise_en_page"))
 	autres = len(ctx.get("images", [])) - 1
-	if autres < 2 or disposition.get("colonnes_photos", 1) != 1 or disposition.get("style_galerie", "grille") != "grille":
+	if autres < 2 or disposition.get("colonnes_photos", 1) != 1 or M.valeur(disposition, "style_galerie") != "grille":
 		return ctx
 	return {**ctx, "mise_en_page": M.normaliser({**disposition, "colonnes_photos": 2 if autres == 2 else 3})}
 

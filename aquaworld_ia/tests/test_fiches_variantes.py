@@ -249,10 +249,13 @@ class TestDerivation(unittest.TestCase):
 			ctx = {"images": [{}] * nombre_images, **({"mise_en_page": mise_en_page} if mise_en_page else {})}
 			return V.mise_en_page_variante(ctx).get("mise_en_page", {}).get("colonnes_photos", 1)
 
-		self.assertEqual([colonnes(n) for n in (0, 1, 2, 3, 4, 8)], [1, 1, 1, 2, 3, 3])
+		# Mosaïque par défaut (12/11/2026) : compacte d'elle-même, la disposition n'est pas touchée.
+		self.assertEqual([colonnes(n) for n in (0, 1, 2, 3, 4, 8)], [1, 1, 1, 1, 1, 1])
+		# Grille choisie avec une photo par ligne : deux photos ou plus passent en 2 ou 3 colonnes.
+		self.assertEqual([colonnes(n, {"style_galerie": "grille"}) for n in (0, 1, 2, 3, 4, 8)], [1, 1, 1, 2, 3, 3])
 		self.assertEqual(colonnes(6, {"colonnes_photos": 2}), 2)
 		self.assertEqual(colonnes(6, {"style_galerie": "mosaique"}), 1)
-		ctx = {"images": [{}] * 5, "mise_en_page": {"couleur": "#112233"}}
+		ctx = {"images": [{}] * 5, "mise_en_page": {"couleur": "#112233", "style_galerie": "grille"}}
 		self.assertEqual(V.mise_en_page_variante(ctx)["mise_en_page"]["couleur"], "#112233")
 		self.assertEqual(V.mise_en_page_variante(V.mise_en_page_variante(ctx)), V.mise_en_page_variante(ctx))
 		self.assertNotIn("colonnes_photos", ctx["mise_en_page"], "le contexte d'origine n'est pas modifié")

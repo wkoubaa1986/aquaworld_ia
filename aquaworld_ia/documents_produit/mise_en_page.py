@@ -17,7 +17,7 @@ MARQUE_DEFAUTS = {
 	"largeur_logo": 32, "afficher_nom_marque": 0,
 	"logo_x": 150, "logo_y": 8,
 }
-PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "grille", "photo_grande": "",
+PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "mosaique", "photo_grande": "",
 	"tableau_variantes": "croise", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
 	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0,
 	"alignement_galerie": "gauche", "largeur_galerie": 100, "galerie_pleine_page": 0, "largeurs_photos": {},
@@ -25,6 +25,8 @@ PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignette
 # alignement_vertical_photo (demande 12/11/2026 : « centrer l'écriture par rapport à l'image verticalement ») : en deux
 # colonnes, « haut » = photo et description alignées par le haut, « centre » = centrées l'une par rapport à l'autre
 # (voir latex.source : une description trop longue pour tenir d'un bloc reste alignée par le haut).
+# style_galerie : « mosaique » par défaut depuis le 12/11/2026 (« par défaut, le produit en images en mode grande photo
+# et autres photos ») ; elle se réduit d'elle-même pour tenir dans la place restante de la page (latex.galerie).
 # tableau_variantes : « croise » par défaut depuis le 12/11/2026 (« je veux que le tableau croisé soit par défaut ») ;
 # sans deux attributs à croiser, ou au-delà de six colonnes, le rendu revient de lui-même à la liste groupée.
 # sauts_page : les blocs (clés de ORDRE) qui commencent sur une nouvelle page (demande 07/11/2026).
@@ -209,6 +211,12 @@ def initiale(url_site):
 		return {}
 	disposition = normaliser({"qr_url": url_site.strip(), "qr_legende": LEGENDE_QR_SITE})
 	return {cle: copy.deepcopy(disposition) for cle in TYPES.values()}
+
+
+def valeur(disposition, cle):
+	"""Un réglage des photos tel qu'il s'applique : la valeur par défaut n'est jamais enregistrée, il faut donc la
+	lire ici plutôt que par `disposition.get(cle)`."""
+	return (disposition or {}).get(cle, PHOTOS_DEFAUTS[cle])
 
 
 def pour_document(dossier, genre):

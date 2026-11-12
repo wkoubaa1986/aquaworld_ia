@@ -203,7 +203,7 @@ class TestMiseEnPage(unittest.TestCase):
 		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(4)]
 		url = "https://example.invalid/?post_type=product&p=1343"
 		ctx["mise_en_page"] = M.normaliser({"qr_url": url, "qr_legende": "Voir le produit en ligne",
-			"qr_position": "illustrations", "qr_alignement": "centre", "colonnes_photos": 2})
+			"qr_position": "illustrations", "qr_alignement": "centre", "colonnes_photos": 2, "style_galerie": "grille"})
 		assets = {"images": [f"images/image-{i}.png" for i in range(4)], "qr": "images/qr.png"}
 		fichiers = {f"images/image-{i}.png": png(c) for i, c in enumerate(("red", "green", "blue", "gray"))}
 		fichiers["images/qr.png"] = L.qr_png(url)
@@ -461,7 +461,7 @@ class TestGalerieCompacte(unittest.TestCase):
 
 		ctx = contexte_simple()
 		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(13)]
-		ctx["mise_en_page"] = M.normaliser({"colonnes_photos": 4, "hauteur_vignettes": 32, "ordre": list(M.ORDRE)})   # galerie en fin de document
+		ctx["mise_en_page"] = M.normaliser({"style_galerie": "grille", "colonnes_photos": 4, "hauteur_vignettes": 32, "ordre": list(M.ORDRE)})   # galerie en fin de document
 		assets = {"images": [f"images/image-{i}.png" for i in range(13)]}
 		pdf, _ = L.compiler(L.source(contenu_simple(ctx), ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(13)})
 		with pymupdf.open(stream=pdf, filetype="pdf") as doc:
@@ -477,11 +477,82 @@ class TestGalerieMosaique(unittest.TestCase):
 	"""06/11/2026 : « une grosse photo et 3 à côté en grille » — style_galerie = mosaique."""
 
 	def test_reglage(self):
-		self.assertEqual(M.normaliser({"style_galerie": "mosaique"})["style_galerie"], "mosaique")
-		self.assertNotIn("style_galerie", M.normaliser({"style_galerie": "grille"}))
+		# La mosaïque est la disposition par défaut depuis le 12/11/2026 : elle n'est pas écrite, la grille l'est.
+		self.assertNotIn("style_galerie", M.normaliser({"style_galerie": "mosaique"}))
+		self.assertEqual(M.normaliser({"style_galerie": "grille"})["style_galerie"], "grille")
+		self.assertEqual(M.valeur(M.normaliser(), "style_galerie"), "mosaique")
+		self.assertEqual(M.valeur({"style_galerie": "grille"}, "style_galerie"), "grille")
 		for mauvais in ({"style_galerie": "colonnes"}, {"style_galerie": 1}):
 			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):
 				M.normaliser(mauvais)
+
+	def _mosaique(self, images, resume, **reglages):
+		import pymupdf
+		from PIL import Image
+
+		def png(i):
+			b = io.BytesIO()
+			Image.new("RGB", (300, 400), (60 * i % 255, 110, 170)).save(b, format="PNG")   # portrait : la hauteur commande
+			return b.getvalue()
+
+		ctx = contexte_simple()
+		ctx["images"] = [{"image": f"/files/{i}.png", "legende": f"Vue {i}", "article": ""} for i in range(images)]
+		ctx["mise_en_page"] = M.normaliser(reglages)                                      # mosaïque et 2e position : les défauts
+		c = contenu_simple(ctx)
+		c["resume"] = resume
+		assets = {"images": [f"images/image-{i}.png" for i in range(images)], "dimensions": {}}
+		pdf, _ = L.compiler(L.source(c, ctx, assets=assets), {f"images/image-{i}.png": png(i) for i in range(images)})
+		doc = pymupdf.open(stream=pdf, filetype="pdf")
+		page = next(p for p in doc if p.search_for("Le produit en images"))
+		haut = page.search_for("Le produit en images")[0].y1
+		rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
+		return doc, page, rects
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_par_defaut_et_reduite_a_la_place_qui_reste(self):
+		"""12/11/2026 : mosaïque par défaut ; « resizer automatiquement les photos dans l'espace de la page d'avant »."""
+		mm = 72 / 25.4
+		# Assez de place : les petites ont la hauteur réglée (ici 28 mm), la mosaïque n'est pas réduite.
+		doc, page, rects = self._mosaique(5, "Un produit ecoPurium.", hauteur_vignettes=28)
+		self.assertEqual(page.number, 0)
+		self.assertEqual(len(rects), 4)                                                   # une grande et trois petites
+		self.assertAlmostEqual(sorted(r.height for r in rects)[0], 28 * mm, delta=1.5 * mm)
+		doc.close()
+		# Hauteur réglée à 55 mm (le défaut) : la colonne ferait 187 mm, il en reste moins sur la page. La mosaïque
+		# reste sur cette page, réduite, au lieu de passer à la suivante.
+		doc, page, rects = self._mosaique(5, "Un produit ecoPurium.")
+		self.assertEqual(page.number, 0)
+		self.assertEqual(len(rects), 4)
+		peu_de_texte = sorted(r.height for r in rects)[0]
+		self.assertLess(peu_de_texte, 50 * mm)
+		self.assertGreaterEqual(peu_de_texte, L.MOSAIQUE_MIN * mm - 2)
+		self.assertLessEqual(max(r.y1 for r in rects), page.rect.height - 18 * mm)        # dans la page, marge du bas respectée
+		doc.close()
+		# Plus de texte au-dessus : elle se réduit davantage, toujours sur la même page.
+		doc, page, rects = self._mosaique(5, "Description détaillée du produit. " * 12)
+		self.assertEqual(page.number, 0)
+		self.assertEqual(len(rects), 4)
+		self.assertLess(sorted(r.height for r in rects)[0], peu_de_texte - 1)
+		self.assertLessEqual(max(r.y1 for r in rects), page.rect.height - 18 * mm)
+		doc.close()
+		# Plus assez de place pour une mosaïque lisible : titre et mosaïque passent ensemble à la page suivante.
+		doc, page, rects = self._mosaique(5, "Description détaillée du produit. " * 150)
+		self.assertGreaterEqual(page.number, 1)
+		self.assertEqual(len(rects), 4)
+		doc.close()
+
+	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
+	def test_plus_de_quatre_photos_les_suivantes_en_grille_de_trois(self):
+		doc, page, rects = self._mosaique(8, "Un produit ecoPurium.", hauteur_vignettes=30)   # 7 photos dans la galerie
+		self.assertEqual(len(rects), 4)                                                   # la mosaïque : une grande, trois petites
+		# Les trois suivantes : en une rangée de trois, sous la mosaïque ou en haut de la page suivante.
+		suite = [r for r in rects if r.y0 > max(rects, key=lambda r: r.width * r.height).y1]
+		if not suite:
+			suivante = doc[page.number + 1]
+			suite = [r for x in suivante.get_images() for r in suivante.get_image_rects(x[0])]
+		self.assertEqual(len(suite), 3)
+		self.assertLess(max(r.y0 for r in suite) - min(r.y0 for r in suite), 2)           # sur une même rangée
+		doc.close()
 
 	@unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX requis")
 	def test_grande_a_gauche_trois_petites_a_droite_puis_grille(self):
