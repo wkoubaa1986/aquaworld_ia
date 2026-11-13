@@ -129,7 +129,8 @@ def completer_caracteristiques(d, genre, ctx, contenu, information=""):
 	nouveau, changements, textes = P.appliquer(contenu, data, articles, source, {"type": "caracteristique"},
 		maximum=P.MAX_CARACTERISTIQUES, sources_admises=admises, portee_imposee=ctx.get("variante") or "")
 	if not changements:
-		raise ValueError("Aucune valeur technique à ajouter dans ce texte. Collez un passage qui donne des valeurs (pression, débit, dimensions…)."
+		raise ValueError("Aucune valeur technique à ajouter dans ce texte. Ce bouton remplit seulement le tableau : collez un passage qui donne des "
+			"valeurs (pression, débit, dimensions…). Pour faire expliquer un terme ou ajouter un paragraphe, utilisez « ✦ Réécrire avec l’IA… » sur une rubrique."
 			if information else "Rien à ajouter : l'article et les sources de cette version ne donnent pas d'autre valeur technique. Collez un texte (fiche fournisseur, notes) pour compléter le tableau.")
 	restes = [S.texte(str(x), 1000) for x in (data.get("reste_a_verifier") or [] if isinstance(data, dict) else []) if x][:6]
 	restes += ["Source à confirmer : " + nouveau["caracteristiques"][c["index"]]["nom"][:200]

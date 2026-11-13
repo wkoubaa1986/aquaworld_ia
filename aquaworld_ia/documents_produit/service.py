@@ -30,6 +30,18 @@ def document(name, permission="read"):
 	return d
 
 
+def _lisible(appel):
+	"""Un refus du traitement (« rien à ajouter », « précisez l'information »…) est un message pour l'utilisateur.
+	Levé tel quel, il partait en « erreur serveur » avec sa trace (13/11/2026, « Compléter avec l'IA » sur un texte
+	sans valeur technique). Une réponse illisible de l'IA reste une vraie erreur."""
+	try:
+		return appel()
+	except json.JSONDecodeError:
+		raise
+	except ValueError as e:
+		frappe.throw(_(str(e)), title=_("Rien n’a été modifié"))
+
+
 def _json(value):
 	return frappe.parse_json(value) if isinstance(value, str) else value
 
@@ -591,7 +603,7 @@ def reecrire_partie(name, document_name, cible, instruction, contenu=None):
 	if d.get("connaissances_generales"):
 		ctx["connaissances_generales"] = 1
 	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
-	return traitement.reecrire(d, v.type_document, ctx, c, _json(cible), instruction)
+	return _lisible(lambda: traitement.reecrire(d, v.type_document, ctx, c, _json(cible), instruction))
 
 
 @frappe.whitelist()
@@ -612,7 +624,7 @@ def traiter_point(name, document_name, point, information, destination=None, con
 	if d.get("connaissances_generales"):
 		ctx["connaissances_generales"] = 1
 	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
-	return traitement.traiter_point(d, v.type_document, ctx, c, point, information, _json(destination) if destination else None)
+	return _lisible(lambda: traitement.traiter_point(d, v.type_document, ctx, c, point, information, _json(destination) if destination else None))
 
 
 @frappe.whitelist()
@@ -630,7 +642,7 @@ def completer_caracteristiques(name, document_name, information="", contenu=None
 		frappe.throw(_("Complétez la version française, puis traduisez-la : la traduction repart du français."))
 	ctx = json.loads(v.contexte_json)
 	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
-	return traitement.completer_caracteristiques(d, v.type_document, ctx, c, information)
+	return _lisible(lambda: traitement.completer_caracteristiques(d, v.type_document, ctx, c, information))
 
 
 @frappe.whitelist()
@@ -657,11 +669,11 @@ def illustrer_rubrique(name, document_name, index, mode, instruction="", contenu
 	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
 	index = cint(index)
 	if mode == "graphe":
-		return I.graphe_ia(d, v.type_document, ctx, c, index, instruction)
+		return _lisible(lambda: I.graphe_ia(d, v.type_document, ctx, c, index, instruction))
 	if mode == "tableau":
-		return I.tableau_ia(d, v.type_document, ctx, c, index, instruction)
+		return _lisible(lambda: I.tableau_ia(d, v.type_document, ctx, c, index, instruction))
 	if mode in ("image", "retouche"):
-		return I.image_ia(d, v.type_document, ctx, c, index, instruction, format, retouche=mode == "retouche")
+		return _lisible(lambda: I.image_ia(d, v.type_document, ctx, c, index, instruction, format, retouche=mode == "retouche"))
 	frappe.throw(_("Action inconnue."))
 
 

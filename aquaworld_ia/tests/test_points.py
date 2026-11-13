@@ -207,3 +207,39 @@ class TestTraiterUnPoint(unittest.TestCase):
 		# Destination imposée : une modification ailleurs est écartée, donc rien n'est fait.
 		with self.assertRaises(ValueError):
 			self._traiter({"modifications": [{"type": "resume", "texte": "Pression de 1 à 4 bar."}]}, destination={"type": "caracteristique"})
+
+
+class TestRefusLisible(unittest.TestCase):
+	"""13/11/2026 : « Compléter avec l'IA » sur « explique c'est quoi udf et cto » affichait une erreur serveur avec sa trace."""
+
+	def test_un_refus_du_traitement_devient_un_message(self):
+		import json
+		from unittest.mock import patch
+
+		from aquaworld_ia.documents_produit import service as API
+
+		self.assertEqual(API._lisible(lambda: {"contenu": 1}), {"contenu": 1})
+
+		def refus():
+			raise ValueError("Aucune valeur technique à ajouter dans ce texte.")
+
+		with patch.object(API.frappe, "throw", side_effect=RuntimeError("message affiché")) as message, patch.object(API, "_", lambda t: t):
+			with self.assertRaises(RuntimeError):
+				API._lisible(refus)
+		self.assertEqual(message.call_args.args[0], "Aucune valeur technique à ajouter dans ce texte.")
+		# une réponse illisible de l'IA n'est pas un refus : elle reste une erreur à corriger
+		with patch.object(API.frappe, "throw") as message:
+			with self.assertRaises(json.JSONDecodeError):
+				API._lisible(lambda: json.loads("{"))
+			with self.assertRaises(KeyError):
+				API._lisible(lambda: {}["x"])
+		message.assert_not_called()
+
+	def test_les_actions_ia_passent_par_le_message(self):
+		import inspect
+
+		from aquaworld_ia.documents_produit import service as API
+
+		for fonction in (API.reecrire_partie, API.traiter_point, API.completer_caracteristiques, API.illustrer_rubrique):
+			self.assertIn("_lisible(lambda:", inspect.getsource(fonction), fonction.__name__)
+
