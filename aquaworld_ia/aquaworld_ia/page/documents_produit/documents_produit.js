@@ -12,6 +12,8 @@ const dpUrl = url => typeof url==='string' && /^\/(private\/)?files\//.test(url)
 const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFractionDigits:4,maximumFractionDigits:4})+' $';
 const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)',photos:'Lecture des photos des variantes',variantes:'Fiches par variante'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
+// Logo en filigrane (13/11/2026) : mêmes valeurs par défaut que mise_en_page.FILIGRANE_DEFAUTS.
+const DP_FILIGRANE = {filigrane:0,filigrane_opacite:8,filigrane_largeur:60,filigrane_rotation:0,filigrane_pages:'toutes',filigrane_gris:0,filigrane_plan:'dessus'};
 // Tableau des caractéristiques par catégories (13/11/2026) — même rangement que structure.ranger_caracteristiques :
 // les catégories de la liste dans son ordre, puis les autres dans leur ordre d'apparition, les lignes sans
 // catégorie en dernier ; l'ordre à l'intérieur d'un groupe ne change pas. Sans aucune catégorie, rien ne bouge.
@@ -228,7 +230,8 @@ class DocumentsProduit {
     const marque={libre:'logo placé librement',avant_titre:'logo au-dessus du titre',apres_titre:'logo sous le titre',fin_document:'logo en fin de document',masquee:'zone de marque masquée'}[m.position_marque];
     const mosaique=(m.style_galerie==='mosaique'?' · galerie en mosaïque':m.style_galerie==='libre'?' · galerie libre':'')+(m.police?' · '+(DP_POLICES[m.police]||m.police):'')+(m.tableau_variantes==='croise'?' · tableau croisé':'');
     const qr=m.qr_url?` · QR code ${{avant_titre:'au-dessus du titre',apres_titre:'sous le titre',illustrations:'dans les illustrations',fin_document:'en fin de document'}[m.qr_position]}`:'';
-    return `${cote?`2 colonnes · photo à ${m.position_photo}`:`1 colonne · photo ${m.position_photo==='avant'?'au-dessus':'en dessous'}`} · ${marque} · photos des variantes ${m.photos_variantes===2?'en vignette dans le tableau':m.photos_variantes?'avec leur référence':'dans les illustrations'}${mosaique}${qr}`;
+    const filigrane=m.filigrane?' · logo en filigrane':'';
+    return `${cote?`2 colonnes · photo à ${m.position_photo}`:`1 colonne · photo ${m.position_photo==='avant'?'au-dessus':'en dessous'}`} · ${marque} · photos des variantes ${m.photos_variantes===2?'en vignette dans le tableau':m.photos_variantes?'avec leur référence':'dans les illustrations'}${mosaique}${qr}${filigrane}`;
   }
   renderStructure() {
     const z=this.root.find('.dp-layout'),m=this.layoutValues();
@@ -244,7 +247,16 @@ class DocumentsProduit {
       <label class="dp-label">Police du texte<select class="form-control dp-police">${options(DP_POLICES,m.police)}</select></label>
       <label class="dp-label">Police des titres<select class="form-control dp-police-titres">${options({'':'Comme le texte',...Object.fromEntries(Object.entries(DP_POLICES).filter(([k])=>k))},m.police_titres)}</select></label>
       <label class="dp-label">Taille du texte (points)<select class="form-control dp-taille-police">${options({9:'9 — compact',10:'10 — standard',11:'11 — confortable',12:'12 — grand'},String(m.taille_police))}</select></label>
-      <p class="dp-muted dp-full">Polices livrées avec l’outil (licence libre) : le PDF les embarque, quel que soit le serveur. Les langues en écriture non latine gardent leur police dédiée.</p></div>
+      <p class="dp-muted dp-full">Polices livrées avec l’outil (licence libre) : le PDF les embarque, quel que soit le serveur. Les langues en écriture non latine gardent leur police dédiée.</p>
+      <label class="dp-label dp-full" style="margin-top:6px"><input type="checkbox" class="dp-filigrane" ${m.filigrane?'checked':''}> Logo en filigrane — le logo de l’entreprise, très pâle, en fond de page</label>
+      <div class="dp-full dp-filigrane-reglages" style="display:${m.filigrane?'grid':'none'};grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px">
+        <label class="dp-label">Intensité <span class="dp-filigrane-opacite-valeur">${m.filigrane_opacite} %</span><input type="range" class="dp-filigrane-opacite" min="3" max="20" step="1" value="${m.filigrane_opacite}"></label>
+        <label class="dp-label">Largeur <span class="dp-filigrane-largeur-valeur">${m.filigrane_largeur} % de la page</span><input type="range" class="dp-filigrane-largeur" min="20" max="100" step="5" value="${m.filigrane_largeur}"></label>
+        <label class="dp-label">Inclinaison<select class="form-control dp-filigrane-rotation">${options({0:'Droit',30:'Incliné à 30°',45:'Incliné à 45°'},String(m.filigrane_rotation))}</select></label>
+        <label class="dp-label">Pages<select class="form-control dp-filigrane-pages">${options({toutes:'Toutes les pages',premiere:'La première page seulement'},m.filigrane_pages)}</select></label>
+        <label class="dp-label">Position<select class="form-control dp-filigrane-plan">${options({dessus:'Par-dessus le contenu — visible sur toute la page',fond:'Derrière le contenu — caché par les photos et les tableaux'},m.filigrane_plan)}</select></label>
+        <label class="dp-label" style="align-self:end"><input type="checkbox" class="dp-filigrane-gris" ${m.filigrane_gris?'checked':''}> En gris plutôt qu’en couleur</label>
+        <p class="dp-muted dp-full">Le logo est celui des Réglages Aquaworld IA (« Logo du filigrane ») ; sans logo réglé, la goutte AquaWorld. Par-dessus le contenu, il est transparent : le texte, les photos et les tableaux restent lisibles dessous. L’aperçu PDF le montre tel qu’il s’imprime.</p></div></div>
       <div class="dp-brand-zone-settings" style="border:0;margin:0;padding:0"><h4 style="font-size:13px;margin:12px 0 6px">Zone de marque</h4>
       <p class="dp-muted dp-zone-brand-status" role="status"></p>
       <div class="dp-actions"><button class="btn btn-default btn-sm dp-enable-free-logo">Déplacer le logo à la souris</button></div>
@@ -269,6 +281,13 @@ class DocumentsProduit {
       <div class="dp-layout-preview"></div>
       <div class="dp-live-pages"></div></div></div>`);
     this.liveLayout=true;
+    z.find('.dp-filigrane,.dp-filigrane-opacite,.dp-filigrane-largeur,.dp-filigrane-rotation,.dp-filigrane-pages,.dp-filigrane-gris,.dp-filigrane-plan').on('input change',()=>{
+      const actif=z.find('.dp-filigrane').prop('checked'),nombre=(selecteur,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selecteur).val())||def)));
+      const f={filigrane:actif?1:0,filigrane_opacite:nombre('.dp-filigrane-opacite',3,20,8),filigrane_largeur:nombre('.dp-filigrane-largeur',20,100,60),filigrane_rotation:[0,30,45].includes(Number(z.find('.dp-filigrane-rotation').val()))?Number(z.find('.dp-filigrane-rotation').val()):0,filigrane_pages:z.find('.dp-filigrane-pages').val()==='premiere'?'premiere':'toutes',filigrane_gris:z.find('.dp-filigrane-gris').prop('checked')?1:0,filigrane_plan:z.find('.dp-filigrane-plan').val()==='fond'?'fond':'dessus'};
+      z.find('.dp-filigrane-reglages').css('display',actif?'grid':'none');z.find('.dp-filigrane-opacite-valeur').text(f.filigrane_opacite+' %');z.find('.dp-filigrane-largeur-valeur').text(f.filigrane_largeur+' % de la page');
+      this.layouts[this.activeTab]={...this.layoutValues(),...f};
+      this.renderLayoutPreview();this.layoutChanged();
+    });
     z.find('.dp-layout-position,.dp-layout-valign,.dp-layout-title-align,.dp-layout-width,.dp-layout-height,.dp-layout-color,.dp-style-titres,.dp-sommaire,.dp-police,.dp-police-titres,.dp-taille-police,.dp-layout-brand-position,.dp-layout-brand-align,.dp-layout-logo-width,.dp-layout-brand-name,.dp-logo-x,.dp-logo-y,.dp-qr-url,.dp-qr-legende,.dp-qr-position,.dp-qr-align,.dp-qr-taille').on('input change',e=>{
       const position=z.find('.dp-layout-position').val(),maximum=['gauche','droite'].includes(position)?55:80;
       const borne=(selector,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selector).val())||def)));
@@ -374,7 +393,7 @@ class DocumentsProduit {
     this.root.find('.dp-layout-valign-zone').toggle(cote);
     this.root.find('.dp-column-proportions').text(cote?`Deux colonnes : photo ${m.largeur_photo} % · description ${100-m.largeur_photo} %${m.alignement_vertical_photo==='centre'?' · centrées en hauteur':''}.`:'Une colonne : la photo et la description se suivent sur la page.');
   }
-  layoutValues() { return {...dpLayoutDefault(),...(this.layouts?.[this.activeTab]||{})}; }
+  layoutValues() { return {...dpLayoutDefault(),...DP_FILIGRANE,...(this.layouts?.[this.activeTab]||{})}; }
   // Le QR de l'aperçu vient du serveur (même générateur que le PDF), avec un délai pour ne pas l'appeler à chaque frappe.
   loadQrPreview() {
     clearTimeout(this.qrTimer);

@@ -586,6 +586,25 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Logo en filigrane (13/11/2026, v0.57.0)
+
+Demandes du 09/11 et du 13/11/2026 : « mon logo de l'entreprise très transparent en arrière-plan sur toute la
+page », « le logo de la goutte sans le nom ».
+
+- **Réglage par dossier et par type de document**, étape Présenter, carte « Mise en page » : case « Logo en
+  filigrane », intensité (3 à 20 %, 8 par défaut), largeur (20 à 100 % de la page, 60 par défaut), inclinaison (0,
+  30, 45°), toutes les pages ou la première, couleur ou gris, position. Clés `filigrane*` de la mise en page
+  (`mise_en_page.FILIGRANE_DEFAUTS`), jamais écrites à leur valeur par défaut ; elles suivent la mise en page dans
+  les fiches des variantes et dans « Même présentation pour un autre produit ».
+- **Le logo** : champ « Logo du filigrane » des Réglages ; vide ou illisible, la goutte AquaWorld livrée avec
+  l'app (`contenu/filigrane/goutte-aquaworld.png`) — `latex.logo_filigrane`.
+- **Position** : « par-dessus le contenu » par défaut — le logo est rendu transparent (`latex.filigrane_png` :
+  le blanc ne cache rien, le dessin garde l'intensité réglée) et posé au premier plan (`\AddToShipoutPictureFG`),
+  donc visible sur toute la page, texte, photos et tableaux lisibles dessous. « Derrière le contenu » : fondu sur
+  blanc et posé en fond (`…BG`) ; les photos et les lignes colorées des tableaux le recouvrent alors (essai sur
+  AP-M : le logo y apparaissait découpé).
+- L'aperçu PDF en direct le montre tel qu'il s'imprime ; un logo illisible laisse le document sans filigrane.
+
 ### Tableau des caractéristiques par catégories (13/11/2026, v0.56.0)
 
 Demande : « est-ce que l'IA peut les organiser et créer par catégories, électrique ou autre, en gardant la

@@ -39,6 +39,7 @@
   "sb_documents_produit",
   "documents_produit_liens",
   "categories_caracteristiques",
+  "logo_filigrane",
   "sb_manuels_2",
   "glossaire_global",
   "instructions_globales",
@@ -277,6 +278,12 @@
    "description": "Une catégorie par ligne, dans l’ordre du tableau des caractéristiques des fiches et manuels. L’IA range chaque valeur dans l’une d’elles ; un dossier peut avoir sa propre liste. Vide : Performances, Filtration, Hydraulique, Électrique, Dimensions et poids, Matériaux, Équipements fournis."
   },
   {
+   "fieldname": "logo_filigrane",
+   "fieldtype": "Attach Image",
+   "label": "Logo du filigrane",
+   "description": "Le logo posé très pâle en fond de page des fiches et manuels, quand le filigrane est activé dans un dossier (étape Présenter). Vide : la goutte AquaWorld livrée avec l’application."
+  },
+  {
    "fieldname": "sb_manuels_2",
    "fieldtype": "Section Break",
    "label": "Manuels"
@@ -371,7 +378,7 @@
  "issingle": 1,
  "istable": 0,
  "links": [],
- "modified": "2026-11-13 17:00:00.000000",
+ "modified": "2026-11-13 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Aquaworld IA Reglages",

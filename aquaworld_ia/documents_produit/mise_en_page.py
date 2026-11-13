@@ -64,6 +64,19 @@ IMAGE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
 # enregistrée sans position (l'ancien défaut « fin_document » n'était pas écrit) suit ce nouveau défaut ; les autres
 # positions restent au choix dans l'étape Présenter.
 QR_DEFAUTS = {"qr_url": "", "qr_legende": "", "qr_position": "illustrations", "qr_alignement": "droite", "qr_taille": 22}
+# Logo en filigrane (demandes 09/11 et 13/11/2026 : « mon logo de l'entreprise très transparent en arrière-plan sur
+# toute la page », « le logo de la goutte sans le nom »). filigrane : 0/1 ; filigrane_opacite : % de la couleur du
+# logo gardé (3 à 20) ; filigrane_largeur : % de la largeur de la page ; filigrane_rotation : degrés ;
+# filigrane_pages : toutes les pages ou la première seulement ; filigrane_gris : le logo passé en gris ;
+# filigrane_plan : « dessus » = par-dessus le contenu, en vraie transparence, donc visible sur toute la page ;
+# « fond » = derrière le contenu, que les photos et les lignes colorées des tableaux recouvrent (essai du 13/11/2026 :
+# en fond, le logo apparaissait découpé par les photos et les tableaux).
+# L'image vient des Réglages (« Logo du filigrane »), sinon de la goutte livrée avec l'app (latex.logo_filigrane).
+FILIGRANE_DEFAUTS = {"filigrane": 0, "filigrane_opacite": 8, "filigrane_largeur": 60, "filigrane_rotation": 0,
+	"filigrane_pages": "toutes", "filigrane_gris": 0, "filigrane_plan": "dessus"}
+FILIGRANE_ADMIS = {"filigrane": (0, 1), "filigrane_opacite": range(3, 21), "filigrane_largeur": range(20, 101),
+	"filigrane_rotation": (0, 30, 45), "filigrane_pages": ("toutes", "premiere"), "filigrane_gris": (0, 1),
+	"filigrane_plan": ("dessus", "fond")}
 QR_URL = re.compile(r"https?://[A-Za-z0-9](?:[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]*)")
 
 
@@ -85,7 +98,7 @@ def normaliser(valeur=None):
 		"position_photo": "apres", "largeur_photo": 65, "hauteur_photo": 65,
 		"alignement_titre": "gauche", "couleur": "#087E8B", "ordre": list(ORDRE_DEFAUT),
 	}
-	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS) | set(PHOTOS_DEFAUTS) | set(QR_DEFAUTS)):
+	if set(valeur) - (set(defauts) | set(MARQUE_DEFAUTS) | set(PHOTOS_DEFAUTS) | set(QR_DEFAUTS) | set(FILIGRANE_DEFAUTS)):
 		raise ValueError("Réglage de mise en page inconnu.")
 	resultat = {**defauts, **copy.deepcopy(valeur)}
 	if resultat["position_photo"] not in ("avant", "apres", "gauche", "droite"):
@@ -167,6 +180,15 @@ def normaliser(valeur=None):
 			resultat.pop(cle, None)
 		else:
 			resultat[cle] = v
+	for cle, defaut in FILIGRANE_DEFAUTS.items():
+		v = valeur.get(cle, defaut)
+		if (not isinstance(v, str) if cle in ("filigrane_pages", "filigrane_plan") else type(v) is not int) or v not in FILIGRANE_ADMIS[cle]:
+			raise ValueError("Réglage du filigrane invalide.")
+		# Comme les autres réglages : la valeur par défaut n'est pas écrite, une version existante ne se périme pas.
+		if v == defaut:
+			resultat.pop(cle, None)
+		else:
+			resultat[cle] = v
 	qr = {**QR_DEFAUTS, **{k: v for k, v in valeur.items() if k in QR_DEFAUTS}}
 	for cle, limite in (("qr_url", 500), ("qr_legende", 120)):
 		if not isinstance(qr[cle], str) or len(qr[cle]) > limite:
@@ -216,7 +238,7 @@ def initiale(url_site):
 def valeur(disposition, cle):
 	"""Un réglage des photos tel qu'il s'applique : la valeur par défaut n'est jamais enregistrée, il faut donc la
 	lire ici plutôt que par `disposition.get(cle)`."""
-	return (disposition or {}).get(cle, PHOTOS_DEFAUTS[cle])
+	return (disposition or {}).get(cle, PHOTOS_DEFAUTS[cle] if cle in PHOTOS_DEFAUTS else FILIGRANE_DEFAUTS[cle])
 
 
 def pour_document(dossier, genre):

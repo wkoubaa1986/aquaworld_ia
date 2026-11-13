@@ -508,6 +508,17 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				+ f"\\includegraphics[width={bas['largeur']:.2f}mm,height={hb:.2f}mm,keepaspectratio]{{{bas['fichier']}}}"
 				+ r"\par\centering\small\thepage\end{minipage}}" + "\n")
 	body = [en_tete, "\\begin{document}", "\\setRTL" if rtl else ""]
+	if assets.get("filigrane"):
+		# Logo en filigrane (eso-pic), centré sur la page. Par-dessus le contenu (image transparente, visible partout)
+		# ou en fond : l'en-tête, les photos et les lignes colorées des tableaux le recouvrent alors.
+		# « * » : seulement la page en cours, donc la première.
+		image = (r"\includegraphics[width=" + f"{M.valeur(disposition, 'filigrane_largeur') / 100:.2f}"
+			+ r"\paperwidth]{" + assets["filigrane"] + "}")
+		if M.valeur(disposition, "filigrane_rotation"):
+			image = r"\rotatebox[origin=c]{" + str(M.valeur(disposition, "filigrane_rotation")) + "}{" + image + "}"
+		body.append(r"\AddToShipoutPicture" + ("FG" if M.valeur(disposition, "filigrane_plan") == "dessus" else "BG")
+			+ ("*" if M.valeur(disposition, "filigrane_pages") == "premiere" else "")
+			+ r"{\AtPageCenter{\makebox(0,0){" + image + "}}}")
 	alignement = {"gauche": r"\raggedright", "centre": r"\centering", "droite": r"\raggedleft"}
 	marque = {**M.MARQUE_DEFAUTS, **disposition}
 	if marque["position_marque"] == "libre":
@@ -1034,6 +1045,59 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	return "\n".join(body)
 
 
+FILIGRANE_LIVRE = Path(__file__).resolve().parent.parent / "contenu" / "filigrane" / "goutte-aquaworld.png"
+
+
+def filigrane_png(octets, opacite=8, gris=False, max_cote=1400, transparent=True):
+	"""Le logo prêt à être posé sur la page : rogné à son dessin et ramené à `opacite` % de sa couleur. Pur. -> PNG.
+
+	`transparent` (par-dessus le contenu) : le blanc du logo devient transparent et le dessin ne garde que `opacite` %
+	d'opacité — ce qui est dessous (texte, photo, tableau) reste visible. Sinon (en fond de page) : le logo est
+	fondu sur blanc, sans transparence."""
+	import numpy as np
+	from PIL import ImageChops
+
+	with Image.open(io.BytesIO(octets)) as source:
+		im = source.convert("RGBA")
+	blanc = Image.new("RGBA", im.size, (255, 255, 255, 255))
+	sur_blanc = Image.alpha_composite(blanc, im).convert("RGB")
+	# Rogner les marges blanches (ou transparentes) : la largeur réglée est celle du dessin, pas de son cadre.
+	cadre = ImageChops.difference(sur_blanc, Image.new("RGB", im.size, (255, 255, 255))).convert("L").point(lambda v: 255 if v > 12 else 0).getbbox()
+	if cadre:
+		sur_blanc = sur_blanc.crop(cadre)
+	if gris:
+		sur_blanc = sur_blanc.convert("L").convert("RGB")
+	sur_blanc.thumbnail((max_cote, max_cote), Image.Resampling.LANCZOS)
+	part = max(1, min(100, int(opacite))) / 100
+	if transparent:
+		# Un pixel vu sur blanc = une encre plus ou moins couvrante : on retrouve la couverture (son canal le plus
+		# sombre) et la couleur de l'encre, puis on ne garde que `opacite` % de cette couverture.
+		rvb = np.asarray(sur_blanc, dtype=np.float32)
+		couverture = 1 - rvb.min(axis=2) / 255
+		encre = np.where(couverture[..., None] > 0, (rvb - 255 * (1 - couverture[..., None])) / np.maximum(couverture[..., None], 1e-6), 255)
+		image = Image.fromarray(np.dstack([np.clip(encre, 0, 255), couverture * part * 255]).round().astype(np.uint8), "RGBA")
+	else:
+		image = Image.blend(Image.new("RGB", sur_blanc.size, (255, 255, 255)), sur_blanc, part)
+	sortie = io.BytesIO()
+	image.save(sortie, "PNG", optimize=True)
+	return sortie.getvalue()
+
+
+def logo_filigrane():
+	"""Les octets du logo du filigrane : celui des Réglages (« Logo du filigrane ») s'il est lisible, sinon la goutte
+	livrée avec l'app. Un logo réglé par l'administrateur sert à tous : il est lu sans contrôle de droits."""
+	try:
+		from aquaworld_ia.ia import fichiers
+		from aquaworld_ia.ia.client import reglages
+
+		url = reglages().get("logo_filigrane")
+		if url:
+			return fichiers.lire(url)
+	except Exception:
+		pass
+	return FILIGRANE_LIVRE.read_bytes()
+
+
 def compiler(tex, fichiers):
 	moteur = shutil.which("xelatex")
 	if not moteur:
@@ -1043,7 +1107,7 @@ def compiler(tex, fichiers):
 		(p / "images").mkdir()
 		(p / "document.tex").write_text(tex, encoding="utf-8")
 		for name, b in fichiers.items():
-			if not re.fullmatch(r"images/(?:logo|qr|image-[0-9]+|section-[0-9]+|variante-[0-9]+|entete-(?:haut|bas))\.png", name):
+			if not re.fullmatch(r"images/(?:logo|qr|filigrane|image-[0-9]+|section-[0-9]+|variante-[0-9]+|entete-(?:haut|bas))\.png", name):
 				raise ValueError("Nom de fichier LaTeX invalide.")
 			(p / name).write_bytes(b)
 		env = {**os.environ, "openin_any": "p", "openout_any": "p", "shell_escape": "f", "TEXMFOUTPUT": temp}
@@ -1088,6 +1152,15 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 	if ctx.get("logo") and (not ctx.get("entete") or ctx.get("logo_marque_avec_entete")) and ctx.get("mise_en_page", {}).get("position_marque") != "masquee":
 		fichiers["images/logo.png"] = image_png(C.octets(ctx["logo"]))
 		assets["logo"] = "images/logo.png"
+	filigrane = M.normaliser(ctx.get("mise_en_page"))
+	if M.valeur(filigrane, "filigrane"):
+		# Un logo illisible (format inconnu) ne bloque pas le document : il sort sans filigrane.
+		try:
+			fichiers["images/filigrane.png"] = filigrane_png(logo_filigrane(), M.valeur(filigrane, "filigrane_opacite"), bool(M.valeur(filigrane, "filigrane_gris")),
+				transparent=M.valeur(filigrane, "filigrane_plan") == "dessus")
+			assets["filigrane"] = "images/filigrane.png"
+		except Exception:
+			pass
 	if ctx.get("entete"):
 		assets["entete"] = {}
 		for cle, bandeau in rendre(ctx["entete"]).items():
