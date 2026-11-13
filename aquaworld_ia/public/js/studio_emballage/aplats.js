@@ -22,7 +22,25 @@ class StudioAplats {
 				<button class="btn btn-xs btn-default" data-action="encres_aplats">${encres.length ? __("Changer les couleurs") : __("Indiquer les couleurs d’impression")}</button>
 				${encres.length ? `<button class="btn btn-xs btn-default" data-action="controle_aplats">${__("Contrôler les couleurs du PDF")}</button>` : ""}
 			</div>
-			${encres.length ? `<p class="small text-muted" style="margin:6px 0 0">${__("Pour passer le décor d’une face en aplats : étape 3, cliquer la face, ouvrir « Fond de cette face », puis « Aplats pour l’impression ».")}</p>` : ""}</div>`;
+			${encres.length ? `<div class="se-btns" style="margin-top:6px"><button class="btn btn-xs btn-primary" data-action="creer_aplats">${__("Créer le décor en aplats…")}</button></div>
+				<p class="small text-muted" style="margin:6px 0 0">${__("1. Créer le décor en aplats d’une face. 2. Contrôler les couleurs du PDF. 3. Télécharger le PDF imprimeur.")}</p>` : ""}</div>`;
+	}
+
+	/** Faces dont le décor est une image, donc à passer en aplats ; à défaut, toutes les faces. */
+	_faces_aplats() {
+		const faces = (this.data.apercu || {}).faces || [], fonds = this._fonds();
+		const imagees = faces.filter((f) => (fonds[f.code] || {}).image);
+		return imagees.length ? imagees : faces;
+	}
+
+	/** Depuis l’étape 4 : ouvre l’atelier des aplats sans passer par l’étape 3 (13/11/2026 : « je fais quoi ? »). */
+	creer_aplats() {
+		const faces = this._faces_aplats();
+		if (!faces.length) return frappe.msgprint(__("Renseignez d’abord le format de l’emballage (étape 1)."));
+		if (faces.length === 1) return this.atelier_aplats(faces[0].code);
+		frappe.prompt([{ fieldtype: "Select", fieldname: "face", label: __("Face à passer en aplats"), reqd: 1, default: faces[0].code,
+			options: faces.map((f) => ({ value: f.code, label: f.libelle || f.code })) }],
+		(v) => this.atelier_aplats(v.face), __("Décor en aplats"), __("Continuer"));
 	}
 
 	regler_encres() {

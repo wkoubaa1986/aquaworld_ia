@@ -404,6 +404,8 @@ class StudioEmballage {
 				this.regler_encres();
 			} else if (nom === "controle_aplats") {
 				await this.controler_aplats();
+			} else if (nom === "creer_aplats") {
+				this.creer_aplats();
 			} else if (nom === "logo_ia") {
 				this.atelier_image("logo");
 			} else if (nom === "logo_couleur") {
