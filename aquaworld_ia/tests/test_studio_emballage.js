@@ -738,3 +738,16 @@ test("l’aperçu d’un visuel tourné garde les proportions et tient dans son 
 	}
 	assert.equal(instance.angle_zone(-90), 270);
 });
+
+test("le décor d'une face suit la taille et le décalage comme dans le PDF", () => {
+	const {instance} = studio();
+	const cadre = {x: 10, y: 20, w: 100, h: 200}, carre = {w: 50, h: 50};
+	// 100 % : un carré couvre une face en hauteur, il déborde en largeur, centré
+	assert.deepEqual({...instance.cadre_decor(cadre, carre, {})}, {x: -40, y: 20, w: 200, h: 200});
+	// 50 %, 5 mm à droite, 10 mm vers le haut
+	assert.deepEqual({...instance.cadre_decor(cadre, carre, {zoom: 0.5, decalage: {x: 5, y: -10}})}, {x: 15, y: 60, w: 100, h: 100});
+	// valeurs hors bornes ou illisibles ramenées comme côté serveur
+	assert.deepEqual(JSON.parse(JSON.stringify(instance._cadrage_fond({zoom: 99, decalage: {x: "abc", y: null}}))), {zoom: 4, decalage: {x: 0, y: 0}});
+	assert.equal(instance._cadrage_fond({zoom: 0}).zoom, 0.2);
+	assert.equal(instance._cadrage_fond({zoom: ""}).zoom, 1);
+});

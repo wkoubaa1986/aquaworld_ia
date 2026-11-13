@@ -4,7 +4,7 @@ class StudioDeplacement {
 		if (!this.$root) return null;
 		const champs = [];
 		this.$root.find('.se-droite [data-saisie-position="1"]').each((_i, el) => {
-			const attribut = el.hasAttribute("data-pos") ? "data-pos" : el.hasAttribute("data-angle-picto") ? "data-angle-picto" : "data-decalage";
+			const attribut = ["data-pos", "data-angle-picto", "data-zoom-fond", "data-decalage-fond"].find((a) => el.hasAttribute(a)) || "data-decalage";
 			champs.push({attribut, nom: el.getAttribute(attribut), valeur: el.value, focus: document.activeElement === el});
 		});
 		return {design: this.nom, face: this.epinglee, indice: this.zone_sel, champs};
@@ -17,6 +17,8 @@ class StudioDeplacement {
 			$champ.val(c.valeur).attr("data-saisie-position", "1");
 			if (c.focus) $champ[0]?.focus({preventScroll: true});
 		}
+		// Taille / position du décor saisies pendant une sauvegarde : le plan redessiné les montre de nouveau.
+		if (saisie.champs.some((c) => c.attribut.endsWith("-fond"))) this.$root.find(".se-droite [data-zoom-fond]").trigger("input");
 	}
 
 	regler_mode_deplacement(contenu) {

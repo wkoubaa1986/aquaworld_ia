@@ -86,6 +86,7 @@ class StudioEdition {
 				${fe.copie_bloquee ? `<span class="text-muted" style="flex-basis:100%">${__("Cette facette a sa propre mise en page. « Revenir à la maquette automatique » réactive la copie de « {0} ».", [this._esc((infos[fe.copie_bloquee] || {}).libelle || fe.copie_bloquee)])}</span>` : ""}
 			</div>` : "";
 		$s.html(`<p class="text-muted small">${__("Feuille <b>{0} × {1} mm</b>, fond perdu inclus. Survolez une face, cliquez pour l'épingler.", [a.feuille.w, a.feuille.h])}</p>${pb}${outils}${a.svg}`);
+		this.dessiner_decors_plan($s);
 		this.dessiner_contenus_plan($s);
 		const $choix = $s.find('[data-role="type-zone-plan"]');
 		if (this._type_ajout && [...($choix[0]?.options || [])].some(o => o.value === this._type_ajout)) $choix.val(this._type_ajout);
@@ -481,18 +482,35 @@ class StudioEdition {
 		$b.find('[data-role="fond-face-ia"]').on("click", () => this.atelier_face(f.code));
 		$b.find('[data-role="fond-face-aplats"]').on("click", () => this.atelier_aplats(f.code));
 		$b.find('[data-role="photo-incluse"]').on("change", (e) => regler({ photo_incluse: e.currentTarget.checked }));
-		// Taille et position du décor : enregistrées, puis le plan est recomposé pour montrer le résultat.
-		$b.find("[data-zoom-fond]").on("input", (e) => $b.find("[data-zoom-fond-valeur]").text(`${e.currentTarget.value} %`));
-		const cadrer = async (cadrage) => {
-			const fonds = this._fonds(), design = this.nom;
-			fonds[f.code] = Object.assign({}, fonds[f.code] || {}, this._cadrage_fond(cadrage));
+		// Taille et position du décor : en direct dans l'onglet Édition pendant la saisie, enregistrées au relâchement.
+		const saisie_cadrage = () => this._cadrage_fond({ zoom: Number($b.find("[data-zoom-fond]").val()) / 100,
+			decalage: { x: $b.find('[data-decalage-fond="x"]').val(), y: $b.find('[data-decalage-fond="y"]').val() } });
+		const montrer_cadrage = () => {
+			$b.find("[data-zoom-fond-valeur]").text(`${$b.find("[data-zoom-fond]").val()} %`);
+			if (this.onglet !== "plan") { this.onglet = "plan"; this.rendre_scene(); }
+			this.cadrer_decor_plan(f.code, saisie_cadrage());
+		};
+		const sauver_cadrage = async () => {
+			// Ce qui part est enregistré ; une saisie faite PENDANT l'envoi reste marquée et survit au redessin.
+			$b.find("[data-zoom-fond], [data-decalage-fond]").removeAttr("data-saisie-position");
+			const fonds = this._fonds();
+			fonds[f.code] = Object.assign({}, fonds[f.code] || {}, saisie_cadrage());
 			this.d.fonds_faces = JSON.stringify(fonds);
 			await this.modifier({ fonds_faces: fonds }, false);
-			if (this.nom === design) await this.action("composer");
 		};
-		$b.find('[data-role="cadrage-fond-voir"]').on("click", () => cadrer({ zoom: Number($b.find("[data-zoom-fond]").val()) / 100,
-			decalage: { x: $b.find('[data-decalage-fond="x"]').val(), y: $b.find('[data-decalage-fond="y"]').val() } }));
-		$b.find('[data-role="cadrage-fond-zero"]').on("click", () => cadrer({ zoom: 1, decalage: { x: 0, y: 0 } }));
+		$b.find("[data-zoom-fond], [data-decalage-fond]").on("input", (e) => { if (e.originalEvent) e.currentTarget.setAttribute("data-saisie-position", "1"); montrer_cadrage(); })
+			.on("change", sauver_cadrage)
+			// Un champ redessiné pendant la frappe ne déclenche plus « change » en le quittant : la marque le rattrape.
+			.on("blur", (e) => { if (e.currentTarget.getAttribute("data-saisie-position") === "1") sauver_cadrage(); });
+		$b.find('[data-role="cadrage-fond-voir"]').on("click", async () => {
+			const design = this.nom;
+			await sauver_cadrage();
+			if (this.nom === design) await this.action("composer");
+		});
+		$b.find('[data-role="cadrage-fond-zero"]').on("click", () => {
+			$b.find("[data-zoom-fond]").val(100); $b.find("[data-decalage-fond]").val(0);
+			montrer_cadrage(); sauver_cadrage();
+		});
 		$b.find('[data-role="fond-face-blanc"]').on("click", () => this.blanchir((this._fonds()[f.code] || {}).mode === "image" ? f.code : "fond"));
 		$b.find("[data-voir-face]").on("click", (e) => { e.preventDefault(); this.visionneuse($(e.currentTarget).attr("data-voir-face"), f.libelle); });
 	}

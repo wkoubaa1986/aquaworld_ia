@@ -69,7 +69,7 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 	brut = frappe.parse_json(contenu) if isinstance(contenu, str) else (contenu or {})
 	mep = brut.get("mise_en_page")
 	mep = frappe.parse_json(mep) if isinstance(mep, str) else mep
-	from aquaworld_ia.emballage.composition import faces_copiees
+	from aquaworld_ia.emballage.composition import faces_copiees, rect_avec_fond_perdu
 
 	zones = zones_par_face(plan, c, bool(brut.get("faces_identiques")), mep or None, bool(brut.get("cotes_identiques")))
 	if brut.get("photo_auto"):
@@ -82,6 +82,8 @@ def apercu(type_boite, longueur_mm, hauteur_mm, profondeur_mm, patte_collage_mm=
 	        "reserves": plan.get("reserves") or [],
 	        "svg": geometrie.apercu_svg(plan, zones=zones), "problemes": geometrie.verifier(plan),
 	        "faces": [{"code": f["code"], "libelle": f["libelle"], "x": f["x"], "y": f["y"], "w": f["w"], "h": f["h"],
+	                   # le cadre que couvre le décor de la face dans le PDF (face + fond perdu), pour l'aperçu en direct
+	                   "fond": dict(zip("xywh", rect_avec_fond_perdu(f, plan))),
 	                   "utile": f.get("utile"), "copie_de": copies.get(f["code"]), "copie_bloquee": bloquees.get(f["code"]),
 	                   "personnalisee": bool(mep and f["code"] in mep),
 	                   "zones": [dict(z, libelle=geometrie.libelle_zone(z)) for z in zones[f["code"]]]}

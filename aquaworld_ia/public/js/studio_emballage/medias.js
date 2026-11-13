@@ -103,6 +103,51 @@ class StudioMedias {
 		return { zoom: nombre(reg && reg.zoom, 1, 0.2, 4), decalage: { x: nombre(d.x, 0, -2000, 2000), y: nombre(d.y, 0, -2000, 2000) } };
 	}
 
+	/** Où tombe le décor (mm du plan) : il couvre `cadre` sans se déformer, puis taille et décalage — le même calcul
+	 *  que `composition.poser_svg_couvrant` côté PDF. */
+	cadre_decor(cadre, taille, cadrage) {
+		const c = this._cadrage_fond(cadrage);
+		const k = Math.max(cadre.w / taille.w, cadre.h / taille.h) * c.zoom, w = taille.w * k, h = taille.h * k;
+		return { x: cadre.x + (cadre.w - w) / 2 + c.decalage.x, y: cadre.y + (cadre.h - h) / 2 + c.decalage.y, w, h };
+	}
+
+	// 13/11/2026 : « pourquoi je n’arrive pas à la voir en temps réel ? » — l’onglet Édition ne montrait que les zones.
+	// Le décor posé sur une face (mode « image ») y est dessiné sous les zones, coupé au cadre comme dans le PDF.
+	dessiner_decors_plan($s) {
+		const svg = $s.find("svg.aqia-plan")[0], NS = "http://www.w3.org/2000/svg";
+		if (!svg) return;
+		const fonds = this._fonds();
+		this._tailles_images ||= new Map();
+		for (const face of (this.data.apercu || {}).faces || []) {
+			const reg = fonds[face.code] || {};
+			const rect = [...svg.querySelectorAll("rect.aqia-face")].find((r) => r.getAttribute("data-face") === face.code);
+			if (reg.mode !== "image" || !reg.image || !rect) continue;
+			const c = face.fond || face, id = `se-decor-${this._serie_decors = (this._serie_decors || 0) + 1}`;
+			const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); parent.appendChild(n); return n; };
+			const g = document.createElementNS(NS, "g");
+			g.setAttribute("class", "se-decor-face"); g.setAttribute("data-face", face.code); g.setAttribute("pointer-events", "none");
+			rect.after(g);
+			const cadre = { x: c.x, y: c.y, width: c.w, height: c.h };
+			el("rect", cadre, el("clipPath", { id, clipPathUnits: "userSpaceOnUse" }, g));
+			el("rect", { ...cadre, fill: "#fff" }, g);
+			el("image", { href: reg.image, preserveAspectRatio: "none", "clip-path": `url(#${id})`, "data-decor-url": reg.image }, g);
+			if (this._tailles_images.has(reg.image)) { this.cadrer_decor_plan(face.code); continue; }
+			const charge = new Image(), url = reg.image;
+			charge.onload = () => { this._tailles_images.set(url, { w: charge.naturalWidth, h: charge.naturalHeight }); this.cadrer_decor_plan(face.code); };
+			charge.src = url;
+		}
+	}
+
+	/** Replace le décor d’une face dans l’onglet Édition ; `cadrage` = réglage en cours de saisie, sinon celui enregistré. */
+	cadrer_decor_plan(code, cadrage = null) {
+		const face = ((this.data.apercu || {}).faces || []).find((f) => f.code === code);
+		const g = [...this.$root.find("g.se-decor-face")].find((n) => n.getAttribute("data-face") === code);
+		const im = g && g.querySelector("image"), taille = im && (this._tailles_images || new Map()).get(im.getAttribute("data-decor-url"));
+		if (!face || !taille || !taille.w || !taille.h) return;
+		const c = this.cadre_decor(face.fond || face, taille, cadrage || this._fonds()[code] || {});
+		Object.entries({ x: c.x, y: c.y, width: c.w, height: c.h }).forEach(([k, v]) => im.setAttribute(k, v));
+	}
+
 	// 13/11/2026 : « comment je fais pour la zoomer ou dézoomer par rapport à l’écriture » — le décor couvrait toujours la face.
 	_cadrage_fond_html(reg) {
 		const c = this._cadrage_fond(reg), pct = Math.round(c.zoom * 100);
@@ -114,9 +159,9 @@ class StudioMedias {
 				<label>${__("Vertical (mm)")}<input type="number" step="1" data-decalage-fond="y" value="${c.decalage.y}"></label>
 			</div>
 			<div class="se-btns" style="margin-top:6px">
-				<button class="btn btn-xs btn-primary" data-role="cadrage-fond-voir">${__("Appliquer et voir")}</button>
+				<button class="btn btn-xs btn-primary" data-role="cadrage-fond-voir">${__("Voir dans le PDF")}</button>
 				<button class="btn btn-xs btn-default" data-role="cadrage-fond-zero">${__("Réinitialiser")}</button></div>
-			<div class="text-muted small" style="margin-top:4px">${__("100 % = le décor remplit la face. Moins : il rétrécit et le sac reste blanc autour. Plus : il grossit, ce qui dépasse est coupé. Positif : droite / bas. Les textes ne bougent pas.")}</div></div>`;
+			<div class="text-muted small" style="margin-top:4px">${__("Le décor bouge en direct dans l’onglet Édition et s’enregistre tout seul. 100 % = il remplit la face. Moins : il rétrécit et le sac reste blanc autour. Plus : il grossit, ce qui dépasse est coupé. Positif : droite / bas. Les textes ne bougent pas.")}</div></div>`;
 	}
 
 	_bloc_fond_face(f) {
