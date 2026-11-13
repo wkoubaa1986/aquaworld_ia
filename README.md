@@ -334,7 +334,7 @@ ce traitement ; « Recolorer le logo » reste disponible dans ses outils. Une ph
 devient une illustration : les reflets et dégradés sont simplifiés, les transparences partielles
 sont seuillées. Pour un rendu photographique, conserver le PNG/JPEG haute résolution.
 
-## Impression en aplats (flexographie) — v0.54.0
+## Impression en aplats (flexographie) — v0.54.0, complétée en v0.55.0
 
 Un sac ou un carton imprimé en quelques couleurs reçoit un cliché par couleur : une photo, même
 vectorisée, ne s’y sépare pas. Le studio ramène donc le décor d’une face aux **couleurs d’impression**
