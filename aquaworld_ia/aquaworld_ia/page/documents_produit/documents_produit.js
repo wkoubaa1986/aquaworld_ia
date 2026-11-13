@@ -12,6 +12,16 @@ const dpUrl = url => typeof url==='string' && /^\/(private\/)?files\//.test(url)
 const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFractionDigits:4,maximumFractionDigits:4})+' $';
 const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)',photos:'Lecture des photos des variantes',variantes:'Fiches par variante'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
+// Tableau des caractéristiques par catégories (13/11/2026) — même rangement que structure.ranger_caracteristiques :
+// les catégories de la liste dans son ordre, puis les autres dans leur ordre d'apparition, les lignes sans
+// catégorie en dernier ; l'ordre à l'intérieur d'un groupe ne change pas. Sans aucune catégorie, rien ne bouge.
+const dpRangerCaracs = (lignes,liste=[]) => {
+  if(!lignes.some(l=>(l.categorie||'').trim()))return lignes.slice();
+  const rangs=new Map(liste.map((c,i)=>[c.toLowerCase(),i])),suivants=new Map();
+  const rang=l=>{const k=(l.categorie||'').trim().toLowerCase();if(!k)return liste.length+lignes.length+1;if(rangs.has(k))return rangs.get(k);if(!suivants.has(k))suivants.set(k,suivants.size);return liste.length+suivants.get(k);};
+  return lignes.map((l,i)=>[rang(l),i,l]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]).map(x=>x[2]);
+};
+const dpLireCategories = brut => {const vues=new Set();return String(brut||'').split('\n').map(x=>x.trim().replace(/\s+/g,' ').slice(0,80)).filter(x=>x&&!vues.has(x.toLowerCase())&&vues.add(x.toLowerCase())).slice(0,20);};
 const DP_BLOCKS = {presentation:'Description et photo principale',rubriques:'Rubriques du document',caracteristiques:'Caractéristiques techniques',variantes:'Gamme et configurations',illustrations:'Le produit en images'};
 // Les quatre étapes du travail, dans l'ordre où on les fait : l'écran suit cet ordre (refonte du 06/11/2026).
 const DP_POLICES={'':'Noto Sans (par défaut)',noto_sans:'Noto Sans',open_sans:'Open Sans',lato:'Lato',montserrat:'Montserrat',roboto:'Roboto',poppins:'Poppins',oswald:'Oswald',noto_serif:'Noto Serif',eb_garamond:'EB Garamond'};
@@ -535,7 +545,10 @@ class DocumentsProduit {
       <section class="dp-step" data-step="preparer" hidden>
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Consignes de rédaction <span class="dp-muted dp-shared">commun à la fiche et au manuel</span></h3><select class="form-control input-sm dp-consignes-modele" aria-label="Modèle de consignes" style="max-width:260px"><option value="">Partir d’un modèle…</option>${DP_CONSIGNES.map(m=>`<option value="${dpEsc(m.nom)}">${dpEsc(m.nom)}</option>`).join('')}</select></div><textarea class="form-control dp-consignes" rows="3" placeholder="Facultatif. Public visé, ton, longueur, rubriques à privilégier… L’IA s’en sert pour la forme, jamais comme source technique.">${dpEsc(d.consignes)}</textarea>
       <label class="dp-label" style="margin-top:12px"><input type="checkbox" class="dp-connaissances" ${d.connaissances_generales?'checked':''}> Compléter avec les connaissances générales sur ce type de produit</label>
-      <p class="dp-muted" style="margin:4px 0 0">Sans source, l’IA décrit alors les usages, le fonctionnement et l’entretien habituels de ce type de produit, en le signalant dans les points à vérifier. Les chiffres, normes et garanties restent interdits sans source. Décoché : les rubriques sans source restent vides.</p></div>
+      <p class="dp-muted" style="margin:4px 0 0">Sans source, l’IA décrit alors les usages, le fonctionnement et l’entretien habituels de ce type de produit, en le signalant dans les points à vérifier. Les chiffres, normes et garanties restent interdits sans source. Décoché : les rubriques sans source restent vides.</p>
+      <label class="dp-label" style="margin-top:12px">Catégories du tableau des caractéristiques</label>
+      <textarea class="form-control dp-categories" rows="4" placeholder="${dpEsc((this.data.categories_par_defaut||[]).join(', '))}">${dpEsc(d.categories_caracteristiques||'')}</textarea>
+      <p class="dp-muted" style="margin:4px 0 0">Une catégorie par ligne, dans l’ordre voulu dans le tableau. L’IA range chaque valeur dans l’une d’elles, sans en inventer ; à l’étape Relire, vous changez la catégorie d’une ligne à la main. Vide : la liste des Réglages (${dpEsc((this.data.categories_par_defaut||[]).join(', '))}).</p></div>
       <div class="dp-card dp-plan-card"></div>
       <div class="dp-card"><div class="dp-actions dp-card-head"><h3>Variantes couvertes <span class="dp-muted dp-variant-count"></span></h3><input class="form-control input-sm dp-search" placeholder="Filtrer…" style="max-width:220px"><button class="btn btn-xs btn-default" data-select-all="1">Toutes</button><button class="btn btn-xs btn-default" data-select-all="0">Aucune</button></div>
       <div class="dp-variants">${this.variantTable(selected)}</div></div>
@@ -624,7 +637,7 @@ class DocumentsProduit {
   }
   configValues() {
     const d=this.data.dossier;
-    return {mises_en_page:this.layouts||{},plans:this.plansPropres(),marque_document:this.root.find('.dp-brand').val()||'',logo_marque_avec_entete:this.root.find('.dp-brand-with-header').prop('checked')?1:0,entete:this.root.find('.dp-letterhead').val()||'',consignes:this.root.find('.dp-consignes').val()||'',connaissances_generales:this.root.find('.dp-connaissances').prop('checked')?1:0,variantes:this.root.find('.dp-variants .dp-variant input:checked').map((_,el)=>({article:el.value})).get(),
+    return {mises_en_page:this.layouts||{},plans:this.plansPropres(),marque_document:this.root.find('.dp-brand').val()||'',logo_marque_avec_entete:this.root.find('.dp-brand-with-header').prop('checked')?1:0,entete:this.root.find('.dp-letterhead').val()||'',consignes:this.root.find('.dp-consignes').val()||'',connaissances_generales:this.root.find('.dp-connaissances').prop('checked')?1:0,...(this.root.find('.dp-categories').length?{categories_caracteristiques:dpLireCategories(this.root.find('.dp-categories').val()).join('\n')}:{}),variantes:this.root.find('.dp-variants .dp-variant input:checked').map((_,el)=>({article:el.value})).get(),
       sources:this.root.find('.dp-sources-row').map((_,el)=>{const z=$(el),s=d.sources[+z.attr('data-index')];return {fichier:s.fichier,pages:z.find('.dp-pages').val(),article:z.find('.dp-source-scope').val()};}).get(),
       images:this.root.find('.dp-image').map((_,el)=>{const z=$(el),im=d.images[+z.attr('data-index')];return {image:im.image,legende:z.find('.dp-caption').val(),article:z.find('.dp-image-scope').val()};}).get()};
   }
@@ -643,6 +656,11 @@ class DocumentsProduit {
     if(redraw){this.data=await dpCall('charger',{name:this.name});this.rendre();frappe.show_alert({message:'Dossier enregistré',indicator:'green'});}
   }
   // ---- plan du document : les rubriques (et sous-rubriques) que l'IA doit rédiger, par type de document.
+  // Les catégories qui s'appliquent au dossier : sa liste (telle qu'à l'écran), sinon celle des Réglages.
+  categoriesDossier() {
+    const champ=this.root.find('.dp-categories'),propres=dpLireCategories(champ.length?champ.val():this.data.dossier.categories_caracteristiques);
+    return propres.length?propres:(this.data.categories_par_defaut||[]);
+  }
   planActif() { return this.plans?.[this.activeTab]||[]; }
   plansPropres() {
     // Ce qui est enregistré : sans les lignes laissées vides, sans les plans vides.
@@ -777,6 +795,10 @@ class DocumentsProduit {
   }
   renderDocument() {
     const {doc,contenu:c,contexte:ctx}=this.current,z=this.root.find('.dp-document');
+    // Lignes regroupées par catégorie ; l'ordre de la liste du dossier ne vaut que pour le français (une traduction a ses propres noms).
+    const categories=doc.langue==='fr'?this.categoriesDossier():[];
+    c.caracteristiques=dpRangerCaracs(c.caracteristiques,categories);
+    const choixCategories=[...new Set([...categories,...c.caracteristiques.map(s=>s.categorie||'').filter(Boolean)])];
     const info=this.data.documents.find(v=>v.name===doc.name),scope=(value)=>doc.variante?`<option value="">Repris de la fiche du produit</option><option value="${dpEsc(doc.variante)}" ${value===doc.variante?'selected':''}>Propre à cette variante</option>`:`<option value="">Toute la gamme</option>${ctx.variantes.map(v=>`<option value="${dpEsc(v.name)}" ${value===v.name?'selected':''}>${dpEsc(v.name)}</option>`).join('')}`;
     z.html(`<div class="dp-actions"><span class="dp-badge">${dpEsc(doc.libelle_langue)} · version ${doc.numero} · ${dpEsc(doc.statut)}</span>${doc.langue==='fr'?'<button class="btn btn-default btn-sm dp-translate">Traduire</button>':''}<button class="btn btn-default btn-sm dp-apercu" title="Compose le document avec vos modifications en cours, sans rien enregistrer ni appel IA">Aperçu</button><button class="btn btn-default btn-sm dp-pdf">Générer le PDF</button><button class="btn btn-primary btn-sm dp-validate">Valider et générer le PDF</button>${[['pdf','Télécharger le PDF'],['source_latex','Source LaTeX'],['archive_latex','LaTeX et images (ZIP)']].filter(([k])=>doc[k]).map(([k,label])=>`<a class="btn btn-default btn-sm" href="${dpUrl(doc[k])}" target="_blank" rel="noopener">${label}</a>`).join('')}</div>
       ${info?.a_actualiser?`<div class="dp-warning" style="margin:12px 0">${doc.variante?'À actualiser : la fiche du produit, la variante, ses photos, leurs observations ou la version française ont changé depuis cette version. Utilisez « Créer / actualiser les fiches » dans « Fiches par variante ».':'À actualiser : la marque, la présentation, les articles, les sources ou la version française ont changé depuis cette version.'}</div>`:''}
@@ -787,7 +809,7 @@ class DocumentsProduit {
       ${c.sections.length?'<p class="dp-muted" style="margin:10px 0 0">Dans le texte d’une rubrique, une ligne qui commence par ## devient un sous-titre dans le PDF — par exemple « ## Remplacement des cartouches ».</p>':''}
       <div class="dp-sections">${c.sections.map((s,i)=>this.sectionHtml(s,i,c.sections.length,scope,doc)).join('')}</div>
       <button class="btn btn-default btn-xs dp-add-section" style="margin-top:10px">Ajouter une rubrique</button>
-      <label class="dp-label">Caractéristiques techniques</label><p class="dp-muted">Saisissez la valeur comme dans vos données (3,2 G, 75 GPD, 116 psi, 10") : le PDF l’imprime en unités métriques, calculées, avec la valeur d’origine entre parenthèses — « 12,1 L (3,2 G) ». Une référence, un texte, une valeur déjà métrique ou les pouces d’un raccord restent tels quels.</p><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}"><td><input class="form-control input-sm" data-key="nom" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td><button class="btn btn-xs btn-default dp-remove-carac">×</button></td></tr>`).join('')}</tbody></table></div><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button><button type="button" class="btn btn-default btn-xs dp-ia-caracs" style="margin-left:6px" ${doc.langue==='fr'?'':'disabled'} title="L’IA tire les valeurs d’un texte que vous collez, ou relit les sources du dossier">✦ Compléter avec l’IA…</button>
+      <label class="dp-label">Caractéristiques techniques</label><p class="dp-muted">Saisissez la valeur comme dans vos données (3,2 G, 75 GPD, 116 psi, 10") : le PDF l’imprime en unités métriques, calculées, avec la valeur d’origine entre parenthèses — « 12,1 L (3,2 G) ». Une référence, un texte, une valeur déjà métrique ou les pouces d’un raccord restent tels quels. La colonne Catégorie regroupe les lignes : le PDF affiche une bande par catégorie, dans l’ordre de la liste du dossier (étape Rédiger) ; une ligne sans catégorie va en fin de tableau.</p><div class="dp-table-wrap"><table class="dp-table dp-caracs"><thead><tr><th>Catégorie</th><th>Caractéristique</th><th>Valeur</th><th>Unité</th><th>Modèles concernés</th><th>Source</th><th></th></tr></thead><tbody>${c.caracteristiques.map((s,i)=>`<tr data-index="${i}" class="${i&&(s.categorie||'')!==(c.caracteristiques[i-1].categorie||'')?'dp-carac-groupe':''}"><td><input class="form-control input-sm dp-carac-categorie" data-key="categorie" list="dp-categories-liste" placeholder="—" title="Catégorie de cette ligne : choisissez dans la liste ou saisissez-en une. Vide : en fin de tableau." value="${dpEsc(s.categorie||'')}"></td><td><input class="form-control input-sm dp-carac-nom" data-key="nom" title="${dpEsc(s.nom)}" value="${dpEsc(s.nom)}"></td><td><input class="form-control input-sm" data-key="valeur" value="${dpEsc(s.valeur)}"></td><td><input class="form-control input-sm" data-key="unite" value="${dpEsc(s.unite)}"></td><td><select class="form-control input-sm" data-key="article">${scope(s.article)}</select></td><td><input class="form-control input-sm" data-key="source" value="${dpEsc(s.source)}"></td><td class="dp-carac-actions"><button type="button" class="btn btn-xs btn-default dp-carac-monter" title="Monter dans sa catégorie">↑</button><button type="button" class="btn btn-xs btn-default dp-carac-descendre" title="Descendre dans sa catégorie">↓</button><button class="btn btn-xs btn-default dp-remove-carac" title="Retirer cette ligne">×</button></td></tr>`).join('')}</tbody></table></div><datalist id="dp-categories-liste">${choixCategories.map(x=>`<option value="${dpEsc(x)}"></option>`).join('')}</datalist><button class="btn btn-default btn-xs dp-add-carac">Ajouter une caractéristique</button><button type="button" class="btn btn-default btn-xs dp-ia-organiser" style="margin-left:6px" ${doc.langue==='fr'?'':'disabled'} title="L’IA range les lignes dans les catégories du dossier. Elle ne change ni les noms, ni les valeurs ; vous voyez son classement avant de l’appliquer.">✦ Organiser par catégories…</button><button type="button" class="btn btn-default btn-xs dp-ia-caracs" style="margin-left:6px" ${doc.langue==='fr'?'':'disabled'} title="L’IA tire les valeurs d’un texte que vous collez, ou relit les sources du dossier">✦ Compléter avec l’IA…</button>
       ${!doc.variante&&(c.variantes||[]).length>1?`<label class="dp-label">Gamme et configurations — texte d’introduction du tableau des variantes <button type="button" class="btn btn-default btn-xs dp-ia-gamme" style="margin-left:8px" ${doc.langue==='fr'?'':'disabled'}>✦ ${c.gamme?'Réécrire':'Rédiger'} avec l’IA…</button></label><p class="dp-muted">Ce texte présente comment la gamme se décline et ce que change chaque option ; il s’imprime sous le titre « Gamme et configurations », juste avant le tableau des variantes. Les nombres (variantes, valeurs par attribut) sont comptés par l’outil. Vide : le tableau seul.</p><textarea class="form-control dp-gamme" rows="5">${dpEsc(c.gamme||'')}</textarea>`:''}
       <label class="dp-label">Légendes des photos</label>${c.legendes.map((s,i)=>`<input class="form-control dp-doc-caption" data-index="${i}" style="margin-bottom:6px" value="${dpEsc(s)}">`).join('') || '<div class="dp-muted">Aucune illustration sélectionnée.</div>'}
       <label class="dp-label">Points à vérifier avant validation</label>
@@ -819,6 +841,27 @@ class DocumentsProduit {
     z.find('.dp-ia-resume').on('click',()=>this.reecrireAvecIA({type:'resume'}));
     z.find('.dp-ia-gamme').on('click',()=>this.reecrireAvecIA({type:'gamme'}));
     z.find('.dp-ia-caracs').on('click',()=>this.completerCaracsAvecIA());
+    z.find('.dp-ia-organiser').on('click',()=>this.organiserCaracsAvecIA());
+    // Changer la catégorie d'une ligne la déplace dans son groupe ; la ligne garde le curseur.
+    z.find('.dp-carac-categorie').on('change',e=>{
+      const tr=$(e.currentTarget).closest('tr');
+      if(!(tr.find('[data-key="nom"]').val()||'').trim()&&!(tr.find('[data-key="valeur"]').val()||'').trim())return;   // ligne encore vide : elle se rangera une fois remplie
+      tr.attr('data-suivi','1');
+      const contenu=this.captureDocument();
+      contenu.caracteristiques=dpRangerCaracs(contenu.caracteristiques,this.current.doc.langue==='fr'?this.categoriesDossier():[]);
+      const cible=contenu.caracteristiques.findIndex(r=>r._suivi);contenu.caracteristiques.forEach(r=>delete r._suivi);
+      this.current.contenu=contenu;this.renderDocument();this.dirty=true;this.updateBar();this.planifierPages('review',1500);
+      const ligne=this.root.find('.dp-editor .dp-caracs tbody tr').eq(cible);ligne.addClass('dp-modifie');ligne.find('[data-key="nom"]').trigger('focus');ligne[0]?.scrollIntoView({block:'nearest'});
+    });
+    // ↑ ↓ : l'ordre des lignes à l'intérieur d'une catégorie (l'ordre des catégories est celui de la liste du dossier).
+    const memeCategorie=(a,b)=>a.length&&b.length&&(a.find('[data-key="categorie"]').val()||'').trim().toLowerCase()===(b.find('[data-key="categorie"]').val()||'').trim().toLowerCase();
+    z.find('.dp-carac-monter,.dp-carac-descendre').on('click',e=>{
+      const tr=$(e.currentTarget).closest('tr'),monter=$(e.currentTarget).hasClass('dp-carac-monter'),voisine=monter?tr.prev('tr'):tr.next('tr');
+      if(!memeCategorie(tr,voisine))return;
+      if(monter)voisine.before(tr);else voisine.after(tr);
+      const lignes=z.find('.dp-caracs tbody tr');lignes.each((i,el)=>$(el).toggleClass('dp-carac-groupe',i>0&&!memeCategorie($(el),lignes.eq(i-1))));
+      z.find('.dp-editor').trigger('change');
+    });
     z.find('.dp-ia-rubrique').on('click',e=>this.reecrireAvecIA({type:'section',index:+$(e.currentTarget).closest('.dp-section').attr('data-index')}));
     z.find('.dp-validate').on('click',()=>this.lancer('valider'));
     z.find('.dp-source-fr').on('click',async e=>{e.preventDefault();if(this.dirty)await this.saveDocument();await this.loadDocument(doc.source_fr);});
@@ -951,6 +994,37 @@ class DocumentsProduit {
       }});
     d.show();
   }
+  organiserCaracsAvecIA() {
+    // Ranger le tableau par catégories avec l'IA (demande 13/11/2026). Deux temps : l'IA propose, l'utilisateur
+    // applique. Seule la catégorie des lignes change ; rien n'est enregistré avant « Enregistrer ».
+    if(!this.current)return;
+    const categories=this.categoriesDossier();let proposition=null;
+    const d=new frappe.ui.Dialog({title:'Organiser les caractéristiques par catégories',fields:[
+      {fieldtype:'HTML',fieldname:'etat',options:`<p>L’IA range chaque ligne du tableau dans l’une des catégories du dossier :</p><p><b>${categories.map(dpEsc).join(' · ')}</b></p><p class="dp-muted">Elle ne change ni les noms, ni les valeurs, ni les unités. Vous voyez son classement avant de l’appliquer, et vous pourrez corriger chaque ligne à la main. La liste se règle à l’étape Rédiger. Un appel IA (coût visible dans l’historique du dossier).</p>`}],
+      primary_action_label:'Proposer un classement',primary_action:async()=>{
+        if(proposition){
+          this.current.contenu=proposition.contenu;this.renderDocument();this.dirty=true;this.updateBar();this.planifierPages('review',300);d.hide();
+          const lignes=this.root.find('.dp-editor .dp-caracs tbody tr'),cibles=proposition.changements.map(m=>lignes.eq(m.index));
+          cibles.forEach(q=>q.addClass('dp-modifie'));cibles[0]?.[0]?.scrollIntoView({behavior:'smooth',block:'center'});
+          frappe.show_alert({message:'Tableau organisé : relisez les lignes surlignées en vert, puis Enregistrer.',indicator:'green'});
+          return;
+        }
+        d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">L’IA range le tableau… (10 à 30 s)</p>');
+        try{
+          await this.saveConfig();   // la liste de catégories à l'écran est celle que l'IA reçoit
+          const r=await dpCall('organiser_caracteristiques',{name:this.name,document_name:this.current.doc.name,contenu:this.captureDocument()});
+          proposition=r;
+          const groupes=new Map();r.contenu.caracteristiques.forEach(l=>{const k=l.categorie||'Sans catégorie (fin de tableau)';groupes.set(k,[...(groupes.get(k)||[]),l.nom]);});
+          const changees=new Set(r.changements.map(m=>m.index));let rang=0;
+          d.fields_dict.etat.$wrapper.html(`<p><b>${r.changements.length?r.changements.length+' ligne(s) changent de catégorie':'Aucune ligne ne change de catégorie'}</b>${r.changements.length?' — en vert ci-dessous.':'.'}</p>
+            ${[...groupes].map(([nom,lignes])=>`<p style="margin:8px 0 2px"><b>${dpEsc(nom)}</b></p><ul style="margin:0;padding-left:18px">${lignes.map(l=>`<li${changees.has(rang++)?' style="color:#15803d"':''}>${dpEsc(l)}</li>`).join('')}</ul>`).join('')}
+            ${r.suggestions.length?`<p style="margin:12px 0 2px"><b>Remarques de l’IA</b> <span class="dp-muted">(rien n’est modifié : à corriger vous-même si vous êtes d’accord)</span></p><ul style="margin:0;padding-left:18px">${r.suggestions.map(x=>`<li>${dpEsc(x)}</li>`).join('')}</ul>`:''}`);
+          if(r.changements.length)d.get_primary_btn().html('Appliquer ce classement');else d.get_primary_btn().hide();
+          d.get_primary_btn().prop('disabled',false);
+        }catch(e){d.get_primary_btn().prop('disabled',false);d.fields_dict.etat.$wrapper.html(`<div class="dp-warning">${dpEsc(e?.message||'Le tableau n’a pas pu être organisé. Réessayez.')}</div>`);}
+      }});
+    d.show();
+  }
   completerCaracsAvecIA() {
     // Compléter le tableau des caractéristiques avec l'IA (demande 12/11/2026) : depuis un texte collé (fiche
     // fournisseur, notes) ou, sans texte, depuis l'article et les sources de la version. Rien n'est enregistré.
@@ -1015,7 +1089,7 @@ class DocumentsProduit {
       return s;}).get();
     // Seulement le tableau des caractéristiques (pas ceux des rubriques ni des variantes), sans les lignes vides :
     // elles étaient capturées comme caractéristiques et faisaient dépasser la limite (06/11/2026, AP-M).
-    c.caracteristiques=z.find('.dp-caracs tbody tr').map((_,el)=>{const r={};$(el).find('[data-key]').each((_,f)=>r[$(f).attr('data-key')]=$(f).val());return r;}).get().filter(r=>(r.nom||'').trim()||(r.valeur||'').trim());
+    c.caracteristiques=z.find('.dp-caracs tbody tr').map((_,el)=>{const r={};$(el).find('[data-key]').each((_,f)=>r[$(f).attr('data-key')]=$(f).val());r.categorie=(r.categorie||'').trim().replace(/\s+/g,' ');if(!r.categorie)delete r.categorie;if(el.dataset.suivi)r._suivi=1;return r;}).get().filter(r=>(r.nom||'').trim()||(r.valeur||'').trim());
     const lirePoints=etat=>z.find('.dp-check').filter((_,el)=>el.dataset.resolu===etat).map((_,el)=>$(el).find('.dp-check-text').text().trim()).get().filter(Boolean);
     c.points_a_verifier=lirePoints('0');const resolus=lirePoints('1');if(resolus.length)c.points_resolus=resolus;else delete c.points_resolus;
     const traites=z.find('.dp-check[data-resolu="2"]').map((_,el)=>({texte:$(el).find('.dp-check-text').text().trim(),action:el.dataset.action||'',information:el.dataset.information||''})).get().filter(t=>t.texte);

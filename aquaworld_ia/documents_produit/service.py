@@ -30,6 +30,14 @@ def document(name, permission="read"):
 	return d
 
 
+def categories_caracteristiques(d=None):
+	"""Les catégories du tableau des caractéristiques pour un dossier : sa liste si elle est remplie, sinon celle
+	des Réglages, sinon la liste par défaut (structure.CATEGORIES_DEFAUT)."""
+	from aquaworld_ia.ia.client import reglages
+
+	return S.categories(getattr(d, "categories_caracteristiques", None) or "", reglages().get("categories_caracteristiques") or "")
+
+
 def _lisible(appel):
 	"""Un refus du traitement (« rien à ajouter », « précisez l'information »…) est un message pour l'utilisateur.
 	Levé tel quel, il partait en « erreur serveur » avec sa trace (13/11/2026, « Compléter avec l'IA » sur un texte
@@ -250,6 +258,9 @@ def charger(name):
 		"marques": marques.disponibles(),
 		"peut_creer_marque": frappe.has_permission("Brand", "create"),
 		"lien_woocommerce": C.lien_woocommerce(d.article),
+		# Catégories du tableau des caractéristiques : celles qui s'appliquent à ce dossier, et celles des Réglages.
+		"categories_caracteristiques": categories_caracteristiques(d),
+		"categories_par_defaut": categories_caracteristiques(),
 	}
 
 
@@ -400,6 +411,10 @@ def enregistrer(name, data, modified=None):
 	for k in ("consignes", "entete", "marque_document", "logo_marque_avec_entete", "connaissances_generales"):
 		if k in data:
 			d.set(k, data[k])
+	if "categories_caracteristiques" in data:
+		# Vide = la liste des Réglages. Une liste identique à celle-ci n'est pas recopiée dans le dossier.
+		liste = S.lire_categories(data["categories_caracteristiques"] or "")
+		d.categories_caracteristiques = "" if not liste or liste == categories_caracteristiques() else "\n".join(liste)
 	if "mises_en_page" in data:
 		d.mises_en_page = json.dumps(M.configuration(data["mises_en_page"]), ensure_ascii=False)
 	if "plans" in data:
@@ -643,6 +658,24 @@ def completer_caracteristiques(name, document_name, information="", contenu=None
 	ctx = json.loads(v.contexte_json)
 	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
 	return _lisible(lambda: traitement.completer_caracteristiques(d, v.type_document, ctx, c, information))
+
+
+@frappe.whitelist()
+def organiser_caracteristiques(name, document_name, contenu=None):
+	"""Range le tableau des caractéristiques par catégories avec l'IA, depuis le contenu à l'écran : seule la
+	catégorie des lignes change (ni nom, ni valeur, ni unité), puis les lignes sont regroupées. Rien n'est
+	enregistré : l'écran montre le classement proposé, l'utilisateur l'applique puis enregistre. Un appel IA."""
+	from aquaworld_ia.documents_produit import traitement
+
+	d = dossier(name, "write")
+	v = document(document_name, "write")
+	if v.dossier != name:
+		frappe.throw(_("Choisissez une version de ce dossier."))
+	if v.langue != "fr":
+		frappe.throw(_("Organisez la version française, puis traduisez-la : la traduction repart du français."))
+	ctx = json.loads(v.contexte_json)
+	c = S.normaliser(_json(contenu) if contenu is not None else json.loads(v.contenu_json), ctx)
+	return _lisible(lambda: traitement.organiser_caracteristiques(d, v.type_document, ctx, c))
 
 
 @frappe.whitelist()

@@ -21,6 +21,7 @@ from frappe.utils.file_manager import save_file
 from aquaworld_ia.documents_produit import contexte as C
 from aquaworld_ia.documents_produit import mise_en_page as M
 from aquaworld_ia.documents_produit import plan as PL
+from aquaworld_ia.documents_produit import structure as S
 from aquaworld_ia.documents_produit import unites
 
 ECHAPPE = {
@@ -815,9 +816,11 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				corps = corps + "\n" + tableau_rubrique(s["tableau"])
 		blocs["rubriques"].append(corps)
 	if contenu["caracteristiques"]:
-		# Trois colonnes (caractéristique, valeur, modèles concernés) ; deux dans la fiche d'une variante.
-		colonnes_caracs = ("parametre", "valeur") if fiche_variante else ("parametre", "valeur", "portee")
-		largeurs_caracs = (".36", ".56") if fiche_variante else (".27", ".42", ".19")
+		# Trois colonnes (caractéristique, valeur, modèles concernés) ; deux dans la fiche d'une variante, et aussi
+		# quand toutes les lignes valent pour toute la gamme : la colonne ne répétait que « Toute la gamme » (13/11/2026).
+		avec_portee = not fiche_variante and any(c.get("article") for c in contenu["caracteristiques"])
+		colonnes_caracs = ("parametre", "valeur", "portee") if avec_portee else ("parametre", "valeur")
+		largeurs_caracs = (".27", ".42", ".19") if avec_portee else (".36", ".56")
 		blocs["caracteristiques"] += [
 			r"\docsection{" + t(labels["caracteristiques"]) + "}",
 			ZEBRE,
@@ -826,10 +829,21 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			+ " & ".join(r"\bfseries\color{aqua} " + t(labels[k]) for k in colonnes_caracs)
 			+ r"\\\endhead",
 		]
+		# Une bande par catégorie (13/11/2026) ; les lignes sans catégorie, en fin de tableau, sous « Autres
+		# caractéristiques ». Sans aucune catégorie, le tableau reste d'un seul tenant.
+		par_categories = any(c.get("categorie") for c in contenu["caracteristiques"])
+		precedente = None
 		for c in contenu["caracteristiques"]:
+			categorie = c.get("categorie") or ""
+			if par_categories and categorie != precedente:
+				precedente = categorie
+				# Bande blanche, titre en couleur : elle se détache de l'en-tête du tableau et des lignes zébrées.
+				# « \\* » : elle ne reste jamais seule en bas de page, sans sa première ligne.
+				blocs["caracteristiques"].append(r"\rowcolor{white}\multicolumn{" + str(len(colonnes_caracs)) + r"}{l}{\rule{0pt}{2.8ex}\bfseries\color{aqua} "
+					+ t(categorie or labels.get("autres") or S.LIBELLES["autres"]) + r"}\\*")
 			# Unités métriques calculées ici, valeur d'origine entre parenthèses (12/11/2026) : voir unites.py.
 			cellules_carac = [c["nom"], unites.afficher(c["valeur"], c["unite"], c["nom"], langue)]
-			if not fiche_variante:
+			if avec_portee:
 				cellules_carac.append(c["article"] or labels["commun"])
 			blocs["caracteristiques"].append(" & ".join(t(s) for s in cellules_carac) + r"\\")
 		blocs["caracteristiques"].append(r"\bottomrule\end{longtable}")

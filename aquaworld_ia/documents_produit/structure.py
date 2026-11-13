@@ -26,7 +26,13 @@ LIBELLES = dict(
 	sources="Sources documentaires",
 	photo="Photo",
 	sommaire="Sommaire",
+	autres="Autres caractéristiques",
 )
+#: Catégories du tableau des caractéristiques (13/11/2026 : « est-ce que l'IA peut les organiser par catégories,
+#: électrique ou autre, en gardant la possibilité d'entrer manuellement ? »). Liste par défaut, remplacée par celle
+#: des Réglages puis par celle du dossier. Une ligne sans catégorie reste valable : elle va en fin de tableau.
+CATEGORIES_DEFAUT = ("Performances", "Filtration", "Hydraulique", "Électrique", "Dimensions et poids", "Matériaux", "Équipements fournis")
+MAX_CATEGORIES = 20
 # Anciens noms français d'un libellé : « Photos et illustrations » est devenu « Le produit en images » le 12/11/2026.
 # « Variantes couvertes » est devenu « Gamme et configurations » le même jour (titre, texte d'introduction, tableau).
 ANCIENS_LIBELLES = {"illustrations": ("Photos et illustrations",), "variantes": ("Variantes couvertes",)}
@@ -44,6 +50,55 @@ def texte(value, limite=12000):
 	if len(value) > limite:
 		raise ValueError("Un texte dépasse la longueur autorisée.")
 	return value.strip().replace("\x00", "")
+
+
+def lire_categories(brut):
+	"""Une liste de catégories saisie (une par ligne, ou une liste) -> noms nettoyés, sans doublon (casse près). Pur."""
+	lignes = brut.splitlines() if isinstance(brut, str) else list(brut or [])
+	retenues, vues = [], set()
+	for ligne in lignes:
+		nom = " ".join(str(ligne).split())[:80]
+		if nom and nom.casefold() not in vues:
+			vues.add(nom.casefold())
+			retenues.append(nom)
+	return retenues[:MAX_CATEGORIES]
+
+
+def categories(*listes):
+	"""La liste ordonnée des catégories : la première liste non vide parmi celles données (dossier, puis Réglages),
+	sinon la liste par défaut. Pur."""
+	for brut in listes:
+		retenues = lire_categories(brut)
+		if retenues:
+			return retenues
+	return list(CATEGORIES_DEFAUT)
+
+
+def categorie_admise(valeur, liste):
+	"""La catégorie de `liste` que désigne `valeur` (casse et espaces près), écrite comme dans la liste ; « » sinon.
+	Sert à ce que rend l'IA : elle classe dans les catégories données, elle n'en crée pas. Pur."""
+	cle = " ".join(str(valeur or "").split()).casefold()
+	return next((c for c in liste if c.casefold() == cle), "") if cle else ""
+
+
+def ranger_caracteristiques(lignes, liste=()):
+	"""Les lignes regroupées par catégorie, sans changer leur ordre à l'intérieur d'un groupe : d'abord les
+	catégories de `liste`, dans son ordre ; puis les autres, dans l'ordre où elles apparaissent ; les lignes sans
+	catégorie en dernier. Sans aucune catégorie, l'ordre est inchangé. Pur."""
+	if not any((l.get("categorie") or "") for l in lignes):
+		return list(lignes)
+	rangs = {c.casefold(): i for i, c in enumerate(liste)}
+	suivants = {}
+
+	def rang(ligne):
+		cle = (ligne.get("categorie") or "").casefold()
+		if not cle:
+			return len(rangs) + len(lignes) + 1
+		if cle in rangs:
+			return rangs[cle]
+		return len(rangs) + suivants.setdefault(cle, len(suivants))
+
+	return [l for _r, _i, l in sorted(((rang(l), i, l) for i, l in enumerate(lignes)), key=lambda x: x[:2])]
 
 
 IMAGE_RUBRIQUE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
@@ -122,7 +177,7 @@ def depuis_ia(data):
 		if cle in out:
 			out[cle] = scalaire(out[cle])
 	for cle, champs in (("sections", ("titre", "texte", "article", "source")),
-			("caracteristiques", ("nom", "valeur", "unite", "article", "source"))):
+			("caracteristiques", ("nom", "valeur", "unite", "article", "source", "categorie"))):
 		if isinstance(out.get(cle), list):
 			out[cle] = [{**x, **{k: scalaire(x[k]) for k in champs if k in x}} if isinstance(x, dict) else x for x in out[cle]]
 	if isinstance(out.get("points_a_verifier"), list):
@@ -252,6 +307,12 @@ def normaliser(data, contexte):
 				"article": portee(c.get("article")),
 			}
 		)
+		# Catégorie de la ligne (13/11/2026). La clé n'existe que remplie : une version sans catégories garde son
+		# empreinte. Les lignes d'une même catégorie restent ensemble, celles sans catégorie en dernier.
+		categorie = " ".join(texte(c.get("categorie") or "", 200).split())[:80]
+		if categorie:
+			out["caracteristiques"][-1]["categorie"] = categorie
+	out["caracteristiques"] = ranger_caracteristiques(out["caracteristiques"])
 	out["points_a_verifier"] = [texte(p, 1000) for p in data.get("points_a_verifier", []) if p]
 	# Points marqués résolus à l'écran (barrés) : conservés pour mémoire, ils ne bloquent plus la validation et ne
 	# figurent pas dans le PDF. La clé n'existe que remplie (empreinte des anciennes versions) — demande 07/11/2026.
@@ -318,6 +379,9 @@ def champs_traduisibles(contenu):
 	for cle, champs in (("sections", ("titre", "texte")), ("caracteristiques", ("nom", "valeur"))):
 		for i, _row in enumerate(contenu[cle]):
 			paths += [(cle, i, k) for k in champs]
+	# Une catégorie se traduit UNE fois, sur sa première ligne ; `propager_categories` la recopie aux autres, pour
+	# qu'un même groupe ne reçoive pas deux traductions différentes.
+	paths += [("caracteristiques", i, "categorie") for i in premieres_lignes_des_categories(contenu["caracteristiques"]).values()]
 	for i, s in enumerate(contenu["sections"]):
 		if s.get("image") or s.get("graphe"):
 			paths.append(("sections", i, "image_legende"))
@@ -337,6 +401,24 @@ def champs_traduisibles(contenu):
 		for j, _a in enumerate(v["attributs"]):
 			paths += [("variantes", i, "attributs", j, k) for k in ("nom", "valeur")]
 	return [p for p in paths if lire_chemin(contenu, p).strip()]
+
+
+def premieres_lignes_des_categories(lignes):
+	"""{catégorie: indice de sa première ligne}, dans l'ordre du tableau. Pur."""
+	premieres = {}
+	for i, ligne in enumerate(lignes):
+		if ligne.get("categorie"):
+			premieres.setdefault(ligne["categorie"], i)
+	return premieres
+
+
+def propager_categories(traduit, source):
+	"""Après traduction : chaque ligne reçoit la catégorie traduite sur la première ligne de son groupe. Pur."""
+	premieres = premieres_lignes_des_categories(source.get("caracteristiques", []))
+	for i, ligne in enumerate(source.get("caracteristiques", [])):
+		if ligne.get("categorie") and i < len(traduit.get("caracteristiques", [])):
+			traduit["caracteristiques"][i]["categorie"] = traduit["caracteristiques"][premieres[ligne["categorie"]]]["categorie"]
+	return traduit
 
 
 def lire_chemin(data, path):

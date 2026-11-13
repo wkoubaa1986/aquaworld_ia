@@ -14,6 +14,7 @@
   "entete",
   "consignes",
   "connaissances_generales",
+  "categories_caracteristiques",
   "mises_en_page",
   "plans",
   "variantes",
@@ -73,6 +74,12 @@
    "fieldname": "connaissances_generales",
    "fieldtype": "Check",
    "label": "Compléter avec les connaissances générales sur ce type de produit"
+  },
+  {
+   "fieldname": "categories_caracteristiques",
+   "fieldtype": "Small Text",
+   "label": "Catégories du tableau des caractéristiques",
+   "description": "Une catégorie par ligne, dans l’ordre du tableau. Vide : la liste des Réglages Aquaworld IA."
   },
   {
    "fieldname": "variantes",
@@ -202,7 +209,7 @@
   }
  ],
  "creation": "2026-11-04 10:00:00.000000",
- "modified": "2026-11-12 18:00:00.000000",
+ "modified": "2026-11-13 17:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "sort_field": "modified",

@@ -586,6 +586,35 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Tableau des caractéristiques par catégories (13/11/2026, v0.56.0)
+
+Demande : « est-ce que l'IA peut les organiser et créer par catégories, électrique ou autre, en gardant la
+possibilité d'entrer manuellement ? » Le tableau était à plat, dans l'ordre d'ajout des lignes.
+
+- **Une catégorie par ligne** : clé `categorie` d'une caractéristique, présente seulement si elle est remplie (une
+  version sans catégories garde son contenu et son empreinte). `structure.ranger_caracteristiques` regroupe les
+  lignes sans changer leur ordre dans un groupe : catégories de la liste dans son ordre, puis les autres, les
+  lignes sans catégorie en dernier. `normaliser` garde les groupes d'un seul tenant.
+- **La liste** : `structure.CATEGORIES_DEFAUT` (Performances, Filtration, Hydraulique, Électrique, Dimensions et
+  poids, Matériaux, Équipements fournis), remplacée par le champ « Catégories du tableau des caractéristiques »
+  des Réglages, puis par celui du dossier (étape Rédiger, une par ligne) — `service.categories_caracteristiques`.
+- **L'IA classe, elle ne crée pas de catégorie** : à la rédaction (`traitement.generer`), avec « Compléter avec
+  l’IA… » et « Traiter avec l’IA », chaque ligne ajoutée reçoit une catégorie de la liste (`points.REGLE_CATEGORIES` :
+  d'après l'élément décrit avant la grandeur — la longueur d'un filtre va avec la filtration) ; une catégorie hors
+  liste est écartée. Une ligne existante garde la sienne.
+- **« ✦ Organiser par catégories… »** (`service.organiser_caracteristiques`, `points.classer`) range un tableau
+  existant : seule la catégorie des lignes change, jamais un nom, une valeur ou une unité ; l'écran montre le
+  classement avant de l'appliquer, avec les remarques de l'IA (valeur qui répète le nom, doublon) à traiter à la main.
+- **À la main** : colonne « Catégorie » (liste proposée, saisie libre admise) — changer la catégorie déplace la
+  ligne dans son groupe ; ↑ ↓ règlent l'ordre dans une catégorie ; une ligne ajoutée arrive en bas, sans catégorie.
+- **PDF** : une bande par catégorie (blanche, titre en couleur), « Autres caractéristiques » pour les lignes sans
+  catégorie quand d'autres en ont une ; la colonne « Modèles concernés » ne s'imprime que si une ligne est propre à
+  un modèle. Sans aucune catégorie, le tableau reste d'un seul tenant.
+- **Traductions** : chaque catégorie est traduite une fois puis recopiée à son groupe (`structure.propager_categories`).
+- **Fiche d'une variante** : les lignes reprises du produit gardent leur catégorie ; les valeurs propres à la
+  variante (rares, sans catégorie) vont en fin de tableau.
+- Les refus du traitement (« rien à ajouter », « déjà rangé ») s'affichent en message (`service._lisible`).
+
 ### Plan du document et tableau des caractéristiques complété par l’IA (12/11/2026, v0.53.0)
 
 Demande : « le tableau des caractéristiques, est-ce que je peux l’enrichir par IA ? Lorsque je crée la fiche, les

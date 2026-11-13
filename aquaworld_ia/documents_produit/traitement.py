@@ -75,8 +75,10 @@ def traiter_point(d, genre, ctx, contenu, point, information, destination=None):
 	if not information:
 		raise ValueError("Saisissez l'information qui répond à ce point : l'IA l'intègre, elle ne l'invente pas.")
 	system = P.CONSIGNE + "\n" + REGLES_COMMUNES
+	categories = API.categories_caracteristiques(d)
 	user = {"type_document": genre, "point_a_verifier": point, "information_de_l_entreprise": information,
 		"destination": destination if isinstance(destination, dict) and destination.get("type") in P.TYPES else "au choix",
+		"categories_caracteristiques": categories,
 		"document": P.document_pour_ia(contenu),
 		"contexte": {**{k: v for k, v in ctx.items() if k != "entete"}, **_contexte_gamme(ctx)}}
 	with journal.suivre_generation(d.name, frappe.generate_hash(length=12), "reecrire", "fr"):
@@ -86,7 +88,7 @@ def traiter_point(d, genre, ctx, contenu, point, information, destination=None):
 
 	source = "Information de l’entreprise (" + datetime.date.today().strftime("%d/%m/%Y") + ")"
 	nouveau, changements, textes = P.appliquer(contenu, data, articles, source, destination,
-		portee_imposee=ctx.get("variante") or "")
+		portee_imposee=ctx.get("variante") or "", categories=categories)
 	if not changements:
 		raise ValueError("L'IA n'a proposé aucune modification pour ce point. Précisez l'information, ou choisissez l'endroit où l'écrire.")
 	action = S.texte(str((data.get("action") if isinstance(data, dict) else "") or " ; ".join(c["libelle"] for c in changements)), 1000)
@@ -114,7 +116,9 @@ def completer_caracteristiques(d, genre, ctx, contenu, information=""):
 
 	information = S.texte(information or "", 8000)
 	system = P.CONSIGNE_CARACTERISTIQUES + "\n" + REGLES_COMMUNES
+	categories = API.categories_caracteristiques(d)
 	user = {"type_document": genre, "information_de_l_entreprise": information,
+		"categories_caracteristiques": categories,
 		"document": P.document_pour_ia(contenu),
 		"contexte": {k: v for k, v in ctx.items() if k != "entete"}}
 	with journal.suivre_generation(d.name, frappe.generate_hash(length=12), "reecrire", "fr"):
@@ -127,7 +131,7 @@ def completer_caracteristiques(d, genre, ctx, contenu, information=""):
 		source = "Source à confirmer"
 		admises = ["Article " + a for a in sorted(articles)] + [p["source"] for p in ctx.get("preuves", [])]
 	nouveau, changements, textes = P.appliquer(contenu, data, articles, source, {"type": "caracteristique"},
-		maximum=P.MAX_CARACTERISTIQUES, sources_admises=admises, portee_imposee=ctx.get("variante") or "")
+		maximum=P.MAX_CARACTERISTIQUES, sources_admises=admises, portee_imposee=ctx.get("variante") or "", categories=categories)
 	if not changements:
 		raise ValueError("Aucune valeur technique à ajouter dans ce texte. Ce bouton remplit seulement le tableau : collez un passage qui donne des "
 			"valeurs (pression, débit, dimensions…). Pour faire expliquer un terme ou ajouter un paragraphe, utilisez « ✦ Réécrire avec l’IA… » sur une rubrique."
@@ -143,6 +147,25 @@ def completer_caracteristiques(d, genre, ctx, contenu, information=""):
 	nouveau["points_a_verifier"] = list(dict.fromkeys(nouveau.get("points_a_verifier", []) + restes))[:80]
 	action = S.texte(str((data.get("action") if isinstance(data, dict) else "") or " ; ".join(c["libelle"] for c in changements)), 1000)
 	return {"contenu": S.normaliser(nouveau, ctx), "changements": changements, "action": action}
+
+
+def organiser_caracteristiques(d, genre, ctx, contenu):
+	"""Range les lignes du tableau des caractéristiques dans les catégories du dossier, avec l'IA (points.classer) :
+	seule la catégorie des lignes change, puis le tableau est regroupé. Rien n'est enregistré ici.
+	-> {"contenu", "changements", "suggestions", "categories"}"""
+	lignes = contenu.get("caracteristiques", [])
+	if len(lignes) < 2:
+		raise ValueError("Le tableau n'a pas assez de lignes à organiser.")
+	categories = API.categories_caracteristiques(d)
+	user = {"type_document": genre, "produit": contenu.get("titre", ""), "categories_caracteristiques": categories,
+		"lignes": [{"index": i, "nom": c.get("nom", ""), "valeur": c.get("valeur", ""), "unite": c.get("unite", ""),
+			"categorie_actuelle": c.get("categorie", "")} for i, c in enumerate(lignes)]}
+	with journal.suivre_generation(d.name, frappe.generate_hash(length=12), "reecrire", "fr"):
+		data = chat_json(P.CONSIGNE_ORGANISER, json.dumps(user, ensure_ascii=False), fonctionnalite=fonctionnalite(genre), doc=d)
+	nouveau, changements, suggestions = P.classer(contenu, data, categories)
+	if not changements and not suggestions:
+		raise ValueError("Le tableau est déjà rangé : l'IA ne propose aucun changement de catégorie.")
+	return {"contenu": S.normaliser(nouveau, ctx), "changements": changements, "suggestions": suggestions, "categories": categories}
 
 
 def reecrire(d, genre, ctx, contenu, cible, instruction):
@@ -199,7 +222,8 @@ def reecrire(d, genre, ctx, contenu, cible, instruction):
 
 def generer(d, genre, ctx):
 	system = """Tu rédiges en français un document produit technique.
-Réponds uniquement en JSON avec titre, resume, sections:[{titre,texte,article,source}], caracteristiques:[{nom,valeur,unite,article,source}], gamme:texte, points_a_verifier:[texte].
+Réponds uniquement en JSON avec titre, resume, sections:[{titre,texte,article,source}], caracteristiques:[{nom,valeur,unite,article,source,categorie}], gamme:texte, points_a_verifier:[texte].
+Pour chaque caractéristique, categorie est EXACTEMENT l'une des « categories_caracteristiques » fournies, ou une chaîne vide si aucune ne convient ; n'invente pas de catégorie. """ + P.REGLE_CATEGORIES + """
 Les caractéristiques communes doivent être confirmées communes. Une source attribuée à une variante ne justifie que cette variante.
 Les attributs des variantes (contexte.variantes[].attributs : membrane, configuration, options…) sont déjà présentés par le système dans le tableau des variantes : ne les recopie jamais en caracteristiques. Les caracteristiques sont des valeurs techniques (débit, pression, dimensions, raccords, alimentation…), communes ou propres à une variante.
 Signale toute contradiction entre article, variantes et manuels dans points_a_verifier. Les passages illisibles doivent rester à vérifier.
@@ -218,13 +242,21 @@ Le tableau des variantes et les photos sont ajoutés par le système.
 		system += CONNAISSANCES_GENERALES
 	# Les nombres de la gamme sont comptés ici et fournis à l'IA (gamme.py) ; ils n'entrent pas dans le contexte
 	# enregistré de la version.
-	requete = {"type_document": genre, "contexte": {**{k: v for k, v in ctx.items() if k != "entete"}, **_contexte_gamme(ctx)}}
+	categories = API.categories_caracteristiques(d)
+	requete = {"type_document": genre, "categories_caracteristiques": categories,
+		"contexte": {**{k: v for k, v in ctx.items() if k != "entete"}, **_contexte_gamme(ctx)}}
 	data = chat_json(
 		system,
 		json.dumps(requete, ensure_ascii=False),
 		fonctionnalite=fonctionnalite(genre),
 		doc=d,
 	)
+	# L'IA classe dans les catégories du dossier : une catégorie inventée est écartée, le tableau suit l'ordre de la liste.
+	if isinstance(data, dict) and isinstance(data.get("caracteristiques"), list):
+		for c in data["caracteristiques"]:
+			if isinstance(c, dict):
+				c["categorie"] = S.categorie_admise(S.scalaire_ia(c.get("categorie")), categories)
+		data["caracteristiques"] = S.ranger_caracteristiques([c for c in data["caracteristiques"] if isinstance(c, dict)], categories)
 	data.pop("variantes", None)
 	data.pop("legendes", None)
 	data.pop("libelles", None)
@@ -306,7 +338,7 @@ def traduire(v, langue, libelle, progression=lambda *a: None):
 		progression(
 			f"Traduction en {libelle}", 10 + int(75 * min(debut + 30, len(paths)) / max(1, len(paths)))
 		)
-	return S.normaliser(resultat, ctx)
+	return S.normaliser(S.propager_categories(resultat, contenu), ctx)
 
 
 def executer(name, token, action, document_name=None, langue=None, libelle=None, rtl=0, utilisateur=None,
