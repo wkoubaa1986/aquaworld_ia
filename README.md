@@ -353,6 +353,11 @@ du design (1 à 4, champ `encres_impression`, le blanc du support en plus), en t
 - **Utiliser sur cette face** pose le SVG comme fond de la face : il couvre la face, recadré comme un
   bitmap, mais reste en tracés dans le PDF (`composition.poser_svg_couvrant`) ; la fiche technique indique
   « vectoriel » au lieu d’une résolution. La photo du produit n’y est plus posée par-dessus.
+- **Contours lisses** : le tracé sépare les couleurs sur une image de travail agrandie (×2, 3 200 px au plus,
+  `aplats._ouvrir`), où le bord adouci d’une forme garde sa position au sous-pixel : une courbe en pente douce
+  (une vague) sort en courbe et non en marches. Les filtres suivent l’agrandissement ; morphologie et filtre
+  majoritaire sont écrits pour cette taille (≈ 2 s et ≈ 250 Mo par tracé). La fenêtre propose les dessins de
+  l’IA déjà obtenus (« Repartir d’un dessin de l’IA ») : retracer depuis le dessin, pas depuis un décor tracé.
 - **Taille et position du décor** (« Fond de cette face », sous le décor ou l’image IA posée) : une réglette
   de 20 à 300 % (100 % = le décor remplit la face ; moins, il rétrécit et le support reste nu autour) et un
   décalage horizontal / vertical en mm (`fonds_faces[face].zoom` et `.decalage`). L’onglet Édition dessine

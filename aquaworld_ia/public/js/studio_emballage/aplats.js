@@ -131,6 +131,16 @@ class StudioAplats {
 				<div><b>${__("Image de départ")}</b><br><span class="small text-muted">${__("Un dessin déjà en aplats se trace très bien. Une photo donne un tracé approximatif : faites-la d’abord redessiner par IA, ici ou dans ChatGPT.")}</span><br>
 				<button class="btn btn-xs btn-default" data-autre-image style="margin-top:4px">${__("Choisir ou importer une autre image…")}</button></div></div>`
 			: `<p>${__("Aucune image sur cette face.")} <button class="btn btn-xs btn-default" data-autre-image>${__("Choisir ou importer une image…")}</button></p>`);
+		// Les dessins de l’IA déjà obtenus pour ce design : y revenir pour un nouveau tracé ne coûte rien, et un
+		// tracé refait depuis le dessin est plus net que depuis un décor déjà tracé.
+		const dessins = (this.data.images || []).filter((im) => im.genre === "Aplats IA" && im.file_url !== source).slice(0, 6);
+		if (dessins.length) dlg.fields_dict.depart.$wrapper.append(`<div class="small text-muted" style="margin:-2px 0 8px">${__("Repartir d’un dessin de l’IA déjà obtenu (gratuit) :")}
+			<span style="display:inline-flex;gap:6px;vertical-align:middle">${dessins.map((im) => `<img src="${esc(im.file_url)}" alt="" data-source-aplats="${esc(im.file_url)}" title="${esc(im.file_name || "")}" style="height:48px;cursor:pointer;${damier}">`).join("")}</span></div>`);
+		dlg.fields_dict.depart.$wrapper.find("[data-source-aplats]").on("click", (e) => {
+			const valeurs = reprise(), url = $(e.currentTarget).attr("data-source-aplats");
+			dlg.hide();
+			this.atelier_aplats(code, Object.assign(valeurs, { source_url: url }));
+		});
 		dlg.fields_dict.depart.$wrapper.find("[data-autre-image]").on("click", () => {
 			const valeurs = reprise();
 			dlg.hide();

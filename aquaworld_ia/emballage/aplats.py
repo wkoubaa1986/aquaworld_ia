@@ -22,6 +22,9 @@ BLANC = "#ffffff"
 LISSAGES = {"fin": (3, 4, 3), "normal": (5, 8, 5), "fort": (9, 16, 7)}
 #: Recouvrement (px) d’une couleur sous sa voisine plus foncée : pas de jour blanc entre deux couleurs.
 RECOUVREMENT = 5
+#: Le tracé se fait sur une image agrandie (contours lisses) : facteur visé et plus grand côté de travail (px).
+AGRANDISSEMENT = 2.0
+COTE_TRAVAIL = 3200
 #: Distance RVB au-delà de laquelle un pixel n’est proche d’aucune couleur d’impression.
 ECART_NUANCE = 60
 PART_NUANCES_PHOTO = 0.25
@@ -69,8 +72,19 @@ def plus_proche(couleur: str, liste: list[str]) -> str:
 	return min([BLANC] + list(liste), key=lambda e: sum((a - b) ** 2 for a, b in zip(c, _rvb(e))))
 
 
+def _impair(valeur: float) -> int:
+	"""Une taille de filtre : entière, impaire, au moins 3."""
+	v = max(3, int(round(valeur)))
+	return v if v % 2 else v + 1
+
+
 def _ouvrir(octets: bytes):
-	"""PNG/JPEG/WebP ou SVG -> image RGBA de 1 600 px au plus, et sa taille d’origine."""
+	"""PNG/JPEG/WebP ou SVG -> (image RGBA de travail, taille d’origine, échelle).
+
+	L’image de travail est AGRANDIE (jusqu’à ×2, `COTE_TRAVAIL` px au plus) avant la séparation des couleurs : le
+	bord adouci d’une forme y garde sa position au sous-pixel, et le contour tracé suit la courbe au lieu des
+	marches de la grille de pixels (13/11/2026 : « imperfections sur les vagues »). `échelle` : par rapport à
+	l’ancienne image de 1 600 px, pour régler les filtres en proportion."""
 	from PIL import Image
 
 	from aquaworld_ia.emballage import vectorisation as V
@@ -87,14 +101,24 @@ def _ouvrir(octets: bytes):
 			page = pdf[0]
 			if min(page.rect.width, page.rect.height) <= 0:
 				raise ValueError("SVG vide ou sans dimensions.")
-			zoom = V.MAX_COTE / max(page.rect.width, page.rect.height)
+			# Des tracés se dessinent directement à la taille de travail.
+			zoom = COTE_TRAVAIL / max(page.rect.width, page.rect.height)
 			pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=True)
 			im = Image.frombytes("RGBA", (pix.width, pix.height), pix.samples)
-		return im, im.size
+		return im, im.size, COTE_TRAVAIL / V.MAX_COTE
 	im = V.ouvrir(octets)
 	taille = im.size
 	im.thumbnail((V.MAX_COTE, V.MAX_COTE), Image.Resampling.LANCZOS)
-	return im, taille
+	echelle = min(AGRANDISSEMENT, COTE_TRAVAIL / max(im.size))
+	if echelle > 1.05:
+		# Sur blanc d’abord : le transparent laisse voir le support, et l’agrandissement ne doit pas mêler aux
+		# bords la couleur cachée des pixels transparents.
+		fond = Image.new("RGBA", im.size, BLANC)
+		fond.alpha_composite(im)
+		im = fond.resize((max(1, round(im.width * echelle)), max(1, round(im.height * echelle))), Image.Resampling.BICUBIC)
+	else:
+		echelle = 1.0
+	return im, taille, echelle
 
 
 def separer(im, liste: list[str]):
@@ -102,25 +126,58 @@ def separer(im, liste: list[str]):
 	La part de nuances mesure, hors blanc, les pixels qui ne ressemblent à aucune couleur : élevée sur une photo."""
 	import numpy as np
 
-	pixels = np.asarray(im.convert("RGBA"), dtype=np.int32)
-	rvb, alpha = pixels[..., :3], pixels[..., 3]
-	# Un pixel transparent laisse voir le support.
-	rvb = np.where(alpha[..., None] >= 128, rvb, 255)
+	pixels = np.asarray(im.convert("RGBA"))
 	palette = np.array([_rvb(BLANC)] + [_rvb(c) for c in liste], dtype=np.int32)
-	distances = ((rvb[:, :, None, :] - palette[None, None, :, :]) ** 2).sum(axis=3)
-	indices = distances.argmin(axis=2).astype(np.uint8)
-	# Les nuances se mesurent sur ce qui n’est pas le blanc du support : un grand fond blanc ne les dilue pas.
-	hors_blanc = distances[..., 0] > ECART_NUANCE ** 2
-	douteux = distances.min(axis=2) > ECART_NUANCE ** 2
-	return indices, float(douteux.sum() / max(1, hors_blanc.sum())), distances
+	hauteur, largeur = pixels.shape[:2]
+	indices = np.empty((hauteur, largeur), dtype=np.uint8)
+	# Les distances (carré de l’écart RVB, ≤ 195 075) sont gardées au tiers, sur 16 bits : l’image de travail est
+	# grande, et elles ne servent plus ensuite qu’à départager des teintes voisines (`retirer_liseres`).
+	distances = np.empty((hauteur, largeur, len(palette)), dtype=np.uint16)
+	douteux = hors_blanc = 0
+	for y in range(0, hauteur, 256):
+		bande = pixels[y:y + 256].astype(np.int32)
+		# Un pixel transparent laisse voir le support.
+		rvb = np.where(bande[..., 3:4] >= 128, bande[..., :3], 255)
+		d = np.stack([((rvb - couleur) ** 2).sum(axis=2) for couleur in palette], axis=2)
+		indices[y:y + 256] = d.argmin(axis=2)
+		# Les nuances se mesurent sur ce qui n’est pas le blanc du support : un grand fond blanc ne les dilue pas.
+		hors_blanc += int((d[..., 0] > ECART_NUANCE ** 2).sum())
+		douteux += int((d.min(axis=2) > ECART_NUANCE ** 2).sum())
+		distances[y:y + 256] = d // 3
+	return indices, douteux / max(1, hors_blanc), distances
 
 
 def _morpho(masque, taille: int, dilater: bool):
+	"""Dilatation (ou érosion) d’un masque par un carré de `taille` px. En deux passes de décalages, une par axe :
+	bien plus rapide que les filtres de rang de PIL sur la grande image de travail, pour le même résultat."""
+	rayon = max(0, int(taille) // 2)
+	# Éroder, c’est dilater ce qui n’est pas le masque ; hors de l’image, rien ne ronge le masque.
+	m = masque if dilater else ~masque
+	for axe in (0, 1):
+		source, m = m, m.copy()
+		for d in range(1, min(rayon, source.shape[axe] - 1) + 1):
+			if axe == 0:
+				m[d:] |= source[:-d]
+				m[:-d] |= source[d:]
+			else:
+				m[:, d:] |= source[:, :-d]
+				m[:, :-d] |= source[:, d:]
+	return m if dilater else ~m
+
+
+def _majoritaire(indices, classes: int, taille: int):
+	"""Filtre majoritaire : chaque pixel prend la classe la plus présente dans le carré de `taille` px autour de
+	lui. Retire les pixels isolés et adoucit les contours ; une moyenne glissante par classe, puis la plus forte."""
 	import numpy as np
 	from PIL import Image, ImageFilter
 
-	im = Image.fromarray(np.where(masque, 255, 0).astype(np.uint8), "L")
-	return np.asarray(im.filter(ImageFilter.MaxFilter(taille) if dilater else ImageFilter.MinFilter(taille))) > 0
+	meilleur, score = np.zeros(indices.shape, dtype=np.uint8), np.zeros(indices.shape, dtype=np.uint8)
+	for k in range(classes):
+		part = np.asarray(Image.fromarray(np.where(indices == k, 255, 0).astype(np.uint8), "L").filter(ImageFilter.BoxBlur(taille // 2)))
+		gagne = part > score
+		meilleur[gagne] = k
+		score = np.maximum(score, part)
+	return meilleur
 
 
 def retirer_liseres(indices, distances, ordre: list[int], epaisseur: int):
@@ -138,7 +195,8 @@ def retirer_liseres(indices, distances, ordre: list[int], epaisseur: int):
 		lisere = fin & _morpho(fonce, epaisseur, True)
 		if lisere.any():
 			candidats = np.array([0] + plus_fonces, dtype=np.uint8)
-			indices = np.where(lisere, candidats[distances[..., candidats].argmin(axis=2)], indices)
+			indices = indices.copy()
+			indices[lisere] = candidats[distances[lisere][:, candidats].argmin(axis=1)]
 	return indices
 
 
@@ -160,21 +218,23 @@ def _tracer(masque, taches: int) -> list[tuple[str, str]]:
 def vectoriser(octets: bytes, couleurs, lissage: str = "normal") -> tuple[bytes, dict]:
 	"""Image -> SVG aux seules couleurs d’impression, et son bilan. Sans appel IA."""
 	import numpy as np
-	from PIL import Image, ImageFilter
 
 	from aquaworld_ia.emballage import vectorisation as V
 
 	liste = encres(couleurs)
 	if lissage not in LISSAGES:
 		raise ValueError("Choisissez un lissage fin, normal ou fort.")
+	im, (largeur, hauteur), echelle = _ouvrir(octets)
+	# Les réglages sont donnés pour l’image de 1 600 px : ils suivent l’agrandissement de l’image de travail.
 	filtre, taches, epaisseur = LISSAGES[lissage]
-	im, (largeur, hauteur) = _ouvrir(octets)
+	filtre, epaisseur, recouvrement = _impair(filtre * echelle), _impair(epaisseur * echelle), _impair(RECOUVREMENT * echelle)
+	taches = max(1, int(round(taches * echelle)))
 	indices, nuances, distances = separer(im, liste)
 	# Du plus clair au plus foncé : l’ordre d’empilement des couleurs.
 	ordre = sorted(range(len(liste)), key=lambda k: -_luminance(liste[k]))
 	indices = retirer_liseres(indices, distances, ordre, epaisseur)
-	# Le filtre majoritaire retire les pixels isolés et adoucit les contours.
-	indices = np.asarray(Image.fromarray(indices, "L").filter(ImageFilter.ModeFilter(filtre)))
+	del distances
+	indices = _majoritaire(indices, len(liste) + 1, filtre)
 	racine = ET.Element("{%s}svg" % SVG_NS, {"viewBox": "0 0 %d %d" % im.size, "width": str(largeur), "height": str(hauteur)})
 	total, chemins, avertissements, couverture = indices.size, 0, [], {}
 	for rang, k in enumerate(ordre):
@@ -186,7 +246,7 @@ def vectoriser(octets: bytes, couleurs, lissage: str = "normal") -> tuple[bytes,
 			continue
 		# Chaque couleur garde ses formes visibles et glisse un peu sous ses voisines plus foncées.
 		propre = indices == k + 1
-		masque = propre | (_morpho(propre, RECOUVREMENT, True) & np.isin(indices, [j + 1 for j in ordre[rang + 1:]]))
+		masque = propre | (_morpho(propre, recouvrement, True) & np.isin(indices, [j + 1 for j in ordre[rang + 1:]]))
 		traces = _tracer(masque, taches)
 		if not traces:
 			avertissements.append("La couleur %s ne forme que des taches trop petites : elle est absente du tracé." % couleur)

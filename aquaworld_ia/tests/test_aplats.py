@@ -6,6 +6,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
 import frappe
+import numpy as np
 import pymupdf
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -116,6 +117,80 @@ class TestVectoriser(unittest.TestCase):
 		self.assertIn("SEL EN PASTILLES", texte)
 		self.assertTrue(texte.endswith("contour épais."))
 		self.assertIn("EXACTLY 1 solid ink colour ", A.prompt("#000000"))
+
+
+class TestContours(unittest.TestCase):
+	"""13/11/2026 : « imperfections sur les vagues » — le bord en pente douce d'une vague sortait en marches."""
+
+	K = 8
+
+	def vague(self, pente: float):
+		k = self.K
+		grand = Image.new("RGB", (400 * k, 300 * k), "white")
+		ImageDraw.Draw(grand).polygon([(0, 100 * k), (400 * k, (100 + 400 * pente) * k), (400 * k, 300 * k), (0, 300 * k)], fill=FONCE)
+		return png(grand.resize((400, 300), Image.Resampling.LANCZOS)), np.asarray(grand.convert("L")) < 128
+
+	def ecart(self, svg: bytes, ideal) -> float:
+		"""Écart vertical moyen entre le contour tracé et le bord voulu, en pixels de l'image de départ."""
+		from aquaworld_ia.emballage.svg_impression import vers_pdf
+
+		k = self.K
+		with vers_pdf(svg) as pdf:
+			page = pdf[0]
+			pix = page.get_pixmap(matrix=pymupdf.Matrix(400 * k / page.rect.width, 300 * k / page.rect.height))
+		trace = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)[..., 0] < 128
+		diff = (trace ^ ideal)[:, 20 * k:-20 * k]
+		return float(diff.sum() / diff.shape[1] / k)
+
+	def test_bord_en_pente_douce_sans_marches(self):
+		for pente in (0.03, 0.08, 0.2):
+			image, ideal = self.vague(pente)
+			svg, infos = A.vectoriser(image, [FONCE])
+			self.assertLess(self.ecart(svg, ideal), 0.4, pente)
+			# sans l'agrandissement de l'image de travail, le même bord s'écarte de plus d'un demi-pixel
+			with patch.object(A, "AGRANDISSEMENT", 1.0):
+				ancien, _ = A.vectoriser(image, [FONCE])
+			self.assertGreater(self.ecart(ancien, ideal), self.ecart(svg, ideal) * 1.5, pente)
+			self.assertEqual((infos["largeur"], infos["hauteur"]), (400, 300))
+
+	def test_image_de_travail_agrandie_et_bornee(self):
+		petite, taille, echelle = A._ouvrir(png(Image.new("RGB", (300, 200), "white")))
+		self.assertEqual((petite.size, taille, echelle), ((600, 400), (300, 200), 2.0))
+		grande, taille, echelle = A._ouvrir(png(Image.new("RGB", (4000, 1000), "white")))
+		self.assertEqual((taille, max(grande.size)), ((4000, 1000), A.COTE_TRAVAIL))
+		self.assertAlmostEqual(echelle, 2.0)
+		svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" width="100" height="50"><rect width="100" height="50" fill="#0264c3"/></svg>'
+		trace, _taille, echelle = A._ouvrir(svg)
+		self.assertEqual((max(trace.size), echelle), (A.COTE_TRAVAIL, 2.0))
+
+	def test_morphologie_identique_aux_filtres_de_rang(self):
+		from PIL import ImageFilter
+
+		hasard = np.random.default_rng(1)
+		for forme in ((57, 83), (120, 31)):
+			masque = hasard.random(forme) > 0.7
+			image = Image.fromarray(np.where(masque, 255, 0).astype(np.uint8), "L")
+			for taille in (3, 5, 11, 19):
+				self.assertTrue((A._morpho(masque, taille, True) == (np.asarray(image.filter(ImageFilter.MaxFilter(taille))) > 0)).all(), (forme, taille))
+				self.assertTrue((A._morpho(masque, taille, False) == (np.asarray(image.filter(ImageFilter.MinFilter(taille))) > 0)).all(), (forme, taille))
+
+	def test_filtre_majoritaire(self):
+		indices = np.zeros((40, 40), dtype=np.uint8)
+		indices[:, 20:] = 1
+		indices[10, 5] = 2   # un pixel isolé disparaît
+		indices[30, 30] = 0
+		lisse = A._majoritaire(indices, 3, 5)
+		self.assertEqual((int(lisse[10, 5]), int(lisse[30, 30]), int(lisse[20, 2]), int(lisse[20, 37])), (0, 1, 0, 1))
+		self.assertNotIn(2, lisse)
+
+	def test_separation_par_bandes(self):
+		# plus haut qu'une bande de calcul : le transparent vaut le support, les distances départagent encore
+		im = Image.new("RGBA", (10, 600), FONCE)
+		im.paste((0, 0, 0, 0), (0, 300, 10, 600))
+		indices, nuances, distances = A.separer(im, [FONCE, CLAIR])
+		self.assertEqual((int(indices[0, 0]), int(indices[299, 9]), int(indices[300, 0]), int(indices[599, 9])), (1, 1, 0, 0))
+		self.assertEqual((nuances, distances.shape, int(distances[0, 0, 1]), int(distances[599, 0, 0])), (0.0, (600, 10, 3), 0, 0))
+		self.assertGreater(int(distances[0, 0, 0]), int(distances[0, 0, 2]))
 
 
 class TestPdf(unittest.TestCase):
