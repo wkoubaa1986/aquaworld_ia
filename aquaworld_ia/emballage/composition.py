@@ -1637,11 +1637,15 @@ def composer_et_attacher(design: str, variante: int = 0) -> dict:
 	actuel = frappe.db.get_value("Design Emballage", design, ["modified", "plan_a_plat"], as_dict=True, for_update=True)
 	if not actuel or str(actuel.modified) != revision or actuel.plan_a_plat != ancien_pdf:
 		frappe.throw(_("Le design ou son PDF a changé pendant la préparation. Relancez l’export."))
+	# Un design recomposé à l'identique redonne le même aperçu : `save_file` reprend alors la fiche existante, dont
+	# le fichier doit être sur le disque (`fichiers.retablir`).
+	fichiers.retablir(pdf)
 	fichier = save_file("%s-plan-a-plat.pdf" % doc.name, pdf, "Design Emballage", doc.name, is_private=1)
 	import pymupdf
 
 	with pymupdf.open("pdf", pdf) as document:
 		apercu = document[0].get_pixmap(dpi=100).tobytes("png")
+	fichiers.retablir(apercu)
 	apercu_f = save_file("%s-apercu.png" % doc.name, apercu, "Design Emballage", doc.name, is_private=1)
 	valeurs = {"plan_a_plat": fichier.file_url, "apercu_plan": apercu_f.file_url, "statut": "Plan prêt",
 	           "empreinte_plan": exports.empreinte(doc), "variante_choisie": doc.variante_choisie,
