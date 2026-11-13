@@ -481,6 +481,18 @@ class StudioEdition {
 		$b.find('[data-role="fond-face-ia"]').on("click", () => this.atelier_face(f.code));
 		$b.find('[data-role="fond-face-aplats"]').on("click", () => this.atelier_aplats(f.code));
 		$b.find('[data-role="photo-incluse"]').on("change", (e) => regler({ photo_incluse: e.currentTarget.checked }));
+		// Taille et position du décor : enregistrées, puis le plan est recomposé pour montrer le résultat.
+		$b.find("[data-zoom-fond]").on("input", (e) => $b.find("[data-zoom-fond-valeur]").text(`${e.currentTarget.value} %`));
+		const cadrer = async (cadrage) => {
+			const fonds = this._fonds(), design = this.nom;
+			fonds[f.code] = Object.assign({}, fonds[f.code] || {}, this._cadrage_fond(cadrage));
+			this.d.fonds_faces = JSON.stringify(fonds);
+			await this.modifier({ fonds_faces: fonds }, false);
+			if (this.nom === design) await this.action("composer");
+		};
+		$b.find('[data-role="cadrage-fond-voir"]').on("click", () => cadrer({ zoom: Number($b.find("[data-zoom-fond]").val()) / 100,
+			decalage: { x: $b.find('[data-decalage-fond="x"]').val(), y: $b.find('[data-decalage-fond="y"]').val() } }));
+		$b.find('[data-role="cadrage-fond-zero"]').on("click", () => cadrer({ zoom: 1, decalage: { x: 0, y: 0 } }));
 		$b.find('[data-role="fond-face-blanc"]').on("click", () => this.blanchir((this._fonds()[f.code] || {}).mode === "image" ? f.code : "fond"));
 		$b.find("[data-voir-face]").on("click", (e) => { e.preventDefault(); this.visionneuse($(e.currentTarget).attr("data-voir-face"), f.libelle); });
 	}

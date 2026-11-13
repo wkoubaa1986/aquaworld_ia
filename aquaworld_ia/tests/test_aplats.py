@@ -135,6 +135,64 @@ class TestPdf(unittest.TestCase):
 				for dehors in ((40, 200), (160, 200), (100, 90), (100, 310)):
 					self.assertEqual(pix.pixel(*dehors), (255, 255, 255), dehors)
 
+	def test_decor_retreci_et_decale(self):
+		"""13/11/2026 : « la zoomer ou dézoomer par rapport à l'écriture ». Moitié de taille : centré, blanc autour."""
+		svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200"><rect width="100" height="200" fill="#0264c3"/></svg>'
+
+		def rendu(**reglage):
+			with pymupdf.open() as doc:
+				page = doc.new_page(width=300, height=400)
+				C.poser_svg_couvrant(page, (50, 100, 150, 300), svg, **reglage)
+				with pymupdf.open(stream=doc.tobytes(), filetype="pdf") as pdf:
+					self.assertEqual(pdf[0].get_images(), [])
+					return pdf[0].get_pixmap()
+
+		bleu, blanc = (2, 100, 195), (255, 255, 255)
+		pix = rendu(zoom=0.5)  # le décor occupe (75, 150) → (125, 250)
+		for dedans in ((77, 152), (123, 248), (100, 200)):
+			self.assertEqual(pix.pixel(*dedans), bleu, dedans)
+		for dehors in ((72, 200), (128, 200), (100, 147), (100, 253), (52, 102)):
+			self.assertEqual(pix.pixel(*dehors), blanc, dehors)
+		pt = C.MM(10)  # 10 mm vers la droite et vers le bas
+		pix = rendu(zoom=0.5, decalage={"x": 10, "y": 10})
+		self.assertEqual(pix.pixel(int(77 + pt), int(152 + pt)), bleu)
+		self.assertEqual(pix.pixel(77, 152), blanc)
+		pix = rendu(zoom=2, decalage={"x": 500})  # agrandi et poussé hors du cadre : rien ne déborde du cadre
+		for dehors in ((160, 200), (40, 200), (100, 90), (100, 310)):
+			self.assertEqual(pix.pixel(*dehors), blanc, dehors)
+
+	def test_reglage_du_decor_normalise(self):
+		base = {"mode": "image", "image": "/private/files/x.svg"}
+		self.assertEqual(C.reglage_fond({"avant": base}, "avant"),
+			{"mode": "image", "photo_incluse": False, "image": "/private/files/x.svg", "zoom": 1.0, "decalage": {"x": 0.0, "y": 0.0}})
+		r = C.reglage_fond({"avant": dict(base, zoom="0.6", decalage={"x": -12, "y": "abc"})}, "avant")
+		self.assertEqual((r["zoom"], r["decalage"]), (0.6, {"x": -12.0, "y": 0.0}))
+		r = C.reglage_fond({"avant": dict(base, zoom=99, decalage="nimporte")}, "avant")
+		self.assertEqual((r["zoom"], r["decalage"]), (4.0, {"x": 0.0, "y": 0.0}))
+		for invalide in (0, float("nan"), float("inf"), None, "x"):
+			attendu = 0.2 if invalide == 0 else 1.0
+			self.assertEqual(C.reglage_fond({"avant": dict(base, zoom=invalide)}, "avant")["zoom"], attendu, invalide)
+		self.assertNotIn("zoom", C.reglage_fond({"avant": {"mode": "blanc"}}, "avant"))
+
+	def test_fond_de_face_transmet_taille_et_position(self):
+		svg, _ = A.vectoriser(dessin(), [FONCE, CLAIR])
+		with pymupdf.open() as doc, patch.object(C.fichiers, "lire", return_value=svg), patch.object(C, "poser_svg_couvrant") as poser:
+			page = doc.new_page(width=400, height=600)
+			reg = C.reglage_fond({"avant": {"mode": "image", "image": "/private/files/x.svg", "zoom": 0.7, "decalage": {"y": 15}}}, "avant")
+			self.assertTrue(C._poser_fond_regle(page, reg, (10, 10, 100, 150), {"code": "avant"}, None, None, {}))
+		self.assertEqual(poser.call_args.args[2:], (svg, 0.7, {"x": 0.0, "y": 15.0}))
+
+	def test_image_ia_agrandie_perd_en_resolution(self):
+		tampon = io.BytesIO()
+		Image.new("RGB", (400, 600), "#0264c3").save(tampon, "PNG")
+		dpi = {}
+		with pymupdf.open() as doc, patch.object(C.fichiers, "lire", return_value=tampon.getvalue()):
+			page = doc.new_page(width=400, height=600)
+			for zoom in (1, 2):
+				C._poser_fond_regle(page, {"mode": "image", "image": "/private/files/x.png", "zoom": zoom, "decalage": {}},
+				                    (10, 10, 100, 150), {"code": "z%d" % zoom}, None, None, dpi)
+		self.assertAlmostEqual(dpi["z1"], dpi["z2"] * 2, delta=0.2)
+
 	def test_fond_de_face_svg_pose_en_traces(self):
 		svg, _ = A.vectoriser(dessin(), [FONCE, CLAIR])
 		dpi = {}

@@ -353,6 +353,10 @@ du design (1 à 4, champ `encres_impression`, le blanc du support en plus), en t
 - **Utiliser sur cette face** pose le SVG comme fond de la face : il couvre la face, recadré comme un
   bitmap, mais reste en tracés dans le PDF (`composition.poser_svg_couvrant`) ; la fiche technique indique
   « vectoriel » au lieu d’une résolution. La photo du produit n’y est plus posée par-dessus.
+- **Taille et position du décor** (« Fond de cette face », sous le décor ou l’image IA posée) : une réglette
+  de 20 à 300 % (100 % = le décor remplit la face ; moins, il rétrécit et le support reste nu autour) et un
+  décalage horizontal / vertical en mm. « Appliquer et voir » enregistre (`fonds_faces[face].zoom` et
+  `.decalage`) et recompose le plan ; les textes ne bougent pas. Un décor en aplats reste en tracés.
 - **Étape 4 → « Impression en aplats »** : régler les couleurs, puis **Contrôler les couleurs du PDF**. Le
   contrôle lit la page imprimable du PDF actuel, hors calque de découpe : images en pixels, tracés et
   textes d’une autre couleur, avec la couleur d’impression la plus proche. **Aligner les couleurs** y ramène

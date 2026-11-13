@@ -96,6 +96,29 @@ class StudioMedias {
 
 	// « Fond de cette face » : la règle automatique, l'image de fond du design, une couleur, du blanc, ou une image
 	// composée par l'IA (demande utilisateur 06/10/2026 : « l'image de fond, je l'applique sur la face que je veux »).
+	/** Taille et position du décor d’une face, normalisées comme côté serveur (composition.reglage_fond). */
+	_cadrage_fond(reg) {
+		const nombre = (v, defaut, mini, maxi) => { const n = Number(v); return v === null || v === undefined || v === "" || !Number.isFinite(n) ? defaut : Math.min(maxi, Math.max(mini, n)); };
+		const d = (reg && typeof reg.decalage === "object" && reg.decalage) || {};
+		return { zoom: nombre(reg && reg.zoom, 1, 0.2, 4), decalage: { x: nombre(d.x, 0, -2000, 2000), y: nombre(d.y, 0, -2000, 2000) } };
+	}
+
+	// 13/11/2026 : « comment je fais pour la zoomer ou dézoomer par rapport à l’écriture » — le décor couvrait toujours la face.
+	_cadrage_fond_html(reg) {
+		const c = this._cadrage_fond(reg), pct = Math.round(c.zoom * 100);
+		return `<div data-role="cadrage-fond" style="margin-top:8px;padding-top:6px;border-top:1px solid #bae6fd">
+			<label for="se-zoom-fond" style="display:block;margin:0">${__("Taille du décor")} <b data-zoom-fond-valeur>${pct} %</b></label>
+			<input id="se-zoom-fond" type="range" min="20" max="300" step="5" value="${pct}" data-zoom-fond style="width:100%">
+			<div class="se-position-grid">
+				<label>${__("Horizontal (mm)")}<input type="number" step="1" data-decalage-fond="x" value="${c.decalage.x}"></label>
+				<label>${__("Vertical (mm)")}<input type="number" step="1" data-decalage-fond="y" value="${c.decalage.y}"></label>
+			</div>
+			<div class="se-btns" style="margin-top:6px">
+				<button class="btn btn-xs btn-primary" data-role="cadrage-fond-voir">${__("Appliquer et voir")}</button>
+				<button class="btn btn-xs btn-default" data-role="cadrage-fond-zero">${__("Réinitialiser")}</button></div>
+			<div class="text-muted small" style="margin-top:4px">${__("100 % = le décor remplit la face. Moins : il rétrécit et le sac reste blanc autour. Plus : il grossit, ce qui dépasse est coupé. Positif : droite / bas. Les textes ne bougent pas.")}</div></div>`;
+	}
+
 	_bloc_fond_face(f) {
 		const esc = this._esc, reg = this._fonds()[f.code] || {}, mode = reg.mode || "";
 		const trace = /\.svg(?:[?#]|$)/i.test(reg.image || "");
@@ -110,7 +133,8 @@ class StudioMedias {
 				${this._palette().map((c) => `<span class="se-pastille petite" data-fond-face-pastille="${esc(c)}" title="${esc(c)}" style="background:${esc(c)}"></span>`).join("")}</div>` : ""}
 			${reg.image ? `<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><a href="#" data-voir-face="${esc(reg.image)}"><img src="${esc(reg.image)}" style="height:54px;max-width:90px;object-fit:cover;border:1px solid #e5e7eb;border-radius:6px"></a>
 				<span class="small text-muted">${trace ? (mode === "image" ? __("Décor en aplats (tracés) posé sur cette face") : __("Décor en aplats gardé (« Décor en aplats » pour le remettre)")) : mode === "image" ? __("Image IA posée sur cette face") : __("Image IA gardée (« Image IA » pour la remettre)")}</span></div>
-				${mode === "image" ? `<label class="se-check" style="margin-top:4px"><input type="checkbox" data-role="photo-incluse" ${reg.photo_incluse ? "checked" : ""}> ${__("Le produit est déjà dans cette image (ne pas reposer la photo par-dessus)")}</label>` : ""}` : ""}
+				${mode === "image" ? `<label class="se-check" style="margin-top:4px"><input type="checkbox" data-role="photo-incluse" ${reg.photo_incluse ? "checked" : ""}> ${__("Le produit est déjà dans cette image (ne pas reposer la photo par-dessus)")}</label>
+					${this._cadrage_fond_html(reg)}` : ""}` : ""}
 			<button class="btn btn-xs btn-default" data-role="fond-face-ia" style="margin-top:6px">✨ ${__("Composer cette face par IA")}</button>
 			<button class="btn btn-xs btn-default" data-role="fond-face-aplats" style="margin-top:6px" title="${__("Le décor de cette face ramené aux couleurs de l’imprimeur, en tracés vectoriels.")}">🖨 ${__("Aplats pour l’impression")}</button>
 			${(mode === "image" && reg.image && !trace) || ((mode === "fond" || !mode) && this.d.image_fond) ? `<button class="btn btn-xs btn-default" data-role="fond-face-blanc" style="margin-top:6px" title="${__("Le presque blanc devient du blanc pur #FFFFFF, comme les faces réglées sur Blanc. Sans IA.")}">⚪ ${__("Blanc pur")}</button>` : ""}

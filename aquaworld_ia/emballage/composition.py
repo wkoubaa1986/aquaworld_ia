@@ -482,9 +482,12 @@ def poser_svg(page, rect, svg: bytes, garder_proportions: bool = True, rotation:
 		page.show_pdf_page(pymupdf.Rect(*rect), src, 0, keep_proportion=garder_proportions, rotate=-rotation)
 
 
-def poser_svg_couvrant(page, rect, svg: bytes) -> None:
+def poser_svg_couvrant(page, rect, svg: bytes, zoom: float = 1.0, decalage: dict | None = None) -> None:
 	"""Un SVG qui COUVRE le cadre sans se déformer, centré, le débordement coupé au cadre : le même
-	recadrage que `recadrer` pour un bitmap, mais les tracés restent des tracés."""
+	recadrage que `recadrer` pour un bitmap, mais les tracés restent des tracés.
+
+	`zoom` : 1 = couvre le cadre ; moins = le décor rétrécit et laisse le support nu autour ; plus = il grossit,
+	toujours coupé au cadre. `decalage` : {x, y} en mm, positif vers la droite / le bas."""
 	import pymupdf
 
 	r = pymupdf.Rect(*rect)
@@ -492,9 +495,10 @@ def poser_svg_couvrant(page, rect, svg: bytes) -> None:
 		original = src[0].rect
 		if min(original.width, original.height, r.width, r.height) <= 0:
 			return
-		k = max(r.width / original.width, r.height / original.height)
+		k = max(r.width / original.width, r.height / original.height) * (zoom or 1.0)
 		w, h = original.width * k, original.height * k
-		dx, dy = (r.width - w) / 2, (r.height - h) / 2
+		dx = (r.width - w) / 2 + MM((decalage or {}).get("x", 0))
+		dy = (r.height - h) / 2 + MM((decalage or {}).get("y", 0))
 		p = cadre.new_page(width=r.width, height=r.height)
 		p.show_pdf_page(pymupdf.Rect(dx, dy, dx + w, dy + h), src, 0)
 		page.show_pdf_page(r, cadre, 0)
@@ -589,6 +593,9 @@ def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
 MODES_FOND_FACE = ("fond", "image", "couleur", "blanc")
 #: Le calque du PDF qui porte la découpe, les plis et les repères : jamais imprimé.
 COUCHE_DECOUPE = "Découpe et plis"
+#: Taille du décor d'une face (1 = il couvre la face) et son décalage, en mm (positif : droite / bas).
+ZOOM_FOND_FACE = (0.2, 4.0)
+DECALAGE_FOND_FACE_MM = 2000.0
 
 
 def reglage_fond(fonds_faces, code: str) -> dict | None:
@@ -607,7 +614,20 @@ def reglage_fond(fonds_faces, code: str) -> dict | None:
 		if not (isinstance(r.get("image"), str) and r["image"].startswith(("/files/", "/private/files/"))):
 			return None
 		out["image"] = r["image"]
+		# 13/11/2026 : « la zoomer ou dézoomer par rapport à l'écriture » — 1 = le décor couvre la face.
+		decalage = r.get("decalage") if isinstance(r.get("decalage"), dict) else {}
+		out["zoom"] = _borne(r.get("zoom"), 1.0, *ZOOM_FOND_FACE)
+		out["decalage"] = {axe: _borne(decalage.get(axe), 0.0, -DECALAGE_FOND_FACE_MM, DECALAGE_FOND_FACE_MM) for axe in ("x", "y")}
 	return out
+
+
+def _borne(valeur, defaut: float, mini: float, maxi: float) -> float:
+	"""Un nombre fini ramené dans [mini, maxi] ; `defaut` pour tout le reste (None, texte, NaN, infini)."""
+	try:
+		v = float(valeur)
+	except (TypeError, ValueError):
+		return defaut
+	return min(maxi, max(mini, v)) if math.isfinite(v) else defaut
 
 
 def couleur_texte_sur(fond_hex: str) -> str:
@@ -1140,17 +1160,19 @@ def _poser_fond_regle(page, reg: dict, r, face: dict, image_fond, bande, dpi: di
 			img = fichiers.lire(reg["image"])
 		except Exception:
 			return False
+		zoom, decalage = reg.get("zoom") or 1.0, reg.get("decalage") or {}
 		if est_svg(img):
 			# Un décor en aplats (SVG) couvre la face en restant des tracés : pas de résolution à surveiller.
-			poser_svg_couvrant(page, rect, img)
+			poser_svg_couvrant(page, rect, img, zoom, decalage)
 			dpi[face["code"]] = None
 			return True
 		from PIL import Image
 
 		im = Image.open(io.BytesIO(img))
 		x0, y0, x1, y1 = geometrie.cadrage(r[2], r[3], im.width, im.height)
-		dpi[face["code"]] = geometrie.dpi_effectif(x1 - x0, r[2])
-		poser_image(page, rect, recadrer(img, r[2], r[3]), garder_proportions=False)
+		# Agrandie, la même image s'étale sur plus de millimètres : sa résolution baisse d'autant.
+		dpi[face["code"]] = geometrie.dpi_effectif(x1 - x0, r[2] * zoom)
+		poser_image(page, rect, recadrer(img, r[2], r[3]), garder_proportions=False, zoom=zoom, decalage=decalage)
 		return True
 	if reg["mode"] == "fond" and image_fond:
 		if bande and face["code"] in bande["faces"]:
