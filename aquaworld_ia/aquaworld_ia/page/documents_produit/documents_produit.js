@@ -985,6 +985,7 @@ class DocumentsProduit {
         d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">L’IA intègre votre information… (10 à 40 s)</p>');
         try{
           const [type,index]=String(v.destination||'auto').split(':'),destination=type==='auto'?null:{type,...(index!==undefined?{index:+index}:{})};
+          await this.saveConfig();   // consignes et « connaissances générales » à l'écran : celles que l'IA reçoit
           const r=await dpCall('traiter_point',{name:this.name,document_name:this.current.doc.name,point,information:v.information,destination,contenu:this.captureDocument()});
           this.current.contenu=r.contenu;this.renderDocument();this.dirty=true;this.updateBar();d.hide();
           const z=this.root.find('.dp-editor'),cibles=r.changements.map(m=>m.type==='resume'?z.find('.dp-summary'):m.type==='gamme'?z.find('.dp-gamme'):m.type==='section'?z.find('.dp-section').eq(m.index):z.find('.dp-caracs tbody tr').eq(m.index));
@@ -1035,6 +1036,7 @@ class DocumentsProduit {
       primary_action_label:'Compléter',primary_action:async v=>{
         d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">L’IA complète le tableau… (10 à 40 s)</p>');
         try{
+          await this.saveConfig();   // consignes et « connaissances générales » à l'écran : celles que l'IA reçoit
           const r=await dpCall('completer_caracteristiques',{name:this.name,document_name:this.current.doc.name,information:v.information||'',contenu:this.captureDocument()});
           this.current.contenu=r.contenu;this.renderDocument();this.dirty=true;this.updateBar();d.hide();
           const lignes=this.root.find('.dp-editor .dp-caracs tbody tr'),cibles=r.changements.map(m=>lignes.eq(m.index));
@@ -1056,6 +1058,7 @@ class DocumentsProduit {
       primary_action_label:'Réécrire',primary_action:async v=>{
         d.get_primary_btn().prop('disabled',true);d.fields_dict.etat.$wrapper.html('<p class="dp-muted">Réécriture en cours… (10 à 40 s)</p>');
         try{
+          await this.saveConfig();   // consignes et « connaissances générales » à l'écran : celles que l'IA reçoit
           const r=await dpCall('reecrire_partie',{name:this.name,document_name:this.current.doc.name,cible,instruction:v.instruction||'',contenu:this.captureDocument()});
           const c=this.captureDocument();
           if(gamme)c.gamme=r.texte;
