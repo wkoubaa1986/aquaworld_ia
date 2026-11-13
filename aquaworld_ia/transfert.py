@@ -207,6 +207,135 @@ def _doc_exportable(doc) -> dict:
 	return out
 
 
+# ─── un design, tel qu'il est sur le dev, vers un site qui en a une version plus ancienne ─────────────────────
+#
+# Demande du 13/11/2026 : « quand je pousse en prod, je veux l'équivalent de mon document du dev, pour l'emballage
+# du sel seulement ». `exporter_design` (en dev) range dans l'app les champs de la fiche et les fichiers qu'elle
+# utilise et que l'autre site n'a pas ; un patch appelle `appliquer_design` après la migration.
+
+DESIGN = "Design Emballage"
+DOSSIER_DESIGNS = os.path.join(DOSSIER, "designs")
+_URL_FICHIER = re.compile(r'/(?:private/)?files/[^"\\<>]+')
+
+
+def urls_fichiers(document) -> list[str]:
+	"""Les fichiers du site que cite un document, où que ce soit (champ, JSON de mise en page…). Pur."""
+	return sorted(set(_URL_FICHIER.findall(json.dumps(document, ensure_ascii=False, default=str))))
+
+
+def memes_valeurs(a, b) -> bool:
+	"""Deux valeurs de champ égales, à la façon de les écrire près (None et vide, 1 et 1.0, date et texte). Pur."""
+	if a in (None, "") or b in (None, ""):
+		return a in (None, "") and b in (None, "")
+	if isinstance(a, bool | int | float) and isinstance(b, bool | int | float):
+		return float(a) == float(b)
+	return str(a) == str(b)
+
+
+def decision_design(copie: dict, sur_place: str | None, forcer: bool = False) -> str:
+	"""Que faire de la copie d'un design sur ce site ? Pur.
+
+	- `introuvable` : le design n'existe pas ici, rien n'est créé ;
+	- `deja_a_jour` : la fiche est déjà celle de la copie (le dev lui-même, ou un second passage) ;
+	- `modifie_sur_place` : la fiche a changé ici depuis que le dev l'a copiée — on n'écrase pas ce travail ;
+	- `appliquer` : la fiche est restée telle que le dev l'avait prise (ou `forcer`)."""
+	if sur_place is None:
+		return "introuvable"
+	if _instant(sur_place) == _instant(copie.get("modifie")):
+		return "deja_a_jour"
+	if _instant(sur_place) != _instant(copie.get("base_modifie")) and not forcer:
+		return "modifie_sur_place"
+	return "appliquer"
+
+
+def _instant(valeur):
+	"""Un horodatage comparable quelle que soit son écriture (« …08:00:00 » et « …08:00:00.000000 »). Pur."""
+	from datetime import datetime
+
+	try:
+		return datetime.fromisoformat(str(valeur))
+	except ValueError:
+		return str(valeur)
+
+
+def _fiche_copie(nom: str, dossier: str | None = None) -> str:
+	return os.path.join(dossier or DOSSIER_DESIGNS, nom, "design.json")
+
+
+def exporter_design(nom: str, base_modifie: str, depuis: str, en_plus=None, dossier: str | None = None) -> dict:
+	"""Range dans l'app l'état actuel d'un design : ses champs (les tables ne voyagent pas) et, parmi les
+	fichiers qu'il cite, ceux apparus sur ce site depuis `depuis` — l'autre site a déjà les précédents.
+	`base_modifie` : le « modifié le » de la fiche sur l'autre site, tel qu'il était quand ce site l'a copiée.
+	`en_plus` : d'autres fichiers du design à emporter (un dessin de départ, par exemple)."""
+	doc = frappe.get_doc(DESIGN, nom)
+	champs = {k: v for k, v in _doc_exportable(doc).items() if k not in ("doctype", "name") and not isinstance(v, list)}
+	cible = os.path.join(dossier or DOSSIER_DESIGNS, nom)
+	if os.path.isdir(cible):
+		shutil.rmtree(cible)
+	os.makedirs(os.path.join(cible, "fichiers"))
+	fichiers, poids = [], 0
+	for url in sorted(set(urls_fichiers(champs)) | set(en_plus or [])):
+		fiches = frappe.get_all("File", filters={"file_url": url, "attached_to_doctype": DESIGN, "attached_to_name": nom},
+		                        fields=["file_name", "is_private", "attached_to_field", "creation"], order_by="creation asc")
+		if not fiches or (str(fiches[0].creation) < depuis and url not in (en_plus or [])):
+			continue
+		src = _chemin_site(url)
+		if not os.path.exists(src):
+			frappe.throw(f"Fichier absent du disque : {url}")
+		fichier = os.path.basename(url)
+		shutil.copyfile(src, os.path.join(cible, "fichiers", fichier))
+		poids += os.path.getsize(src)
+		fichiers.append({"fichier": fichier, "url": url, "prive": int(fiches[0].is_private or 0), "champ": fiches[0].attached_to_field})
+	copie = {"doctype": DESIGN, "name": nom, "base_modifie": str(base_modifie), "modifie": str(doc.modified), "champs": champs, "fichiers": fichiers}
+	with open(_fiche_copie(nom, dossier), "w", encoding="utf-8") as f:
+		json.dump(copie, f, ensure_ascii=False, indent=1, sort_keys=True, default=str)
+		f.write("\n")
+	return {"design": nom, "modifie": copie["modifie"], "champs": len(champs), "fichiers": [x["fichier"] for x in fichiers], "mo": round(poids / 1048576, 2)}
+
+
+def etat_copie_design(nom: str, dossier: str | None = None) -> dict:
+	"""La copie rangée dans l'app est-elle encore celle de la fiche de ce site ? À regarder avant de pousser :
+	un design retouché après l'export part en prod dans son état de l'export."""
+	if not os.path.exists(_fiche_copie(nom, dossier)):
+		return {"copie": None, "a_jour": False}
+	with open(_fiche_copie(nom, dossier), encoding="utf-8") as f:
+		copie = json.load(f)
+	sur_place = frappe.db.get_value(DESIGN, nom, "modified")
+	return {"copie": copie["modifie"], "site": str(sur_place) if sur_place else None, "a_jour": bool(sur_place) and _instant(sur_place) == _instant(copie["modifie"])}
+
+
+def appliquer_design(nom: str, dossier: str | None = None, forcer: int = 0) -> dict:
+	"""Amène la fiche d'un design à l'état de sa copie : fichiers posés (jamais écrasés) avec leur fiche File,
+	champs différents réécrits, « modifié le » repris de la copie. Ne crée pas le design, n'écrit rien si la
+	fiche a changé sur place depuis la copie (sauf `forcer`). -> {etat, champs, fichiers}."""
+	if not os.path.exists(_fiche_copie(nom, dossier)):
+		return {"etat": "sans_copie"}
+	with open(_fiche_copie(nom, dossier), encoding="utf-8") as f:
+		copie = json.load(f)
+	sur_place = frappe.db.get_value(DESIGN, nom, "modified") if frappe.db.exists(DESIGN, nom) else None
+	etat = decision_design(copie, str(sur_place) if sur_place else None, bool(int(forcer or 0)))
+	if etat != "appliquer":
+		return {"etat": etat, "sur_place": str(sur_place) if sur_place else None}
+	poses = 0
+	for e in copie["fichiers"]:
+		src, dest = os.path.join(os.path.dirname(_fiche_copie(nom, dossier)), "fichiers", e["fichier"]), _chemin_site(e["url"])
+		if not os.path.exists(src):
+			frappe.throw(f"Fichier absent de la copie du design : {e['fichier']}")
+		if not os.path.exists(dest):
+			os.makedirs(os.path.dirname(dest), exist_ok=True)
+			shutil.copyfile(src, dest)
+			poses += 1
+		if not frappe.db.exists("File", {"file_url": e["url"], "attached_to_doctype": DESIGN, "attached_to_name": nom}):
+			fiche_fichier_existant({"file_name": e["fichier"], "file_url": e["url"], "is_private": e["prive"],
+			                        "attached_to_doctype": DESIGN, "attached_to_name": nom, "attached_to_field": e.get("champ")})
+	meta, actuel = frappe.get_meta(DESIGN), frappe.db.get_value(DESIGN, nom, "*", as_dict=True)
+	valeurs = {k: v for k, v in copie["champs"].items() if meta.has_field(k) and not memes_valeurs(actuel.get(k), v)}
+	frappe.db.set_value(DESIGN, nom, dict(valeurs, modified=copie["modifie"]), update_modified=False)
+	frappe.clear_document_cache(DESIGN, nom)
+	frappe.get_doc(DESIGN, nom).add_comment("Info", "Fiche mise à jour depuis la copie rangée dans l’app (état du %s)." % copie["modifie"][:16])
+	return {"etat": "applique", "champs": sorted(valeurs), "fichiers": poses}
+
+
 def numero_serie(nom: str):
 	"""(préfixe, numéro) d'un nom de série « MAN-2026-0004 » → ("MAN-2026-", 4) ; None sinon. Pur."""
 	import re

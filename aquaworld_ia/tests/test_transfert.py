@@ -22,6 +22,58 @@ class TestTransfert(unittest.TestCase):
 		self.assertEqual(d["traductions"], [{"idx": 1, "langue": "fr", "statut": "Terminé"}])
 
 
+class TestCopieDesign(unittest.TestCase):
+	"""13/11/2026 : un design terminé sur le dev arrive tel quel sur la prod, sans écraser un travail fait sur place."""
+
+	COPIE = {"base_modifie": "2026-11-04 13:12:52.399041", "modifie": "2026-11-13 16:20:00.000000"}
+
+	def test_fichiers_cites_par_la_fiche(self):
+		doc = {"logo": "/private/files/logo.svg", "photo": None, "titre": "Sel <b>pur</b>",
+		       "fonds_faces": '{"avant": {"mode": "image", "image": "/private/files/EMB-2026-0006-aplats-avant1.svg"}}',
+		       "mise_en_page": '{"avant": [{"zone": "logo", "logo": "/files/sel photo.png"}, {"zone": "logo", "logo": "/private/files/logo.svg"}]}'}
+		self.assertEqual(T.urls_fichiers(doc), ["/files/sel photo.png", "/private/files/EMB-2026-0006-aplats-avant1.svg", "/private/files/logo.svg"])
+
+	def test_valeurs_comparees_sans_leur_ecriture(self):
+		for a, b in ((None, ""), ("", None), (1, 1.0), (0, 0.0), (True, 1), ("2026-11-13", "2026-11-13"), (0.85, 0.85)):
+			self.assertTrue(T.memes_valeurs(a, b), (a, b))
+		for a, b in ((None, 0), ("", "0"), (1, 2), ("a", "b"), (0, ""), ("#0264c3", "#0264C3")):
+			self.assertFalse(T.memes_valeurs(a, b), (a, b))
+
+	def test_decision(self):
+		self.assertEqual(T.decision_design(self.COPIE, None), "introuvable")
+		self.assertEqual(T.decision_design(self.COPIE, "2026-11-04 13:12:52.399041"), "appliquer")
+		self.assertEqual(T.decision_design(self.COPIE, "2026-11-13 16:20:00.000000"), "deja_a_jour")
+		# modifié en prod après la copie prise par le dev : on n'écrase pas
+		self.assertEqual(T.decision_design(self.COPIE, "2026-11-10 09:00:00.000000"), "modifie_sur_place")
+		self.assertEqual(T.decision_design(self.COPIE, "2026-11-10 09:00:00.000000", forcer=True), "appliquer")
+		self.assertEqual(T.decision_design(self.COPIE, "2026-11-13 16:20:00.000000", forcer=True), "deja_a_jour")
+		# la base rend « …16:20:00 » pour un horodatage sans microsecondes
+		self.assertEqual(T.decision_design(self.COPIE, "2026-11-13 16:20:00"), "deja_a_jour")
+		self.assertEqual(T.decision_design({"base_modifie": "2026-11-01 08:00:00.000000", "modifie": "x"}, "2026-11-01 08:00:00"), "appliquer")
+
+	def test_la_copie_rangee_est_complete(self):
+		"""Chaque design rangé dans l'app a ses fichiers, et le patch qui l'applique est inscrit."""
+		import json
+		import os
+
+		for nom in sorted(os.listdir(T.DOSSIER_DESIGNS)) if os.path.isdir(T.DOSSIER_DESIGNS) else []:
+			with open(os.path.join(T.DOSSIER_DESIGNS, nom, "design.json"), encoding="utf-8") as f:
+				copie = json.load(f)
+			self.assertEqual((copie["name"], copie["doctype"]), (nom, T.DESIGN))
+			self.assertNotEqual(copie["base_modifie"], copie["modifie"])
+			self.assertFalse([k for k, v in copie["champs"].items() if isinstance(v, list)])
+			for e in copie["fichiers"]:
+				self.assertTrue(os.path.getsize(os.path.join(T.DOSSIER_DESIGNS, nom, "fichiers", e["fichier"])) > 0, e)
+				self.assertEqual(os.path.basename(e["url"]), e["fichier"])
+			# tout fichier « nouveau » cité par la fiche est du voyage : PDF, aperçu, décor
+			cites = set(T.urls_fichiers(copie["champs"]))
+			for champ in ("plan_a_plat", "apercu_plan"):
+				if copie["champs"].get(champ):
+					self.assertIn(copie["champs"][champ], {e["url"] for e in copie["fichiers"]} & cites, champ)
+		with open(os.path.join(os.path.dirname(T.DOSSIER), "patches.txt"), encoding="utf-8") as f:
+			self.assertIn("aquaworld_ia.patches.v0_55.design_sel_en_pastilles", f.read())
+
+
 class TestFichiersDoubles(unittest.TestCase):
 	"""06/10/2026 : l'import posait le fichier PUIS l'insérait comme un envoi ; Frappe en écrivait une copie
 	suffixée de l'empreinte, la fiche pointait la copie, le document l'original → « Forbidden »."""
@@ -43,5 +95,5 @@ class TestFichiersDoubles(unittest.TestCase):
 
 		src = inspect.getsource(T)
 		self.assertIn("f.flags.copy_from_existing_file = True", src)
-		self.assertEqual(src.count("fiche_fichier_existant("), 3)                     # définition + fixtures + travail
+		self.assertEqual(src.count("fiche_fichier_existant("), 4)                     # définition + fixtures + travail + copie d'un design
 		self.assertNotIn('"doctype": "File", "file_name"', src)

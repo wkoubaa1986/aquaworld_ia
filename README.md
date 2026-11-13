@@ -375,6 +375,24 @@ Limites : le PDF reste en RVB, l’attribution des teintes Pantone revient au de
 le tracé est limité à 1 600 px ; un tracé ne vaut que son image de départ. Code : `emballage/aplats.py`,
 `public/js/studio_emballage/aplats.js`, tests `tests/test_aplats.py`.
 
+## Emporter un design du dev vers la prod — v0.55.0
+
+Un design terminé sur le dev arrive tel quel sur la prod au déploiement, sans transporter tout son historique
+de fichiers (`transfert.exporter_travail` emporte tout : des centaines de Mo pour un design ancien).
+
+- **En dev** : `transfert.exporter_design(nom, base_modifie, depuis, en_plus)` range dans
+  `contenu/designs/<nom>/` les champs de la fiche (`design.json`, sans les tables) et, parmi les fichiers
+  qu'elle cite, ceux apparus depuis `depuis` — la prod a déjà les autres. `base_modifie` est le « modifié le »
+  de la fiche en prod au moment où le dev l'a copiée.
+- **Au déploiement** : un patch appelle `transfert.appliquer_design(nom)` — fichiers posés avec leur fiche
+  File, champs différents réécrits, « modifié le » repris. Rien n'est écrit si le design n'existe pas, s'il
+  est déjà à jour, ou s'il a été **modifié sur place** depuis la copie (consigné en Error Log ; `forcer=1`
+  pour passer outre). La migration n'est jamais bloquée.
+- **Avant de pousser** : `bench --site mysite.localhost execute aquaworld_ia.transfert.etat_copie_design
+  --kwargs "{'nom': 'EMB-2026-0006'}"` dit si la copie rangée est encore celle du dev ; un design retouché
+  après l'export part dans son état de l'export — relancer `exporter_design`.
+- Premier usage : `EMB-2026-0006` « SEL EN PASTILLES » (patch `v0_55.design_sel_en_pastilles`).
+
 ## Résolution des images et export groupé
 
 Dans **Contenus → Modifier l’image → Améliorer la résolution**, choisir ×2 ou ×4 :
