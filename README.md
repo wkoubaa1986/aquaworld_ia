@@ -598,11 +598,17 @@ page », « le logo de la goutte sans le nom ».
   les fiches des variantes et dans « Même présentation pour un autre produit ».
 - **Le logo** : champ « Logo du filigrane » des Réglages ; vide ou illisible, la goutte AquaWorld livrée avec
   l'app (`contenu/filigrane/goutte-aquaworld.png`) — `latex.logo_filigrane`.
-- **Position** : « par-dessus le contenu » par défaut — le logo est rendu transparent (`latex.filigrane_png` :
-  le blanc ne cache rien, le dessin garde l'intensité réglée) et posé au premier plan (`\AddToShipoutPictureFG`),
-  donc visible sur toute la page, texte, photos et tableaux lisibles dessous. « Derrière le contenu » : fondu sur
-  blanc et posé en fond (`…BG`) ; les photos et les lignes colorées des tableaux le recouvrent alors (essai sur
-  AP-M : le logo y apparaissait découpé).
+- **Position** : « en arrière-plan » par défaut (retour du 13/11/2026 : « j'ai l'impression qu'il est au-dessus, non
+  en background »). Le logo, fondu sur blanc (`latex.filigrane_png`), est posé en fond de page ; tout le contenu est
+  ensuite dessiné en mode « produit » (`/BM /Multiply`, déclaré sur chaque page) : une ligne colorée de tableau ou un
+  bandeau de titre laisse voir le logo au lieu de le recouvrir. Les images sont posées en mode normal
+  (`\includegraphics` redéfini) : un produit recouvre le logo. « Par-dessus tout » : logo transparent au premier
+  plan (`\AddToShipoutPictureFG`), visible aussi sur les photos.
+- **Fond blanc des photos rendu transparent** (« et les photos, comment j'enlève le background ? ») : en
+  arrière-plan, `latex.detourer_fond_blanc` retire le blanc relié au bord de chaque photo (galerie, rubriques,
+  vignettes des variantes) — le blanc d'un produit blanc reste opaque, l'ombre portée est gardée en partie ; une
+  photo sans fond blanc ou déjà détourée est laissée telle quelle. Case « Rendre transparent le fond blanc des
+  photos », cochée par défaut ; rien n'est modifié dans les fichiers, le détourage est fait à la composition.
 - L'aperçu PDF en direct le montre tel qu'il s'imprime ; un logo illisible laisse le document sans filigrane.
 
 ### Tableau des caractéristiques par catégories (13/11/2026, v0.56.0)

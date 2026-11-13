@@ -13,7 +13,7 @@ const dpMoney = value => Number(value || 0).toLocaleString('fr-FR',{minimumFract
 const dpAction = action => ({fiche:'Fiche technique',manuel:'Manuel d’utilisation',les_deux:'Fiche + manuel',traduire:'Traduction',reecrire:'Réécriture d’une partie',illustrer:'Illustration d’une rubrique (graphe, tableau, image)',photos:'Lecture des photos des variantes',variantes:'Fiches par variante'})[action] || action;
 const DP_TYPES = {fiche:'Fiche technique',manuel:"Manuel d'utilisation"};
 // Logo en filigrane (13/11/2026) : mêmes valeurs par défaut que mise_en_page.FILIGRANE_DEFAUTS.
-const DP_FILIGRANE = {filigrane:0,filigrane_opacite:8,filigrane_largeur:60,filigrane_rotation:0,filigrane_pages:'toutes',filigrane_gris:0,filigrane_plan:'dessus'};
+const DP_FILIGRANE = {filigrane:0,filigrane_opacite:8,filigrane_largeur:60,filigrane_rotation:0,filigrane_pages:'toutes',filigrane_gris:0,filigrane_plan:'fond',filigrane_detourer:1};
 // Tableau des caractéristiques par catégories (13/11/2026) — même rangement que structure.ranger_caracteristiques :
 // les catégories de la liste dans son ordre, puis les autres dans leur ordre d'apparition, les lignes sans
 // catégorie en dernier ; l'ordre à l'intérieur d'un groupe ne change pas. Sans aucune catégorie, rien ne bouge.
@@ -254,9 +254,10 @@ class DocumentsProduit {
         <label class="dp-label">Largeur <span class="dp-filigrane-largeur-valeur">${m.filigrane_largeur} % de la page</span><input type="range" class="dp-filigrane-largeur" min="20" max="100" step="5" value="${m.filigrane_largeur}"></label>
         <label class="dp-label">Inclinaison<select class="form-control dp-filigrane-rotation">${options({0:'Droit',30:'Incliné à 30°',45:'Incliné à 45°'},String(m.filigrane_rotation))}</select></label>
         <label class="dp-label">Pages<select class="form-control dp-filigrane-pages">${options({toutes:'Toutes les pages',premiere:'La première page seulement'},m.filigrane_pages)}</select></label>
-        <label class="dp-label">Position<select class="form-control dp-filigrane-plan">${options({dessus:'Par-dessus le contenu — visible sur toute la page',fond:'Derrière le contenu — caché par les photos et les tableaux'},m.filigrane_plan)}</select></label>
+        <label class="dp-label">Position<select class="form-control dp-filigrane-plan">${options({fond:'En arrière-plan — les photos passent devant',dessus:'Par-dessus tout — visible aussi sur les photos'},m.filigrane_plan)}</select></label>
         <label class="dp-label" style="align-self:end"><input type="checkbox" class="dp-filigrane-gris" ${m.filigrane_gris?'checked':''}> En gris plutôt qu’en couleur</label>
-        <p class="dp-muted dp-full">Le logo est celui des Réglages Aquaworld IA (« Logo du filigrane ») ; sans logo réglé, la goutte AquaWorld. Par-dessus le contenu, il est transparent : le texte, les photos et les tableaux restent lisibles dessous. L’aperçu PDF le montre tel qu’il s’imprime.</p></div></div>
+        <label class="dp-label dp-full"><input type="checkbox" class="dp-filigrane-detourer" ${m.filigrane_detourer?'checked':''}> Rendre transparent le fond blanc des photos — le logo se voit autour du produit, jamais dessus (en arrière-plan seulement)</label>
+        <p class="dp-muted dp-full">Le logo est celui des Réglages Aquaworld IA (« Logo du filigrane ») ; sans logo réglé, la goutte AquaWorld. En arrière-plan, il se voit derrière le texte et à travers les lignes colorées des tableaux ; le produit d’une photo le recouvre, pas son fond blanc. L’aperçu PDF le montre tel qu’il s’imprime.</p></div></div>
       <div class="dp-brand-zone-settings" style="border:0;margin:0;padding:0"><h4 style="font-size:13px;margin:12px 0 6px">Zone de marque</h4>
       <p class="dp-muted dp-zone-brand-status" role="status"></p>
       <div class="dp-actions"><button class="btn btn-default btn-sm dp-enable-free-logo">Déplacer le logo à la souris</button></div>
@@ -281,9 +282,9 @@ class DocumentsProduit {
       <div class="dp-layout-preview"></div>
       <div class="dp-live-pages"></div></div></div>`);
     this.liveLayout=true;
-    z.find('.dp-filigrane,.dp-filigrane-opacite,.dp-filigrane-largeur,.dp-filigrane-rotation,.dp-filigrane-pages,.dp-filigrane-gris,.dp-filigrane-plan').on('input change',()=>{
+    z.find('.dp-filigrane,.dp-filigrane-opacite,.dp-filigrane-largeur,.dp-filigrane-rotation,.dp-filigrane-pages,.dp-filigrane-gris,.dp-filigrane-plan,.dp-filigrane-detourer').on('input change',()=>{
       const actif=z.find('.dp-filigrane').prop('checked'),nombre=(selecteur,min,max,def)=>Math.max(min,Math.min(max,Math.round(Number(z.find(selecteur).val())||def)));
-      const f={filigrane:actif?1:0,filigrane_opacite:nombre('.dp-filigrane-opacite',3,20,8),filigrane_largeur:nombre('.dp-filigrane-largeur',20,100,60),filigrane_rotation:[0,30,45].includes(Number(z.find('.dp-filigrane-rotation').val()))?Number(z.find('.dp-filigrane-rotation').val()):0,filigrane_pages:z.find('.dp-filigrane-pages').val()==='premiere'?'premiere':'toutes',filigrane_gris:z.find('.dp-filigrane-gris').prop('checked')?1:0,filigrane_plan:z.find('.dp-filigrane-plan').val()==='fond'?'fond':'dessus'};
+      const f={filigrane:actif?1:0,filigrane_opacite:nombre('.dp-filigrane-opacite',3,20,8),filigrane_largeur:nombre('.dp-filigrane-largeur',20,100,60),filigrane_rotation:[0,30,45].includes(Number(z.find('.dp-filigrane-rotation').val()))?Number(z.find('.dp-filigrane-rotation').val()):0,filigrane_pages:z.find('.dp-filigrane-pages').val()==='premiere'?'premiere':'toutes',filigrane_gris:z.find('.dp-filigrane-gris').prop('checked')?1:0,filigrane_plan:z.find('.dp-filigrane-plan').val()==='dessus'?'dessus':'fond',filigrane_detourer:z.find('.dp-filigrane-detourer').prop('checked')?1:0};
       z.find('.dp-filigrane-reglages').css('display',actif?'grid':'none');z.find('.dp-filigrane-opacite-valeur').text(f.filigrane_opacite+' %');z.find('.dp-filigrane-largeur-valeur').text(f.filigrane_largeur+' % de la page');
       this.layouts[this.activeTab]={...this.layoutValues(),...f};
       this.renderLayoutPreview();this.layoutChanged();

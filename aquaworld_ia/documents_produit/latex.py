@@ -133,6 +133,64 @@ def image_png(octets, max_cote=2400):
 	return png
 
 
+_CACHE_DETOURE = {}
+
+
+def detourer_fond_blanc(png):
+	"""Une photo de produit sur fond blanc -> la même, fond transparent (13/11/2026 : « et les photos, comment
+	j'enlève le background, le rendre transparent ? »). Seul le blanc RELIÉ AU BORD de l'image disparaît : le blanc
+	d'un produit blanc reste opaque. Sans fond blanc au bord (photo d'ambiance, image déjà détourée), l'image est
+	rendue telle quelle. En cache par contenu, comme `image_png`."""
+	import hashlib
+
+	cle = hashlib.sha256(png).hexdigest()
+	if cle not in _CACHE_DETOURE:
+		if len(_CACHE_DETOURE) > 300:
+			_CACHE_DETOURE.clear()
+		try:
+			_CACHE_DETOURE[cle] = _detourer_fond_blanc(png)
+		except Exception:
+			_CACHE_DETOURE[cle] = png
+	return _CACHE_DETOURE[cle]
+
+
+#: Fond blanc : au-dessus de BLANC_SUR le pixel est pleinement transparent, en dessous de BLANC_DOUTEUX il reste opaque.
+BLANC_SUR, BLANC_DOUTEUX = 250, 232
+
+
+def _detourer_fond_blanc(png):
+	import numpy as np
+	from PIL import ImageDraw, ImageFilter
+
+	with Image.open(io.BytesIO(png)) as source:
+		im = source.convert("RGBA")
+	pixels = np.asarray(im)
+	if (pixels[..., 3] < 250).mean() > 0.02:
+		return png                                    # déjà détourée
+	clair = pixels[..., :3].min(axis=2)               # le canal le plus sombre : 255 = blanc pur
+	# Le fond se cherche sur une image réduite (rapide), bordée d'un cadre blanc qui relie tous ses morceaux.
+	facteur = max(1, max(im.size) // 420)
+	petit = Image.fromarray(np.where(clair >= BLANC_DOUTEUX, 255, 0).astype(np.uint8), "L").resize(
+		(max(1, im.width // facteur), max(1, im.height // facteur)), Image.Resampling.BOX).point(lambda v: 255 if v >= 250 else 0)
+	bord = np.concatenate([np.asarray(petit)[0], np.asarray(petit)[-1], np.asarray(petit)[:, 0], np.asarray(petit)[:, -1]])
+	if (bord == 255).mean() < 0.5:
+		return png                                    # le bord n'est pas blanc : pas un fond à retirer
+	cadre = Image.new("L", (petit.width + 2, petit.height + 2), 255)
+	cadre.paste(petit, (1, 1))
+	ImageDraw.floodfill(cadre, (0, 0), 128)
+	fond = Image.fromarray(np.where(np.asarray(cadre)[1:-1, 1:-1] == 128, 255, 0).astype(np.uint8), "L")
+	# Légèrement élargi puis ramené à la taille de l'image : le liseré clair autour du produit part avec le fond.
+	fond = np.asarray(fond.filter(ImageFilter.MaxFilter(3)).resize(im.size, Image.Resampling.BILINEAR)) > 127
+	if fond.mean() < 0.03:
+		return png
+	# Dans le fond : transparent où c'est blanc, progressivement opaque vers les gris (ombre portée conservée).
+	opacite = np.clip((BLANC_SUR - clair.astype(np.float32)) / (BLANC_SUR - BLANC_DOUTEUX), 0, 1) * 255
+	alpha = np.where(fond, opacite, 255).astype(np.uint8)
+	sortie = io.BytesIO()
+	Image.fromarray(np.dstack([pixels[..., :3], alpha]), "RGBA").save(sortie, "PNG", optimize=True)
+	return sortie.getvalue()
+
+
 def _image_png(octets, max_cote):
 	import pymupdf
 	from PIL import Image, ImageOps
@@ -509,16 +567,32 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 				+ r"\par\centering\small\thepage\end{minipage}}" + "\n")
 	body = [en_tete, "\\begin{document}", "\\setRTL" if rtl else ""]
 	if assets.get("filigrane"):
-		# Logo en filigrane (eso-pic), centré sur la page. Par-dessus le contenu (image transparente, visible partout)
-		# ou en fond : l'en-tête, les photos et les lignes colorées des tableaux le recouvrent alors.
-		# « * » : seulement la page en cours, donc la première.
-		image = (r"\includegraphics[width=" + f"{M.valeur(disposition, 'filigrane_largeur') / 100:.2f}"
-			+ r"\paperwidth]{" + assets["filigrane"] + "}")
+		# Logo en filigrane (eso-pic), centré sur la page. « * » : seulement la page en cours, donc la première.
+		dessus = M.valeur(disposition, "filigrane_plan") == "dessus"
+		etoile = "*" if M.valeur(disposition, "filigrane_pages") == "premiere" else ""
+		image = ((r"\includegraphics" if dessus else r"\AWimage") + "[width="
+			+ f"{M.valeur(disposition, 'filigrane_largeur') / 100:.2f}" + r"\paperwidth]{" + assets["filigrane"] + "}")
 		if M.valeur(disposition, "filigrane_rotation"):
 			image = r"\rotatebox[origin=c]{" + str(M.valeur(disposition, "filigrane_rotation")) + "}{" + image + "}"
-		body.append(r"\AddToShipoutPicture" + ("FG" if M.valeur(disposition, "filigrane_plan") == "dessus" else "BG")
-			+ ("*" if M.valeur(disposition, "filigrane_pages") == "premiere" else "")
-			+ r"{\AtPageCenter{\makebox(0,0){" + image + "}}}")
+		image = r"\AtPageCenter{\makebox(0,0){" + image + "}}"
+		if dessus:
+			# Par-dessus tout : l'image est transparente, ce qui est dessous (photos comprises) reste visible.
+			body.append(r"\AddToShipoutPictureFG" + etoile + "{" + image + "}")
+		else:
+			# En arrière-plan (13/11/2026 : « au-dessus, non en background »). Le logo est posé en fond de page, puis
+			# tout le contenu est dessiné en mode « produit » (/BM /Multiply) : un aplat de couleur — ligne zébrée
+			# d'un tableau, bandeau de titre — laisse voir le logo au lieu de le recouvrir. Les images, elles, sont
+			# posées en mode normal : une photo recouvre le logo, qui ne voile donc jamais le produit.
+			body += [
+				r"\newcommand{\AWproduit}{\special{pdf:literal direct /AWproduit gs}}",
+				r"\newcommand{\AWnormal}{\special{pdf:literal direct /AWnormal gs}}",
+				r"\let\AWimage\includegraphics",
+				r"\renewcommand{\includegraphics}[2][]{\AWnormal\AWimage[#1]{#2}\AWproduit}",
+				# Sur CHAQUE page : les deux modes déclarés dans ses ressources, puis le mode « produit » pour son contenu.
+				r"\AddToShipoutPictureBG{\special{pdf:put @resources << /ExtGState << /AWproduit << /Type /ExtGState /BM /Multiply >> "
+				r"/AWnormal << /Type /ExtGState /BM /Normal >> >> >>}\AWproduit}",
+				r"\AddToShipoutPictureBG" + etoile + r"{\AWnormal " + image + r"\AWproduit}",
+			]
 	alignement = {"gauche": r"\raggedright", "centre": r"\centering", "droite": r"\raggedleft"}
 	marque = {**M.MARQUE_DEFAUTS, **disposition}
 	if marque["position_marque"] == "libre":
@@ -1048,12 +1122,12 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 FILIGRANE_LIVRE = Path(__file__).resolve().parent.parent / "contenu" / "filigrane" / "goutte-aquaworld.png"
 
 
-def filigrane_png(octets, opacite=8, gris=False, max_cote=1400, transparent=True):
+def filigrane_png(octets, opacite=8, gris=False, max_cote=1400, transparent=False):
 	"""Le logo prêt à être posé sur la page : rogné à son dessin et ramené à `opacite` % de sa couleur. Pur. -> PNG.
 
-	`transparent` (par-dessus le contenu) : le blanc du logo devient transparent et le dessin ne garde que `opacite` %
-	d'opacité — ce qui est dessous (texte, photo, tableau) reste visible. Sinon (en fond de page) : le logo est
-	fondu sur blanc, sans transparence."""
+	En fond de page (défaut) : le logo est fondu sur blanc, sans transparence. `transparent` (par-dessus tout) : le
+	blanc du logo devient transparent et le dessin ne garde que `opacite` % d'opacité — ce qui est dessous reste
+	visible."""
 	import numpy as np
 	from PIL import ImageChops
 
@@ -1153,11 +1227,18 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 		fichiers["images/logo.png"] = image_png(C.octets(ctx["logo"]))
 		assets["logo"] = "images/logo.png"
 	filigrane = M.normaliser(ctx.get("mise_en_page"))
+	# Filigrane en arrière-plan : le fond blanc des photos devient transparent, le logo se voit autour du produit.
+	detourer = bool(M.valeur(filigrane, "filigrane") and M.valeur(filigrane, "filigrane_plan") == "fond" and M.valeur(filigrane, "filigrane_detourer"))
+
+	def photo_png(octets, **options):
+		png = image_png(octets, **options)
+		return detourer_fond_blanc(png) if detourer else png
+
 	if M.valeur(filigrane, "filigrane"):
 		# Un logo illisible (format inconnu) ne bloque pas le document : il sort sans filigrane.
 		try:
 			fichiers["images/filigrane.png"] = filigrane_png(logo_filigrane(), M.valeur(filigrane, "filigrane_opacite"), bool(M.valeur(filigrane, "filigrane_gris")),
-				transparent=M.valeur(filigrane, "filigrane_plan") == "dessus")
+				transparent=M.valeur(filigrane, "filigrane_plan") == "dessus")   # en fond : fondu sur blanc, sans transparence
 			assets["filigrane"] = "images/filigrane.png"
 		except Exception:
 			pass
@@ -1179,14 +1260,14 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 			if v.get("image"):
 				try:
 					name = f"images/variante-{i}.png"
-					fichiers[name] = image_png(C.octets(v["image"]), max_cote=360)   # vignette de 12–14 mm : 360 px suffisent
+					fichiers[name] = photo_png(C.octets(v["image"]), max_cote=360)   # vignette de 12–14 mm : 360 px suffisent
 					assets["variantes"][v["name"]] = name
 				except Exception:
 					continue
 	assets["dimensions"] = {}
 	for i, im in enumerate(ctx.get("images", [])):
 		name = f"images/image-{i}.png"
-		fichiers[name] = image_png(C.octets(im["image"]))
+		fichiers[name] = photo_png(C.octets(im["image"]))
 		assets["images"].append(name)
 		try:
 			with Image.open(io.BytesIO(fichiers[name])) as pil:
@@ -1197,7 +1278,7 @@ def composer(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False):
 	for i, s in enumerate(contenu.get("sections", [])):
 		if s.get("image"):
 			name = f"images/section-{i}.png"
-			fichiers[name] = image_png(C.octets(s["image"]))
+			fichiers[name] = photo_png(C.octets(s["image"]))
 			assets["sections"][i] = name
 	url_qr = M.qr_valide(M.normaliser(ctx.get("mise_en_page")))
 	if url_qr:

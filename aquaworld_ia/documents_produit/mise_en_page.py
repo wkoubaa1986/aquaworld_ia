@@ -68,15 +68,17 @@ QR_DEFAUTS = {"qr_url": "", "qr_legende": "", "qr_position": "illustrations", "q
 # toute la page », « le logo de la goutte sans le nom »). filigrane : 0/1 ; filigrane_opacite : % de la couleur du
 # logo gardé (3 à 20) ; filigrane_largeur : % de la largeur de la page ; filigrane_rotation : degrés ;
 # filigrane_pages : toutes les pages ou la première seulement ; filigrane_gris : le logo passé en gris ;
-# filigrane_plan : « dessus » = par-dessus le contenu, en vraie transparence, donc visible sur toute la page ;
-# « fond » = derrière le contenu, que les photos et les lignes colorées des tableaux recouvrent (essai du 13/11/2026 :
-# en fond, le logo apparaissait découpé par les photos et les tableaux).
+# filigrane_plan : « fond » (défaut) = en arrière-plan : le texte, les tableaux et leurs lignes colorées le laissent
+# voir, les photos le recouvrent ; « dessus » = par-dessus tout, en transparence, donc visible aussi sur les photos
+# (premier essai du 13/11/2026, retour de l'utilisateur : « j'ai l'impression qu'il est au-dessus, non en background »).
+# filigrane_detourer (13/11/2026 : « et les photos, comment j'enlève le background, le rendre transparent ? ») : en
+# arrière-plan, le fond blanc des photos est rendu transparent — le logo se voit autour du produit, pas à travers.
 # L'image vient des Réglages (« Logo du filigrane »), sinon de la goutte livrée avec l'app (latex.logo_filigrane).
 FILIGRANE_DEFAUTS = {"filigrane": 0, "filigrane_opacite": 8, "filigrane_largeur": 60, "filigrane_rotation": 0,
-	"filigrane_pages": "toutes", "filigrane_gris": 0, "filigrane_plan": "dessus"}
+	"filigrane_pages": "toutes", "filigrane_gris": 0, "filigrane_plan": "fond", "filigrane_detourer": 1}
 FILIGRANE_ADMIS = {"filigrane": (0, 1), "filigrane_opacite": range(3, 21), "filigrane_largeur": range(20, 101),
 	"filigrane_rotation": (0, 30, 45), "filigrane_pages": ("toutes", "premiere"), "filigrane_gris": (0, 1),
-	"filigrane_plan": ("dessus", "fond")}
+	"filigrane_plan": ("fond", "dessus"), "filigrane_detourer": (0, 1)}
 QR_URL = re.compile(r"https?://[A-Za-z0-9](?:[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]*)")
 
 
