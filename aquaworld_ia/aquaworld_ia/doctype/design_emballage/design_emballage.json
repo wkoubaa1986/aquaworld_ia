@@ -57,6 +57,7 @@
   "faces_identiques",
   "cotes_identiques",
   "palette",
+  "encres_impression",
   "nb_variantes",
   "sb_variantes_15",
   "galerie_html",
@@ -373,6 +374,12 @@
    "label": "Palette (hex, séparés par des virgules)"
   },
   {
+   "description": "Impression en aplats (flexographie) : 1 à 4 couleurs, en plus du blanc du support. Vide = impression photo.",
+   "fieldname": "encres_impression",
+   "fieldtype": "Data",
+   "label": "Couleurs d’impression en aplats (hex, séparées par des virgules)"
+  },
+  {
    "default": "3",
    "fieldname": "nb_variantes",
    "fieldtype": "Int",
@@ -475,7 +482,7 @@
  "issingle": 0,
  "istable": 0,
  "links": [],
- "modified": "2026-10-14 16:00:00.000000",
+ "modified": "2026-11-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Aquaworld IA",
  "name": "Design Emballage",

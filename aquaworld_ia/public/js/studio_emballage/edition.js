@@ -479,6 +479,7 @@ class StudioEdition {
 		$b.find('[data-role="fond-face-couleur"]').on("change", (e) => regler({ mode: "couleur", couleur: e.currentTarget.value.toLowerCase() }));
 		$b.find("[data-fond-face-pastille]").on("click", (e) => regler({ mode: "couleur", couleur: $(e.currentTarget).attr("data-fond-face-pastille") }));
 		$b.find('[data-role="fond-face-ia"]').on("click", () => this.atelier_face(f.code));
+		$b.find('[data-role="fond-face-aplats"]').on("click", () => this.atelier_aplats(f.code));
 		$b.find('[data-role="photo-incluse"]').on("change", (e) => regler({ photo_incluse: e.currentTarget.checked }));
 		$b.find('[data-role="fond-face-blanc"]').on("click", () => this.blanchir((this._fonds()[f.code] || {}).mode === "image" ? f.code : "fond"));
 		$b.find("[data-voir-face]").on("click", (e) => { e.preventDefault(); this.visionneuse($(e.currentTarget).attr("data-voir-face"), f.libelle); });

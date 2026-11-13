@@ -281,6 +281,7 @@ sur le serveur. Installer les dépendances actualisées lors du déploiement.
 - `emballage/contenus.py` : version imprimée et synchronisation de la saisie.
 - `emballage/exports.py` : vérifications et empreintes PDF/simulation.
 - `emballage/atelier_images.py`, `vectorisation.py`, `ressources.py` : transformations et accès aux images.
+- `emballage/aplats.py` : impression en aplats (tracé aux couleurs d’impression, contrôle du PDF).
 - `public/js/studio_emballage/` : état/sauvegarde, édition du plan, médias, éditeur de lignes.
   Frappe assemble ces composants avec ses inclusions de Page ; les anciennes routes serveur restent valides.
 
@@ -332,6 +333,36 @@ et 25 mégapixels, tracé limité à 1 600 px au plus long côté. Les SVG exist
 ce traitement ; « Recolorer le logo » reste disponible dans ses outils. Une photo vectorisée
 devient une illustration : les reflets et dégradés sont simplifiés, les transparences partielles
 sont seuillées. Pour un rendu photographique, conserver le PNG/JPEG haute résolution.
+
+## Impression en aplats (flexographie) — v0.54.0
+
+Un sac ou un carton imprimé en quelques couleurs reçoit un cliché par couleur : une photo, même
+vectorisée, ne s’y sépare pas. Le studio ramène donc le décor d’une face aux **couleurs d’impression**
+du design (1 à 4, champ `encres_impression`, le blanc du support en plus), en tracés.
+
+- **Étape 3 → cliquer une face → « Fond de cette face » → « Aplats pour l’impression »** : l’image de départ
+  est celle de la face, sinon l’image de fond ; « Choisir ou importer une autre image… » accepte un dessin
+  fait ailleurs (ChatGPT, designer). **Tracer aux couleurs · gratuit** range chaque pixel dans la couleur
+  d’impression la plus proche ou dans le blanc, puis trace chaque couleur seule : un groupe SVG par couleur
+  (`encre-1-…`, de la plus claire à la plus foncée), trous compris, chaque couleur glissant de quelques
+  pixels sous sa voisine plus foncée pour ne laisser aucun jour. Les liserés clairs que l’anticrénelage
+  crée autour des formes foncées sont retirés. Trois finesses : fin, normal, fort.
+- **Redessiner par IA…** (payant, coût confirmé avant l’envoi) : l’IA reçoit l’image de départ et les
+  couleurs, rend un dessin en aplats, aussitôt tracé. Le dessin de l’IA reste en médiathèque (« Aplats IA »).
+  Une photo tracée directement est signalée comme approximative : c’est le cas à faire redessiner.
+- **Utiliser sur cette face** pose le SVG comme fond de la face : il couvre la face, recadré comme un
+  bitmap, mais reste en tracés dans le PDF (`composition.poser_svg_couvrant`) ; la fiche technique indique
+  « vectoriel » au lieu d’une résolution. La photo du produit n’y est plus posée par-dessus.
+- **Étape 4 → « Impression en aplats »** : régler les couleurs, puis **Contrôler les couleurs du PDF**. Le
+  contrôle lit la page imprimable du PDF actuel, hors calque de découpe : images en pixels, tracés et
+  textes d’une autre couleur, avec la couleur d’impression la plus proche. **Aligner les couleurs** y ramène
+  les couleurs choisies dans le design (textes et cartouches des zones, aplats de fond, QR s’il reste
+  lisible) ; le logo, les pictogrammes et les images se corrigent dans leurs outils. Actualiser le PDF,
+  puis recontrôler.
+
+Limites : le PDF reste en RVB, l’attribution des teintes Pantone revient au designer ou à l’imprimeur ;
+le tracé est limité à 1 600 px ; un tracé ne vaut que son image de départ. Code : `emballage/aplats.py`,
+`public/js/studio_emballage/aplats.js`, tests `tests/test_aplats.py`.
 
 ## Résolution des images et export groupé
 

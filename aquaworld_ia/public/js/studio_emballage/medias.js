@@ -98,8 +98,9 @@ class StudioMedias {
 	// composée par l'IA (demande utilisateur 06/10/2026 : « l'image de fond, je l'applique sur la face que je veux »).
 	_bloc_fond_face(f) {
 		const esc = this._esc, reg = this._fonds()[f.code] || {}, mode = reg.mode || "";
+		const trace = /\.svg(?:[?#]|$)/i.test(reg.image || "");
 		const MODES = [["", __("Automatique")], ["fond", __("Image de fond")], ["couleur", __("Couleur")], ["blanc", __("Blanc")]]
-			.concat(reg.image ? [["image", __("Image IA")]] : []);
+			.concat(reg.image ? [["image", trace ? __("Décor en aplats") : __("Image IA")]] : []);
 		// Des boutons et non une liste : la liste grise ne se voyait pas comme un menu (retour utilisateur 06/10/2026).
 		return `<div class="bloc" data-section-propriete="fond" style="margin-top:8px;padding:8px 10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px">
 			<h6>${__("Fond de cette face")}</h6>
@@ -108,10 +109,11 @@ class StudioMedias {
 				<input type="color" data-role="fond-face-couleur" value="${esc(reg.couleur || "#e5e7eb")}" style="width:44px;height:26px;padding:1px">
 				${this._palette().map((c) => `<span class="se-pastille petite" data-fond-face-pastille="${esc(c)}" title="${esc(c)}" style="background:${esc(c)}"></span>`).join("")}</div>` : ""}
 			${reg.image ? `<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><a href="#" data-voir-face="${esc(reg.image)}"><img src="${esc(reg.image)}" style="height:54px;max-width:90px;object-fit:cover;border:1px solid #e5e7eb;border-radius:6px"></a>
-				<span class="small text-muted">${mode === "image" ? __("Image IA posée sur cette face") : __("Image IA gardée (« Image IA » pour la remettre)")}</span></div>
+				<span class="small text-muted">${trace ? (mode === "image" ? __("Décor en aplats (tracés) posé sur cette face") : __("Décor en aplats gardé (« Décor en aplats » pour le remettre)")) : mode === "image" ? __("Image IA posée sur cette face") : __("Image IA gardée (« Image IA » pour la remettre)")}</span></div>
 				${mode === "image" ? `<label class="se-check" style="margin-top:4px"><input type="checkbox" data-role="photo-incluse" ${reg.photo_incluse ? "checked" : ""}> ${__("Le produit est déjà dans cette image (ne pas reposer la photo par-dessus)")}</label>` : ""}` : ""}
 			<button class="btn btn-xs btn-default" data-role="fond-face-ia" style="margin-top:6px">✨ ${__("Composer cette face par IA")}</button>
-			${(mode === "image" && reg.image) || ((mode === "fond" || !mode) && this.d.image_fond) ? `<button class="btn btn-xs btn-default" data-role="fond-face-blanc" style="margin-top:6px" title="${__("Le presque blanc devient du blanc pur #FFFFFF, comme les faces réglées sur Blanc. Sans IA.")}">⚪ ${__("Blanc pur")}</button>` : ""}
+			<button class="btn btn-xs btn-default" data-role="fond-face-aplats" style="margin-top:6px" title="${__("Le décor de cette face ramené aux couleurs de l’imprimeur, en tracés vectoriels.")}">🖨 ${__("Aplats pour l’impression")}</button>
+			${(mode === "image" && reg.image && !trace) || ((mode === "fond" || !mode) && this.d.image_fond) ? `<button class="btn btn-xs btn-default" data-role="fond-face-blanc" style="margin-top:6px" title="${__("Le presque blanc devient du blanc pur #FFFFFF, comme les faces réglées sur Blanc. Sans IA.")}">⚪ ${__("Blanc pur")}</button>` : ""}
 			<div class="text-muted small" style="margin-top:4px">${__("Automatique = l'image de fond (ou la variante sur l'avant) ; Blanc = rien d'imprimé en fond. Recomposez le plan (étape 4) pour voir le résultat.")}</div></div>`;
 	}
 
@@ -246,11 +248,11 @@ class StudioMedias {
 		dlg.show();
 	}
 
-	async mediatheque(champ = "photo_produit", on_choisir = null) {
+	async mediatheque(champ = "photo_produit", on_choisir = null, titre = null) {
 		try { await this.attendre_sauvegardes(); } catch (e) { frappe.msgprint(this._msg(e)); return; }
 		const design = this.nom, esc = this._esc;
 		let numero = 0;
-		const dlg = new frappe.ui.Dialog({ title: on_choisir ? __("Choisir le logo de cette zone") : __("Médiathèque"), size: "extra-large", fields: [
+		const dlg = new frappe.ui.Dialog({ title: titre || (on_choisir ? __("Choisir le logo de cette zone") : __("Médiathèque")), size: "extra-large", fields: [
 			{ fieldtype: "Select", fieldname: "origine", label: __("Afficher"), options: ["Ce design", "Bibliothèque", "Propositions IA"], default: "Ce design", onchange: () => afficher() },
 			{ fieldtype: "Select", fieldname: "usage", label: __("Utiliser comme"), options: [{ value: "photo_produit", label: __("Photo produit") }, { value: "logo", label: __("Logo") }, { value: "image_fond", label: __("Fond") }], default: champ, hidden: !!on_choisir, onchange: () => afficher() },
 			{ fieldtype: "HTML", fieldname: "galerie" }], secondary_action_label: __("Importer un fichier"),

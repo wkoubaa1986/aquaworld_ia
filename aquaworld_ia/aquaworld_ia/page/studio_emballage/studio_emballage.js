@@ -9,6 +9,7 @@
 {% include "aquaworld_ia/public/js/studio_emballage/couleurs.js" %}
 {% include "aquaworld_ia/public/js/studio_emballage/maquette_3d.js" %}
 {% include "aquaworld_ia/public/js/studio_emballage/editeur_lignes.js" %}
+{% include "aquaworld_ia/public/js/studio_emballage/aplats.js" %}
 
 // Studio emballage — la page plein écran pour concevoir un emballage.
 //
@@ -227,6 +228,7 @@ class StudioEmballage {
 						<button class="btn btn-sm btn-default" data-action="voir_simulation">${d.type_boite === "Étui à rabats" ? __("Maquette 3D gratuite") : __("Ouvrir la vue 3D")}</button>
 					</div>
 					${this.commande_3d()}
+					${this.bloc_aplats()}
 					${d.variante_choisie && d.fond_continu && d.image_fond ? `<p class="text-danger small" style="margin:8px 0 0">⚠ ${__("« Fond continu » est coché avec une image de fond : le panorama remplace la variante IA choisie ({0}). Pour composer avec la variante, décochez « Fond continu » à l'étape 3 (ou retirez l'image de fond), puis recomposez.", [esc(((d.variantes || []).find((v) => v.numero === d.variante_choisie) || {}).titre || d.variante_choisie)])}</p>` : ""}
 					${d.plan_a_plat ? `<p class="small" style="margin:8px 0 0"><a href="${esc(d.plan_a_plat)}" target="_blank">${this.data.exports?.pdf === "a_jour" ? __("Télécharger le PDF imprimeur") : __("Ouvrir le PDF précédent")}</a></p>` : ""}
 					<div class="se-verifications">${(this.data.verifications || []).length ? this.data.verifications.map(x => `<p class="text-danger small">${esc(x)}</p>`).join("") : `<p class="small">✓ ${__("Format et produit renseignés. Contrôlez l’aperçu imprimé avant impression.")}</p>`}
@@ -398,6 +400,10 @@ class StudioEmballage {
 					await frappe.call({ method: "aquaworld_ia.emballage.job.lancer_variantes", args: { design: this.nom, numeros: a_faire } });
 					this.ouvrir_variantes(); this.suivre();
 				});
+			} else if (nom === "encres_aplats") {
+				this.regler_encres();
+			} else if (nom === "controle_aplats") {
+				await this.controler_aplats();
 			} else if (nom === "logo_ia") {
 				this.atelier_image("logo");
 			} else if (nom === "logo_couleur") {
@@ -471,7 +477,7 @@ class StudioEmballage {
 	}
 }
 
-for (const composant of [StudioEtat, StudioEdition, StudioProprietes, StudioDeplacement, StudioPictogrammes, StudioApercu, StudioMedias, StudioResolution, StudioCouleurs, StudioMaquette3D]) {
+for (const composant of [StudioEtat, StudioEdition, StudioProprietes, StudioDeplacement, StudioPictogrammes, StudioApercu, StudioMedias, StudioResolution, StudioCouleurs, StudioMaquette3D, StudioAplats]) {
 	for (const nom of Object.getOwnPropertyNames(composant.prototype)) {
 		if (nom !== "constructor") Object.defineProperty(StudioEmballage.prototype, nom, Object.getOwnPropertyDescriptor(composant.prototype, nom));
 	}

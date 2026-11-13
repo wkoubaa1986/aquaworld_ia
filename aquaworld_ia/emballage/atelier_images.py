@@ -499,6 +499,8 @@ def blanchir(design: str, cible: str = "fond") -> dict:
 	if not url:
 		frappe.throw(_("Pas d'image à blanchir ici."))
 	avant = fichiers.lire(url)
+	if C.est_svg(avant):
+		frappe.throw(_("Cette image est un tracé en aplats : son blanc est déjà le blanc du support."))
 	apres = C.blanc_pur(avant)
 	nom = "%s-fond.png" % doc.name if cible == "fond" else "%s-face-%s.png" % (doc.name, cible)
 	nouvelle = save_file(nom, apres, "Design Emballage", doc.name, is_private=1).file_url

@@ -28,7 +28,7 @@ CHAMPS_EDITABLES = (
 	"avertissements", "contact", "type_code_barres", "code_barres", "url_qr", "couleur_qr", "brief_style", "palette",
 	"nb_variantes", "couleur_fond", "image_fond", "faces_identiques", "cotes_identiques", "pictos_sans_cartouche", "fond_continu", "mise_en_page",
 	"fonds_faces", "ameliorer_images_pdf",
-	"police_caracteristiques", "taille_caracteristiques",
+	"police_caracteristiques", "taille_caracteristiques", "encres_impression",
 )
 CHAMPS_NUMERIQUES = ("longueur_mm", "hauteur_mm", "profondeur_mm", "repli_mm", "fond_perdu_mm", "zone_securite_mm",
                      "patte_collage_mm", "taille_caracteristiques")
@@ -222,7 +222,7 @@ def ajouter_police(nom: str, regulier: str, gras: str | None = None, italique: s
 
 GENRES_IMAGE = (
 	("-logo-ia", "Logo IA"), ("-logo-couleur", "Logo couleur"), ("-logo-vectorise", "Logo SVG"), ("-logo", "Logo"), ("-tampon", "Tampon IA"),
-	("-face-", "Face composée IA"), ("-photo-ia", "Photo IA"), ("-photo-vectorise", "Photo SVG"), ("-photo", "Photo"), ("-mosaique", "Photo mosaïque"), ("-fond", "Fond IA"),
+	("-aplats-ia", "Aplats IA"), ("-aplats", "Aplats SVG"), ("-face-", "Face composée IA"), ("-photo-ia", "Photo IA"), ("-photo-vectorise", "Photo SVG"), ("-photo", "Photo"), ("-mosaique", "Photo mosaïque"), ("-fond", "Fond IA"),
 	("-apercu-3d", "Aperçu 3D"),
 )
 
@@ -336,6 +336,13 @@ def enregistrer(design: str, valeurs) -> dict:
 		doc.set("pictogrammes", [{"pictogramme": c} for c in (v["pictogrammes"] or []) if c])
 	if doc.type_boite and doc.type_boite not in geometrie.TYPES:
 		frappe.throw(_("Forme inconnue : {0}").format(doc.type_boite))
+	if "encres_impression" in v and (doc.encres_impression or "").strip():
+		from aquaworld_ia.emballage import aplats
+
+		try:
+			doc.encres_impression = ", ".join(aplats.encres(doc.encres_impression))
+		except ValueError as exc:
+			frappe.throw(str(exc))
 	if "couleur_qr" in v and doc.couleur_qr:
 		c = codes.normaliser_couleur(doc.couleur_qr)
 		if not c:

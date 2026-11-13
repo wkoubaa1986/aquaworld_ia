@@ -482,6 +482,24 @@ def poser_svg(page, rect, svg: bytes, garder_proportions: bool = True, rotation:
 		page.show_pdf_page(pymupdf.Rect(*rect), src, 0, keep_proportion=garder_proportions, rotate=-rotation)
 
 
+def poser_svg_couvrant(page, rect, svg: bytes) -> None:
+	"""Un SVG qui COUVRE le cadre sans se déformer, centré, le débordement coupé au cadre : le même
+	recadrage que `recadrer` pour un bitmap, mais les tracés restent des tracés."""
+	import pymupdf
+
+	r = pymupdf.Rect(*rect)
+	with svg_vers_pdf(svg) as src, pymupdf.open() as cadre:
+		original = src[0].rect
+		if min(original.width, original.height, r.width, r.height) <= 0:
+			return
+		k = max(r.width / original.width, r.height / original.height)
+		w, h = original.width * k, original.height * k
+		dx, dy = (r.width - w) / 2, (r.height - h) / 2
+		p = cadre.new_page(width=r.width, height=r.height)
+		p.show_pdf_page(pymupdf.Rect(dx, dy, dx + w, dy + h), src, 0)
+		page.show_pdf_page(r, cadre, 0)
+
+
 def poser_image(page, rect, octets: bytes, garder_proportions: bool = True, rotation: float = 0, zoom: float = 1,
                 centre: dict | None = None, decalage: dict | None = None) -> None:
 	import pymupdf
@@ -569,6 +587,8 @@ def fond_blanc_en_transparence(octets: bytes, seuil: int = 235) -> bytes:
 
 
 MODES_FOND_FACE = ("fond", "image", "couleur", "blanc")
+#: Le calque du PDF qui porte la découpe, les plis et les repères : jamais imprimé.
+COUCHE_DECOUPE = "Découpe et plis"
 
 
 def reglage_fond(fonds_faces, code: str) -> dict | None:
@@ -1120,6 +1140,11 @@ def _poser_fond_regle(page, reg: dict, r, face: dict, image_fond, bande, dpi: di
 			img = fichiers.lire(reg["image"])
 		except Exception:
 			return False
+		if est_svg(img):
+			# Un décor en aplats (SVG) couvre la face en restant des tracés : pas de résolution à surveiller.
+			poser_svg_couvrant(page, rect, img)
+			dpi[face["code"]] = None
+			return True
 		from PIL import Image
 
 		im = Image.open(io.BytesIO(img))
@@ -1498,7 +1523,7 @@ def composer(doc, variante, plan: dict, textes: dict, langues: dict, options: di
 				                                      couleur=couleur_texte, ean=ean, qr=qr, qr_place=qr_place), rect=rect, decalage=decalage)
 
 	# 3. calque « Découpe et plis » (activable dans le lecteur, imprimé par l'imprimeur sur demande)
-	ocg = pdf.add_ocg("Découpe et plis", on=True)
+	ocg = pdf.add_ocg(COUCHE_DECOUPE, on=True)
 	for x1, y1, x2, y2 in plan["traits"]["coupe"]:
 		page.draw_line((MM(x1), MM(y1)), (MM(x2), MM(y2)), color=(1, 0, 0), width=0.25, oc=ocg)
 	for x1, y1, x2, y2 in plan["traits"]["pli"]:
@@ -1536,7 +1561,8 @@ def fiche_technique_html(doc, variante, plan, textes, langues, dpi, pictos_svg, 
 	lignes_faces = "".join(
 		"<tr><td>%s</td><td>%.1f × %.1f</td><td>%s</td><td>%s</td></tr>" % (
 			esc(f["libelle"]), f["w"], f["h"], "oui" if f["imprimable"] else "—",
-			("%.0f dpi" % dpi[f["code"]]) if f["code"] in dpi else ("aplat + bandeau" if f["imprimable"] else "—"))
+			("vectoriel" if dpi[f["code"]] is None else "%.0f dpi" % dpi[f["code"]]) if f["code"] in dpi
+			else ("aplat + bandeau" if f["imprimable"] else "—"))
 		for f in plan["faces"])
 	return (
 		"<h2 style=\"font-family:'Noto Sans'\">Fiche technique — %s</h2>" % esc(doc.nom_produit or doc.article)

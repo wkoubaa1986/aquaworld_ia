@@ -20,6 +20,23 @@ PROFILS = {
 SVG_NS = "http://www.w3.org/2000/svg"
 
 
+def ouvrir(octets: bytes):
+	"""PNG/JPEG/WebP -> image RGBA redressée (EXIF), bornée en poids et en pixels."""
+	if len(octets) > MAX_OCTETS:
+		raise ValueError("Image trop lourde : maximum 20 Mo.")
+	try:
+		with warnings.catch_warnings():
+			warnings.simplefilter("error", Image.DecompressionBombWarning)
+			with Image.open(io.BytesIO(octets)) as source:
+				if source.format not in ("PNG", "JPEG", "WEBP"):
+					raise ValueError("Utilisez une image PNG, JPEG ou WebP.")
+				if source.width * source.height > MAX_PIXELS:
+					raise ValueError("Image trop grande : maximum 25 mégapixels.")
+				return ImageOps.exif_transpose(source).convert("RGBA")
+	except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+		raise ValueError("Image illisible ou trop grande. Utilisez un PNG, JPEG ou WebP valide.") from exc
+
+
 def vectoriser(octets: bytes, profil: str = "photo", couleurs: int = 64,
                retirer_fond: bool = False) -> tuple[bytes, dict]:
 	"""PNG/JPEG/WebP -> SVG couleur et statistiques. Borné pour une requête interactive.
@@ -37,17 +54,7 @@ def vectoriser(octets: bytes, profil: str = "photo", couleurs: int = 64,
 		raise ValueError("Image trop lourde : maximum 20 Mo.")
 	if est_svg(octets):
 		raise ValueError("Ce fichier est déjà en SVG. Choisissez son original PNG, JPEG ou WebP pour le retracer.")
-	try:
-		with warnings.catch_warnings():
-			warnings.simplefilter("error", Image.DecompressionBombWarning)
-			with Image.open(io.BytesIO(octets)) as source:
-				if source.format not in ("PNG", "JPEG", "WEBP"):
-					raise ValueError("Utilisez une image PNG, JPEG ou WebP.")
-				if source.width * source.height > MAX_PIXELS:
-					raise ValueError("Image trop grande : maximum 25 mégapixels.")
-				im = ImageOps.exif_transpose(source).convert("RGBA")
-	except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
-		raise ValueError("Image illisible ou trop grande. Utilisez un PNG, JPEG ou WebP valide.") from exc
+	im = ouvrir(octets)
 	largeur, hauteur = im.size
 	im.thumbnail((MAX_COTE, MAX_COTE), Image.Resampling.LANCZOS)
 	avertissements = []
