@@ -549,8 +549,8 @@ def lien_variante(v):
 def nouvelle_version(parent, genre, contenu, ctx, langue="fr", libelle="Français", rtl=0, source_fr=None,
 		variante=None, version_mere=None, empreinte_variante=None, numero_minimum=0):
 	"""Les versions se numérotent par document : type, langue et, pour une fiche de variante, la variante.
-	`numero_minimum` : pour une version apportée d'un autre site avec son PDF, qui imprime son numéro
-	(transfert.appliquer_dossier) — elle le garde s'il est libre."""
+	`numero_minimum` : une version apportée d'un autre site (transfert.appliquer_dossier) garde le numéro sous
+	lequel elle y est connue, s'il est libre."""
 	dossier(parent, "write", True)
 	contenu = S.normaliser(contenu, ctx)
 	maximum = frappe.db.sql(

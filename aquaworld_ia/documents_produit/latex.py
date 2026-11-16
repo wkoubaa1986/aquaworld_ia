@@ -649,11 +649,10 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 
 	body.extend(zones("avant_titre"))
 	body.append(r"\begingroup" + alignement[disposition["alignement_titre"]])
-	body += [
-		r"{\LARGE\bfseries\color{aqua}\titrefont " + t(contenu["titre"]) + r"}\par",
-		t(ctx.get("marque_document") or ctx["article"].get("brand") or "") + r"\quad " + t(fiche_variante or ctx["article"]["name"]) + r"\par",
-		t(labels["version"]) + " " + str(numero) + r"\par",
-	]
+	# Rien sous le titre (demande 16/11/2026 : « enlève dans le PDF, en dessous du titre, AquaJad AP-M et la version ») :
+	# la marque et la référence se lisent dans le titre, le tableau des variantes ou le bloc « Référence et
+	# configuration » d'une fiche de variante ; le numéro de version reste à l'écran, plus dans le document.
+	body.append(r"{\LARGE\bfseries\color{aqua}\titrefont " + t(contenu["titre"]) + r"}\par")
 	if not valide:
 		body.append(r"{\color{red}\bfseries " + t(labels["brouillon"]) + r"}\par")
 	body.append(r"\endgroup")

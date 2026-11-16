@@ -602,7 +602,7 @@ l’en-tête que j’ai créé aussi ».
   traductions, l’archive ZIP (aussi lourde que le PDF, elle se refait par « PDF »).
 - **Au déploiement** : un patch appelle `transfert.appliquer_dossier(cle)` — fichiers posés (jamais écrasés) avec
   leur fiche File rattachée au dossier, logo de la marque posé sur sa fiche Brand si elle n’en a pas, dossier créé
-  sous le prochain nom libre, version ajoutée avec son numéro d’origine (le PDF l’imprime), son statut et son PDF.
+  sous le prochain nom libre, version ajoutée avec son numéro d’origine, son statut et son PDF.
   Un dossier déjà présent pour l’article est complété : il prend la présentation de la copie (l’ancienne mise en
   page est gardée en commentaire), garde ses variantes et photos, et reçoit la version à la suite des siennes.
   Rien n’est écrit si l’article n’existe pas sur le site, ou si la version y est déjà (le dev lui-même, un second
@@ -628,6 +628,12 @@ l’en-tête que j’ai créé aussi ».
 - Créer un dossier n’échoue jamais à cause de la base : une mise en page illisible ou un en-tête que l’utilisateur
   ne peut pas lire sont ignorés.
 - Le patch v0_58 pose la base d’AP-M là où les Réglages n’en ont pas encore.
+
+**Plus rien sous le titre du PDF** (« enlève dans le PDF, en dessous du titre, AquaJad AP-M et la version ») : la
+ligne « marque + référence » et la ligne « Version N » ne s’impriment plus, sur les fiches, les manuels et les fiches
+par variante (`latex.source`). La marque et la référence restent dans le titre, le tableau des variantes ou le bloc
+« Référence et configuration » d’une fiche de variante ; le numéro de version reste visible à l’écran. Un brouillon
+garde sa mention rouge « BROUILLON — À RELIRE ». Un PDF déjà composé ne change qu’en le recomposant (bouton PDF).
 
 **Un employé ouvre un dossier qu’il n’a pas créé** (`contexte.lisible_par_rattachement`). Sur un site où les droits
 de File sont « lecture si propriétaire » (la prod), un compte sans rôle System Manager n’ouvrait aucun dossier
@@ -817,7 +823,7 @@ commandes : **Créer / actualiser les fiches**, **Valider les fiches prêtes**, 
   attribut n’est pas répété en caractéristique ; un nombre absent des données, ou une mention de conformité (CE, NSF,
   ISO…) absente des données de l’article, ajoute un point à vérifier, qui bloque la validation ; l’IA ne signale en
   point à vérifier que les contradictions entre l’article et ses photos (« robinet trèfle » contre col de cygne).
-- Présentation : titre = nom de la variante, sa référence sous le titre, ses propres photos (image de l’article et
+- Présentation : titre = nom de la variante (plus de référence sous le titre depuis le 16/11/2026), ses propres photos (image de l’article et
   pièces jointes image, huit au plus, vue de face ou d’ensemble d’abord — elles ne passent pas par les vingt photos
   du dossier), bloc « Référence et configuration » à la place du tableau des variantes, plus de colonne « Modèles
   concernés ». Avec la disposition de galerie par défaut du dossier, les autres photos passent en grille de deux ou

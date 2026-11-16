@@ -322,7 +322,14 @@ class TestCompositionVariante(unittest.TestCase):
 	def test_source_latex_bloc_de_reference_sans_modeles_concernes(self):
 		tex = L.source(self.contenu, self.ctx)
 		self.assertIn(r"\docsection{" + V.LIBELLE_REFERENCE + "}", tex)
-		self.assertIn(r"ecoPurium\quad FF-ND\par", tex)
+		# 16/11/2026 : plus rien sous le titre (ni marque et référence, ni version) ; la référence et la marque de la
+		# variante se lisent dans le bloc « Référence et configuration ».
+		self.assertNotIn(r"ecoPurium\quad FF-ND\par", tex)
+		self.assertIn(r"Mini fontaine, noir doré}\par" + "\n" + r"{\color{red}\bfseries BROUILLON — À RELIRE}\par", tex)
+		self.assertIn(r"Référence & FF-ND\\", tex)
+		self.assertIn(r"Marque & ecoPurium\\", tex)
+		for numero in (1, 20):
+			self.assertNotIn("Version " + str(numero), L.source(self.contenu, self.ctx, numero=numero, valide=True))
 		self.assertIn(r"Couleur & noir doré\\", tex)
 		self.assertNotIn("Modèles concernés", tex)
 		self.assertNotIn("Toute la gamme", tex)
