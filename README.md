@@ -631,12 +631,19 @@ UN appel par variante — celui des spécificités, étendu). La réponse porte,
 titre proposé par l’IA). Le nom est raccourci s’il le faut, jamais la référence ni la marque. Le titre d’une version
 passe de 140 à 255 caractères (`Document Produit.titre`, migration).
 
-**Photos sous l’image principale** (`latex.source`, `\dpchoixgalerie`) : la mosaïque de « Le produit en images »
-demande une hauteur minimale (136 mm avec trois petites cases) ; quand il en restait un peu moins sous la
-présentation, tout le bloc partait page suivante et laissait une demi-page vide. S’il reste la place d’une grille
-compacte (quatre cases par rangée, 45 mm de haut, 35 mm sur deux rangées), les mêmes photos et le QR s’y rangent sur
-la page en cours ; sinon, comme avant, la mosaïque commence la page suivante. Le choix se fait à la composition,
-d’après la place réellement restante. La fiche du produit AP-M, où la mosaïque tenait déjà, ne change pas.
+**Photos sous l’image principale** (`latex.MOSAIQUE_MIN`). La mosaïque de « Le produit en images » se réduit pour
+tenir dans la place qui reste sur la page, jusqu’à une hauteur minimale des petites photos ; en dessous, tout le bloc
+part page suivante. Avec trois petites cases (deux vues et le QR), ce minimum de 26 mm demandait 136 mm sous la
+présentation alors qu’il en restait 134 : une demi-page vide sur la plupart des fiches de variante. Premier
+correctif, une grille compacte de remplacement — retour de l’utilisateur : « pourquoi tu ne gardes pas la grille en
+changeant sa taille ? ». La mosaïque reste donc la mosaïque et se réduit davantage : minimum de **20 mm** (118 mm
+pour trois petites cases). La fiche du produit AP-M, où elle tenait déjà, ne change pas.
+
+**Légendes centrées par défaut** (`mise_en_page.PHOTOS_DEFAUTS["legende_alignement"]` = « centre », « gauche »
+avant ; « pourquoi les légendes des photos ne sont pas centrées en dessous de la photo ? ») : les photos sont
+centrées dans leur case, la légende alignée à gauche s’en décalait. Vaut pour la photo de présentation et la
+galerie, dans tous les dossiers qui n’avaient pas choisi d’alignement ; « À gauche » et « À droite » restent au
+choix à l’étape Présenter. Un PDF déjà composé ne change qu’en le recomposant.
 
 ### Dossier d’exemple et présentation de base (16/11/2026, v0.58.0)
 

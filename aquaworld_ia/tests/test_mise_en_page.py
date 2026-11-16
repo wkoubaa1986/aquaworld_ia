@@ -619,7 +619,8 @@ class TestGalerieMosaique(unittest.TestCase):
 			rects = [r for x in page.get_images() for r in page.get_image_rects(x[0]) if r.y0 > haut]
 			grande = max(rects, key=lambda r: r.width * r.height)
 			legende = page.search_for("Vue 3")[0]
-			self.assertTrue(abs(legende.x0 - grande.x0) < 30 and legende.y0 > grande.y1 - 1)   # la 3e photo est la grande
+			# La 3e photo est la grande ; sa légende est centrée dessous (défaut du 16/11/2026, à gauche avant).
+			self.assertTrue(abs((legende.x0 + legende.x1) / 2 - (grande.x0 + grande.x1) / 2) < 30 and legende.y0 > grande.y1 - 1)
 			self.assertEqual(len([r for r in rects if r.x0 > grande.x1 - 1 and r.y0 < grande.y1 + 2]), 3)   # 2 photos + QR
 			self.assertEqual(len([r for r in rects if r.y0 > grande.y1 + 5]), 0)                             # rien dessous
 
@@ -629,8 +630,9 @@ class TestLegendesEtLargeurGrande(unittest.TestCase):
 	photos sauf celle du QR, changer le centrage et la couleur des légendes »."""
 
 	def test_reglages(self):
-		d = M.normaliser({"largeur_grande": 45, "legendes_galerie": 0, "legende_alignement": "centre", "legende_couleur": "titres"})
-		self.assertEqual((d["largeur_grande"], d["legendes_galerie"], d["legende_alignement"], d["legende_couleur"]), (45, 0, "centre", "titres"))
+		d = M.normaliser({"largeur_grande": 45, "legendes_galerie": 0, "legende_alignement": "droite", "legende_couleur": "titres"})
+		self.assertEqual((d["largeur_grande"], d["legendes_galerie"], d["legende_alignement"], d["legende_couleur"]), (45, 0, "droite", "titres"))
+		self.assertEqual(M.valeur(M.normaliser(), "legende_alignement"), "centre")   # centrées par défaut depuis le 16/11/2026
 		self.assertEqual(sorted(k for k in M.normaliser({"legendes_galerie": 1, "largeur_grande": 62}) if k.startswith(("legende", "largeur_g"))), [])
 		for mauvais in ({"largeur_grande": 29}, {"largeur_grande": 76}, {"legendes_galerie": 2}, {"legende_alignement": "justifie"}, {"legende_couleur": "#FF0000"}):
 			with self.subTest(mauvais=mauvais), self.assertRaises(ValueError):

@@ -18,7 +18,7 @@ MARQUE_DEFAUTS = {
 	"logo_x": 150, "logo_y": 8,
 }
 PHOTOS_DEFAUTS = {"photos_variantes": 0, "colonnes_photos": 1, "hauteur_vignettes": 55, "style_galerie": "mosaique", "photo_grande": "",
-	"tableau_variantes": "croise", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "gauche", "legende_couleur": "texte",
+	"tableau_variantes": "croise", "largeur_grande": 62, "legendes_galerie": 1, "legende_alignement": "centre", "legende_couleur": "texte",
 	"largeur_mosaique": 100, "libelle_croise": "nom_sans_parent", "style_titres": "simple", "sommaire": 0,
 	"alignement_galerie": "gauche", "largeur_galerie": 100, "galerie_pleine_page": 0, "largeurs_photos": {},
 	"police": "", "police_titres": "", "taille_police": 10, "sauts_page": [], "alignement_vertical_photo": "haut"}
@@ -51,6 +51,8 @@ IMAGE = re.compile(r"/(?:private/)?files/[^\s\"'<>]+")
 # largeur_mosaique : % de la ligne occupé par la mosaïque (grande + colonne) ; en dessous de 100, elle est centrée.
 # largeur_grande : % de la ligne pour la grande photo de la mosaïque. legendes_galerie : 0 masque les légendes des
 # photos (pas celle du QR). legende_alignement / legende_couleur (texte | titres | gris) : présentation des légendes.
+# legende_alignement : « centre » par défaut depuis le 16/11/2026 (« pourquoi les légendes des photos ne sont pas
+# centrées en dessous de la photo ? ») — les photos sont centrées dans leur case, la légende à gauche s'en décalait.
 # photos_variantes : 0 = vues des variantes dans les illustrations, 1 = regroupées avec la fiche de chaque variante,
 # 2 = vignette dans le tableau des variantes. tableau_variantes : « liste » groupée par le premier attribut, ou
 # « croise » = attribut le plus varié en lignes × attribut le moins varié en colonnes (demande 06/11/2026).

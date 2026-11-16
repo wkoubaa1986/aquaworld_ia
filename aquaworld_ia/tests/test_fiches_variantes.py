@@ -8,6 +8,7 @@ import unittest
 
 from aquaworld_ia.documents_produit import illustrations as I
 from aquaworld_ia.documents_produit import latex as L
+from aquaworld_ia.documents_produit import mise_en_page as M
 from aquaworld_ia.documents_produit import observations as O
 from aquaworld_ia.documents_produit import structure as S
 from aquaworld_ia.documents_produit import variantes as V
@@ -497,9 +498,11 @@ class TestAdaptationALaConfiguration(unittest.TestCase):
 		self.assertNotIn("caracteristiques_retirees", V.contexte_variante(ctx_mere, ctx_mere["variantes"][0], [], "DOC-1", "e")["fiche_variante"])
 
 
-class TestGalerieSurLaPageEnCours(unittest.TestCase):
+class TestMosaiqueSousLaPresentation(unittest.TestCase):
 	"""16/11/2026 : « pourquoi les photos d'illustration ne sont pas directement en dessous de l'image principale ? » —
-	une mosaïque qui ne tient pas sous ce qui précède se range en grille compacte au lieu de partir page suivante."""
+	la mosaïque demandait 136 mm, il en restait 134. Puis, sur une grille de remplacement : « pourquoi tu ne gardes pas
+	la grille en changeant sa taille ? » — la mosaïque reste la mosaïque et se réduit davantage ; « pourquoi les
+	légendes ne sont pas centrées en dessous de la photo ? » — elles le sont par défaut."""
 
 	def source(self, n, **mise_en_page):
 		ctx = contexte_mere()
@@ -508,26 +511,19 @@ class TestGalerieSurLaPageEnCours(unittest.TestCase):
 		assets = {"images": [f"images/image-{i}.png" for i in range(n)], "qr": "images/qr.png"}
 		return L.source(contenu_mere(ctx) | {"legendes": [f"Vue {i}" for i in range(n)]}, ctx, assets=assets)
 
-	def test_mosaique_ou_grille_selon_la_place(self):
+	def test_la_mosaique_se_reduit_au_lieu_de_changer_de_forme(self):
+		self.assertEqual(L.MOSAIQUE_MIN, 20)
 		tex = self.source(4)                                                     # 3 vues + le QR : 3 petites cases
-		self.assertIn(r"\newif\ifdpgrille", tex)
-		debut, sinon, fin = tex.index(r"\dpchoixgalerie{136}{91}"), tex.index("\n\\else\n"), tex.index("\n\\fi\n")
-		grille, mosaique = tex[debut:sinon], tex[sinon:fin]
-		self.assertIn("\\ifdpgrille\n" + r"\docsection{Le produit en images}", grille)
-		self.assertNotIn(r"\dpmesuremosaique", grille); self.assertIn("height=45mm", grille)
-		self.assertEqual(grille.count(r"\begin{minipage}[t]{0.220\linewidth}"), 4)   # une rangée de quatre cases, QR compris
-		self.assertIn(r"\Needspace{136mm}\docsection{Le produit en images}", mosaique)
-		self.assertIn(r"\dpmesuremosaique{22}{3}{55}{26}", mosaique)
-		for partie in (grille, mosaique):                                        # les mêmes photos et le QR des deux côtés
-			self.assertEqual([partie.count(f"images/image-{i}.png") for i in (1, 2, 3)], [1, 1, 1]); self.assertEqual(partie.count("images/qr.png"), 1)
-		self.assertEqual(tex.count(r"\ifdpgrille"), 2)                            # la déclaration et le choix
+		self.assertIn(r"\Needspace{118mm}\docsection{Le produit en images}", tex)  # 3 × 20 + 2 × 11 + 8 + 28 : tient dans 134 mm
+		self.assertIn(r"\dpmesuremosaique{22}{3}{55}{20}", tex)                   # jusqu'à 55 mm s'il y a la place, 20 au moins
+		self.assertNotIn("dpchoixgalerie", tex); self.assertNotIn("ifdpgrille", tex)
+		self.assertEqual([tex.count(f"images/image-{i}.png") for i in (1, 2, 3)], [1, 1, 1])
+		self.assertIn(r"\Needspace{87mm}\docsection{Le produit en images}", self.source(3))   # 2 petites cases
 
-	def test_plus_de_quatre_cases_deux_rangees_plus_basses(self):
-		tex = self.source(7)                                                     # 6 vues + le QR
-		self.assertIn(r"\dpchoixgalerie{136}{134}", tex)                         # 2 rangées de 35 mm
-		self.assertIn("height=35mm", tex[tex.index(r"\dpchoixgalerie"):tex.index("\n\\else\n")])
-
-	def test_sans_choix_quand_il_n_y_a_rien_a_choisir(self):
-		self.assertNotIn(r"\dpchoixgalerie{", self.source(4, galerie_pleine_page=1))     # page réservée : la mosaïque y tient
-		self.assertNotIn(r"\dpchoixgalerie{", self.source(4, style_galerie="grille", colonnes_photos=3))
-		self.assertNotIn(r"\dpchoixgalerie{", self.source(1, qr_url=""))                 # aucune illustration
+	def test_legendes_centrees_par_defaut(self):
+		tex = self.source(3)
+		self.assertIn(r"{\centering\small Vue 1\par}", tex); self.assertIn(r"{\centering\small Vue 0\par}", tex)   # galerie et photo de présentation
+		self.assertNotIn(r"{\raggedright\small Vue", tex)
+		self.assertIn(r"{\raggedright\small Vue 1\par}", self.source(3, legende_alignement="gauche"))             # le choix « à gauche » reste possible
+		self.assertNotIn("legende_alignement", M.normaliser({"legende_alignement": "centre"}))                     # le défaut n'est pas enregistré
+		self.assertEqual(M.normaliser({"legende_alignement": "gauche"})["legende_alignement"], "gauche")
