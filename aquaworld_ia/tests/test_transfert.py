@@ -171,3 +171,16 @@ class TestDossierExemple(unittest.TestCase):
 		# La présentation de base tirée de la copie ne porte ni le QR ni les photos d'AP-M.
 		for disposition in M.base(copie["dossier"]["mises_en_page"]).values():
 			self.assertFalse({"qr_url", "qr_legende", "photo_grande", "largeurs_photos"} & set(disposition))
+
+
+class TestVersionPublique(unittest.TestCase):
+	"""16/11/2026 : `public/version.txt` (servi sous /assets/aquaworld_ia/version.txt) dit quelle version tourne sur un
+	site sans y avoir accès — pour savoir quand un déploiement est en ligne. Il doit suivre `__version__`."""
+
+	def test_version_txt_suit_la_version_de_l_app(self):
+		import os
+
+		import aquaworld_ia
+
+		with open(os.path.join(os.path.dirname(aquaworld_ia.__file__), "public", "version.txt"), encoding="utf-8") as f:
+			self.assertEqual(f.read().strip(), aquaworld_ia.__version__)
