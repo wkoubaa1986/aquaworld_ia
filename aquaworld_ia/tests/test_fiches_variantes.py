@@ -578,3 +578,17 @@ class TestLogoDeLaMarqueDansLaGalerie(unittest.TestCase):
 		self.assertNotEqual(sans, avec)                                                                       # la fiche est à actualiser
 		self.assertEqual(sans, V.empreinte_variante("DOC-1", True, info, photos, obs, logo=None))
 		self.assertEqual(V.empreinte_specifiques(info, photos, obs), V.empreinte_specifiques(info, photos, obs))   # … sans appel IA
+
+
+class TestGabaritCompatibleTexLive2022(unittest.TestCase):
+	"""16/11/2026, en prod (TeX Live 2022, Debian bookworm) : « Option clash for package xcolor » — eso-pic y charge
+	xcolor sans option avant notre « [table] ». L'option est donc passée avant tout, et xcolor chargé le premier."""
+
+	def test_xcolor_table_avant_tout_paquet_qui_le_charge(self):
+		for tex in (L.source(contenu_mere(), contexte_mere()), L.source(contenu_mere(), {**contexte_mere(), "mise_en_page": {"filigrane": 1, "sommaire": 2}})):
+			self.assertTrue(tex.startswith("\\PassOptionsToPackage{table}{xcolor}\n\\documentclass["))
+			self.assertEqual(tex.count(r"\usepackage[table]{xcolor}"), 1)
+			xcolor = tex.index(r"\usepackage[table]{xcolor}")
+			for paquet in ("eso-pic", "adjustbox", "paracol", "hyperref", "longtable"):
+				self.assertLess(xcolor, tex.index(paquet), paquet)
+			self.assertNotIn(r"\usepackage{xcolor}", tex)

@@ -1268,6 +1268,13 @@ existants de l'app. Aucun appel de génération d'image n'est nécessaire : les 
 des articles ou des documents sélectionnés. Maximum par dossier : 250 variantes, 12 sources,
 20 illustrations ; 30 Mo par fichier et 40 pages utiles par PDF.
 
+**Image de prod** : ces paquets sont installés par `images/custom/Containerfile` du dépôt frappe_docker depuis le
+16/11/2026 (avant, l’aperçu échouait en prod : « XeLaTeX est absent du serveur »). La prod tourne sur Debian
+bookworm, donc **TeX Live 2022**, le dev sur TeX Live 2024 : un gabarit qui compile sur le dev peut échouer en
+prod. Premier cas, le 16/11/2026 : « Option clash for package xcolor » — en 2022, `eso-pic` charge `xcolor` sans
+option ; le gabarit passe donc l’option `table` avant `\documentclass` (`\PassOptionsToPackage`) et charge
+`xcolor` avant tout autre paquet (v0.59.2).
+
 Le rendu utilise un modèle XeLaTeX contrôlé, des textes échappés et des images locales
 rasterisées. L'exécution de commandes est désactivée avec `-no-shell-escape` ; le délai de
 compilation est borné. Voir la [documentation XeTeX](https://tug.ctan.org/info/xetexref/xetex-reference.pdf).

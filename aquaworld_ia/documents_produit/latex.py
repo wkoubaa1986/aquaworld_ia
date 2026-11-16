@@ -480,14 +480,19 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 	# tableau des variantes, et plus de mention « Modèles concernés » — tout le document la concerne.
 	fiche_variante = ctx.get("variante") or ""
 	police = POLICES.get(langue.split("-")[0], "Noto Sans")
-	en_tete = r"""\documentclass[TAILLEpt,a4paper]{article}
+	# xcolor avec son option « table » AVANT tout paquet qui le charge lui-même : en TeX Live 2022 (image de prod,
+	# Debian bookworm), eso-pic charge xcolor sans option, et le « \usepackage[table]{xcolor} » qui suivait échouait
+	# (« Option clash for package xcolor », prod le 16/11/2026) ; en TeX Live 2024 (dev), eso-pic ne le charge plus.
+	# \PassOptionsToPackage couvre aussi un paquet ajouté plus tard qui chargerait xcolor (pgfplots…).
+	en_tete = r"""\PassOptionsToPackage{table}{xcolor}
+\documentclass[TAILLEpt,a4paper]{article}
 \usepackage[margin=18mm,headheight=16pt]{geometry}
 \usepackage{fontspec}
+\usepackage[table]{xcolor}
 \usepackage{graphicx}
 \usepackage{eso-pic,adjustbox}
 \usepackage{paracol}
 \usepackage{needspace}
-\usepackage[table]{xcolor}
 \usepackage{array,longtable,booktabs}
 \usepackage{fancyhdr}
 \usepackage{hyperref}
