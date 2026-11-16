@@ -12,3 +12,4 @@ aquaworld_ia.patches.v0_48.modeles_ia_reglages
 aquaworld_ia.patches.v0_49.completer_dossiers_existants
 aquaworld_ia.patches.v0_55.design_sel_en_pastilles
 aquaworld_ia.patches.v0_58.dossier_exemple_ap_m
+aquaworld_ia.patches.v0_59.design_sel_en_pastilles_a_cote

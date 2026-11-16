@@ -74,9 +74,27 @@
   },
   {
    "champ": null,
+   "fichier": "EMB-2026-0006-face-avant40ba7e.png",
+   "prive": 1,
+   "url": "/private/files/EMB-2026-0006-face-avant40ba7e.png"
+  },
+  {
+   "champ": "logo",
+   "fichier": "EMB-2026-0006-logo-couleur-0264c31292db.svg",
+   "prive": 1,
+   "url": "/private/files/EMB-2026-0006-logo-couleur-0264c31292db.svg"
+  },
+  {
+   "champ": null,
    "fichier": "EMB-2026-0006-plan-a-platadba40.pdf",
    "prive": 1,
    "url": "/private/files/EMB-2026-0006-plan-a-platadba40.pdf"
+  },
+  {
+   "champ": "photo_produit",
+   "fichier": "sel photoa204ee.png",
+   "prive": 1,
+   "url": "/private/files/sel photoa204ee.png"
   }
  ],
  "modifie": "2026-11-13 16:18:14.239470",

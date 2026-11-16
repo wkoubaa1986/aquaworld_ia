@@ -569,6 +569,56 @@ def appliquer_dossier(cle: str, dossier: str | None = None) -> dict:
 	return {"etat": "applique", "dossier": d.name, "cree": not nom, "documents": crees, "remarques": remarques}
 
 
+def design_a_cote(nom: str, dossier: str | None = None) -> dict:
+	"""Le design du dev arrive À CÔTÉ de celui du site, sans y toucher (demande 16/11/2026 : en prod, la fiche
+	EMB-2026-0006 avait été retravaillée et `appliquer_design` ne l'a donc pas écrasée — « je ne vois pas ce que
+	j'ai fait en dev, je veux garder ça en prod comme historique »). Une copie de la fiche du site est créée par le
+	chemin habituel (`studio.dupliquer` : langues, pictogrammes, variantes, fichiers rattachés), puis reçoit les
+	champs et les fichiers de la copie du dev. Rien n'est créé si la fiche du site est déjà celle du dev, ou si ce
+	design d'à-côté existe déjà. Ne valide pas la transaction. -> {etat, design?}"""
+	if not os.path.exists(_fiche_copie(nom, dossier)):
+		return {"etat": "sans_copie"}
+	with open(_fiche_copie(nom, dossier), encoding="utf-8") as f:
+		copie = json.load(f)
+	if not frappe.db.exists(DESIGN, nom):
+		return {"etat": "introuvable"}
+	if _instant(frappe.db.get_value(DESIGN, nom, "modified")) == _instant(copie["modifie"]):
+		return {"etat": "deja_a_jour"}
+	champs, meta = copie["champs"], frappe.get_meta(DESIGN)
+	# Déjà créé (second passage) : un autre design du même article porte le décor et le plan de la copie.
+	reperes = {k: champs[k] for k in ("article", "fonds_faces", "plan_a_plat") if champs.get(k) and meta.has_field(k)}
+	deja = frappe.db.get_value(DESIGN, {**reperes, "name": ["!=", nom]}, "name") if len(reperes) == 3 else None
+	if deja:
+		return {"etat": "deja_cree", "design": deja}
+	from aquaworld_ia.emballage import studio
+
+	nouveau = studio.dupliquer(nom)["name"]
+	racine = os.path.join(os.path.dirname(_fiche_copie(nom, dossier)), "fichiers")
+	for e in copie["fichiers"]:
+		src, dest = os.path.join(racine, e["fichier"]), _chemin_site(e["url"])
+		if not os.path.exists(src):
+			frappe.throw(f"Fichier absent de la copie du design : {e['fichier']}")
+		if not os.path.exists(dest):
+			os.makedirs(os.path.dirname(dest), exist_ok=True)
+			shutil.copyfile(src, dest)
+	valeurs = {k: v for k, v in champs.items() if meta.has_field(k) and k != "idx"}
+	frappe.db.set_value(DESIGN, nouveau, valeurs)
+	frappe.clear_document_cache(DESIGN, nouveau)
+	# Chaque fichier que cite le nouveau design lui est rattaché par sa propre fiche File : il reste lisible
+	# même si l'autre design est supprimé, et l'onglet Images le reconnaît.
+	manquants = []
+	for url in urls_fichiers(valeurs):
+		if not os.path.exists(_chemin_site(url)):
+			manquants.append(url)
+		elif not frappe.db.exists("File", {"file_url": url, "attached_to_doctype": DESIGN, "attached_to_name": nouveau}):
+			fiche_fichier_existant({"file_name": os.path.basename(url), "file_url": url, "is_private": int(url.startswith("/private/")),
+			                        "attached_to_doctype": DESIGN, "attached_to_name": nouveau})
+	etat_dev = copie["modifie"][:16]
+	frappe.get_doc(DESIGN, nouveau).add_comment("Info", f"Design apporté du site de développement (état du {etat_dev}), créé à côté de {nom}, qui n’a pas été modifié.")
+	frappe.get_doc(DESIGN, nom).add_comment("Info", f"La version de ce design faite sur le site de développement (état du {etat_dev}) a été créée à côté : {nouveau}. Cette fiche n’a pas été modifiée.")
+	return {"etat": "cree", "design": nouveau, "fichiers_absents": manquants}
+
+
 def numero_serie(nom: str):
 	"""(préfixe, numéro) d'un nom de série « MAN-2026-0004 » → ("MAN-2026-", 4) ; None sinon. Pur."""
 	import re

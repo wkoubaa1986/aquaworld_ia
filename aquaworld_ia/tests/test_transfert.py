@@ -95,8 +95,26 @@ class TestFichiersDoubles(unittest.TestCase):
 
 		src = inspect.getsource(T)
 		self.assertIn("f.flags.copy_from_existing_file = True", src)
-		self.assertEqual(src.count("fiche_fichier_existant("), 5)                     # définition + fixtures + travail + copie d'un design + dossier d'exemple
+		self.assertEqual(src.count("fiche_fichier_existant("), 6)                     # définition + fixtures + travail + copie d'un design + design à côté + dossier d'exemple
 		self.assertNotIn('"doctype": "File", "file_name"', src)
+
+
+class TestCopieDesignComplete(unittest.TestCase):
+	"""16/11/2026 : le design du dev est créé à côté de celui de la prod ; sa copie porte tous les fichiers qu'il cite."""
+
+	def test_tous_les_fichiers_cites_sont_dans_la_copie(self):
+		import json
+		import os
+
+		chemin = T._fiche_copie("EMB-2026-0006")
+		with open(chemin, encoding="utf-8") as f:
+			copie = json.load(f)
+		ranges = {e["url"] for e in copie["fichiers"]}
+		self.assertTrue(set(T.urls_fichiers(copie["champs"])) <= ranges)
+		for e in copie["fichiers"]:
+			self.assertTrue(os.path.getsize(os.path.join(os.path.dirname(chemin), "fichiers", e["fichier"])) > 0, e["fichier"])
+		for cle in ("article", "fonds_faces", "plan_a_plat"):                      # les repères du « déjà créé »
+			self.assertTrue(copie["champs"].get(cle), cle)
 
 
 class TestDossierExemple(unittest.TestCase):

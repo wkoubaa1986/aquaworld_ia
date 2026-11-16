@@ -392,6 +392,13 @@ de fichiers (`transfert.exporter_travail` emporte tout : des centaines de Mo pou
   --kwargs "{'nom': 'EMB-2026-0006'}"` dit si la copie rangée est encore celle du dev ; un design retouché
   après l'export part dans son état de l'export — relancer `exporter_design`.
 - Premier usage : `EMB-2026-0006` « SEL EN PASTILLES » (patch `v0_55.design_sel_en_pastilles`).
+- **Quand la fiche a été retravaillée sur place** (cas de la prod le 16/11/2026 : le patch v0_55 n’a rien écrit, et
+  l’utilisateur veut garder la fiche de la prod « comme historique ») : `transfert.design_a_cote(nom)` crée le
+  design du dev **à côté**, sans toucher à la fiche du site — une copie par le chemin de « Dupliquer » (langues,
+  pictogrammes, variantes), qui reçoit les champs et les fichiers du dev ; chaque fichier cité lui est rattaché, et
+  les deux fiches portent un commentaire qui renvoie l’une à l’autre. Sans effet si la fiche du site est déjà
+  celle du dev, ou au second passage. La copie rangée emporte désormais **tous** les fichiers que le design cite
+  (`en_plus`), pas seulement les nouveaux. Patch `v0_59.design_sel_en_pastilles_a_cote` (v0.59.1).
 
 ## Résolution des images et export groupé
 
