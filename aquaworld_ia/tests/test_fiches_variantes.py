@@ -149,13 +149,13 @@ class TestDerivation(unittest.TestCase):
 
 	def test_fiche_derivee_specificites_puis_partie_commune(self):
 		c = V.deriver(self.mere, self.ctx, specificites())
-		self.assertEqual(c["titre"], "Mini fontaine, noir doré")
+		self.assertEqual(c["titre"], "FF-ND — Mini fontaine, noir doré — ecoPurium")   # comme la fiche du produit (16/11/2026)
 		self.assertEqual(c["resume"], "La mini fontaine en finition noir doré.")
 		self.assertEqual([s["titre"] for s in c["sections"]], ["Spécificités de ce modèle", "Applications", "Finition noire"])
 		# Portée : la variante pour ce qui lui est propre, vide pour ce qui vient de la fiche du produit.
 		self.assertEqual([s["article"] for s in c["sections"]], ["FF-ND", "", ""])
-		# La caractéristique propre « Réservoir » remplace celle de même nom reprise de la fiche du produit.
-		self.assertEqual([(x["nom"], x["article"]) for x in c["caracteristiques"]], [("Réservoir", "FF-ND"), ("Débit", "")])
+		# La caractéristique propre « Réservoir » remplace celle de même nom reprise de la fiche du produit, à sa place.
+		self.assertEqual([(x["nom"], x["article"]) for x in c["caracteristiques"]], [("Débit", ""), ("Réservoir", "FF-ND")])
 		self.assertEqual([v["article"] for v in c["variantes"]], ["FF-ND"])
 		self.assertEqual(c["libelles"]["variantes"], V.LIBELLE_REFERENCE)
 		self.assertEqual(c["legendes"], [p["legende"] for p in self.photos])
@@ -269,7 +269,12 @@ class TestDerivation(unittest.TestCase):
 		self.assertEqual(r["photos"][3]["description"], "", "une photo non lue n'apporte que son nom")
 		self.assertEqual([s["titre"] for s in r["fiche_produit"]["rubriques"]], ["Applications", "Finition noire"])
 		self.assertNotIn("Finition dorée claire", str(r))
-		self.assertIn("Tu rédiges en français ce qu'UNE variante a de propre", V.systeme())
+		self.assertEqual(r["fiche_produit"]["rubriques"][0], {"titre": "Applications", "texte": "Bureaux et cuisines.", "source": "Article FF"})
+		self.assertIn("Tu rédiges en français la fiche technique d'UNE variante", V.systeme())
+		self.assertNotIn("{CONNAISSANCES}", V.systeme()); self.assertNotIn("{CONNAISSANCES}", V.systeme(True))
+		self.assertIn("La fiche du produit ne décrit pas l'option", V.systeme())
+		self.assertNotIn("Le dossier autorise les connaissances générales", V.systeme())
+		self.assertIn("Le dossier autorise les connaissances générales", V.systeme(True))
 		self.assertIn("N'invente aucune valeur", V.systeme())
 		self.assertIn("aucune estimation", V.systeme())
 
@@ -285,12 +290,33 @@ class TestDerivation(unittest.TestCase):
 			V.empreinte_variante("DOC-1", True, self.info, self.photos, {**self.observations, "e-face": O.normaliser({"vue": "face", "elements": ["1 robinet"]})}),
 		]
 		self.assertEqual(len({e, *autres}), 6)
-		# Les spécificités, elles, ne dépendent pas de la fiche du produit : elles sont reprises quand elle seule change.
+		# Ce que l'IA écrit ne dépend pas de la version de la fiche du produit (validation, mise en page) : repris tel quel…
 		self.assertEqual(V.empreinte_specifiques(self.info, self.photos, self.observations),
 			V.empreinte_specifiques(copy.deepcopy(self.info), self.photos, self.observations))
+		# … mais bien, depuis le 16/11/2026, du texte de ses rubriques et de son tableau, que l'IA adapte à la variante,
+		# et de l'option « connaissances générales » du dossier.
+		sections, caracs = V.partie_commune(self.mere, "FF-ND", "FF")
+		commune = V.empreinte_commune(sections, caracs)
+		self.assertEqual(commune, V.empreinte_commune(copy.deepcopy(sections), copy.deepcopy(caracs)))
+		self.assertEqual(commune, V.empreinte_commune([{**x, "image": "/files/x.png", "saut_page": 1} for x in sections], caracs))   # présentation : sans effet
+		autres = {V.empreinte_commune([{**sections[0], "texte": "Bureaux."}] + sections[1:], caracs),
+			V.empreinte_commune(sections, [{**caracs[0], "valeur": "100"}] + caracs[1:]), V.empreinte_commune(sections[:1], caracs)}
+		self.assertEqual(len(autres | {commune}), 4)
+		base = V.empreinte_specifiques(self.info, self.photos, self.observations, commune)
+		self.assertNotEqual(base, V.empreinte_specifiques(self.info, self.photos, self.observations))
+		self.assertNotEqual(base, V.empreinte_specifiques(self.info, self.photos, self.observations, commune, True))
+		self.assertNotEqual(V.empreinte_variante("DOC-1", True, self.info, self.photos, self.observations, commune),
+			V.empreinte_variante("DOC-1", True, self.info, self.photos, self.observations, commune, True))
 
 	def test_titre_long_tronque(self):
-		self.assertEqual(len(V.titre_variante({"name": "X", "item_name": "n" * 300})), 140)
+		long = V.titre_variante({"name": "X-1", "item_name": "n" * 300}, "Marque")
+		self.assertEqual(len(long), S.LIMITE_TITRE)
+		self.assertTrue(long.startswith("X-1 — nnn") and long.endswith("… — Marque"))   # ni la référence ni la marque ne sont coupées
+		self.assertEqual(V.titre_variante({"name": "X", "item_name": "Nom", "brand": "B"}), "X — Nom — B")
+		self.assertEqual(V.titre_variante({"name": "X", "item_name": "Nom", "brand": "B"}, "Marque du document"), "X — Nom — Marque du document")
+		self.assertEqual(S.titre_reference("AP-M", "  Osmoseur   domestique ", "AquaJad"), "AP-M — Osmoseur domestique — AquaJad")
+		self.assertEqual(S.titre_reference("AP-M", "Osmoseur", ""), "AP-M — Osmoseur")
+		self.assertEqual(S.titre_reference("", "Osmoseur", "AquaJad"), "Osmoseur — AquaJad")
 		self.assertEqual(V.titre_variante({"name": "X", "item_name": ""}), "X")
 
 
@@ -325,7 +351,7 @@ class TestCompositionVariante(unittest.TestCase):
 		# 16/11/2026 : plus rien sous le titre (ni marque et référence, ni version) ; la référence et la marque de la
 		# variante se lisent dans le bloc « Référence et configuration ».
 		self.assertNotIn(r"ecoPurium\quad FF-ND\par", tex)
-		self.assertIn(r"Mini fontaine, noir doré}\par" + "\n" + r"{\color{red}\bfseries BROUILLON — À RELIRE}\par", tex)
+		self.assertIn(r"FF-ND — Mini fontaine, noir doré — ecoPurium}\par" + "\n" + r"{\color{red}\bfseries BROUILLON — À RELIRE}\par", tex)
 		self.assertIn(r"Référence & FF-ND\\", tex)
 		self.assertIn(r"Marque & ecoPurium\\", tex)
 		for numero in (1, 20):
@@ -352,3 +378,156 @@ class TestCompositionVariante(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class TestAdaptationALaConfiguration(unittest.TestCase):
+	"""16/11/2026 : « vu que la configuration ajoute des options, il faut les ajouter » — les rubriques et le tableau
+	de la fiche du produit sont adaptés à la configuration de chaque variante (étapes, entretien, applications)."""
+
+	RUBRIQUES = [
+		{"titre": "Applications", "texte": "Eau de boisson.", "source": "Article OS"},
+		{"titre": "Étapes de filtration", "texte": "Étapes de filtration — 5 étapes\n1. Sédiments\n5. Postfiltre", "source": "Saisie manuelle"},
+		{"titre": "Entretien", "texte": "Changer les filtres tous les 6 mois.", "source": "Saisie manuelle"},
+	]
+	CARACS = [
+		{"nom": "Débit", "valeur": "75", "unite": "GPD", "categorie": "Performances"},
+		{"nom": "Postfiltre", "valeur": "Charbon actif", "unite": "", "categorie": "Filtration"},
+		{"nom": "Lampe UV automatique", "valeur": "Capteur de débit", "unite": "", "categorie": "Filtration"},
+		{"nom": "Tension", "valeur": "24", "unite": "V", "categorie": "Électrique"},
+	]
+	ATTRIBUTS = [{"nom": "Configuration de filtration", "valeur": "Minérale + UV 7 Stages"}]
+	CATEGORIES = ["Performances", "Filtration", "Électrique"]
+
+	def reponse(self, **plus):
+		return {"resume": "Osmoseur 7 étapes.", "specificites": "• Configuration : Minérale + UV 7 Stages",
+			"rubriques_adaptees": [
+				{"titre": "étapes de filtration ", "texte": "Étapes de filtration — 7 étapes\n1. Sédiments\n5. Postfiltre\n6. Minéralisation\n7. Module ultraviolet", "source": "Saisie manuelle ; Connaissances générales"},
+				{"titre": "Entretien", "texte": "Changer les filtres tous les 6 mois."},                    # inchangée : pas une adaptation
+				{"titre": "Rubrique inventée", "texte": "Texte."},                                         # titre inconnu : écartée
+				{"titre": "Étapes de filtration", "texte": "Une seconde adaptation de la même rubrique."},  # une seule par rubrique
+				"illisible"],
+			"caracteristiques": [
+				{"nom": "Nombre d’étapes de filtration", "valeur": 7, "unite": None, "source": "Fiche du produit", "categorie": "filtration"},
+				{"nom": "Module ultraviolet", "valeur": "Présent", "source": "Article OS-7 ; Connaissances générales", "categorie": "Catégorie inventée"},
+				{"nom": "Débit", "valeur": "50", "unite": "GPD", "source": "Article OS-7"},
+				{"nom": "Marquage", "valeur": "CE", "source": "Photo P1"},
+				{"nom": "Configuration de filtration", "valeur": "Minérale + UV", "source": "Article OS-7"},
+				{"nom": "Sans source", "valeur": "x"}],
+			"caracteristiques_non_applicables": ["lampe uv automatique", "Ligne inconnue", "Débit", {"texte": "Tension"}],
+			"points_a_verifier": [], **plus}
+
+	def spec(self, connaissances=False, **plus):
+		return V.normaliser_specificites(self.reponse(**plus), "OS-7", [{"id": "P1"}], [a["nom"] for a in self.ATTRIBUTS],
+			rubriques=self.RUBRIQUES, caracteristiques=self.CARACS, categories=self.CATEGORIES, connaissances=connaissances)
+
+	def test_rubriques_adaptees_sous_le_titre_d_origine(self):
+		spec = self.spec()
+		self.assertEqual([s["titre"] for s in spec["sections"]], ["Spécificités de ce modèle", "Étapes de filtration"])
+		adaptee = spec["sections"][1]
+		self.assertIn("7. Module ultraviolet", adaptee["texte"])
+		self.assertEqual((adaptee["article"], adaptee["source"]), ("OS-7", "Saisie manuelle"))   # connaissances non autorisées : source d'origine
+		self.assertEqual(self.spec(True)["sections"][1]["source"], "Saisie manuelle ; Connaissances générales")
+
+	def test_lignes_du_tableau_propres_a_la_variante(self):
+		spec = self.spec()
+		self.assertEqual([(c["nom"], c["valeur"], c.get("categorie")) for c in spec["caracteristiques"]],
+			[("Nombre d’étapes de filtration", "7", "Filtration"), ("Module ultraviolet", "Présent", None), ("Débit", "50", None)])
+		self.assertTrue(all(c["article"] == "OS-7" for c in spec["caracteristiques"]))
+		# Écartées : la photo seule, l'attribut déjà affiché, la ligne sans source.
+		# « Non applicables » : seulement des lignes du produit, jamais une ligne que la variante redéfinit.
+		self.assertEqual(spec["retirees"], ["Lampe UV automatique", "Tension"])
+
+	def test_connaissances_generales_seulement_si_le_dossier_les_autorise(self):
+		plus = {"caracteristiques": [{"nom": "Cartouche de reminéralisation", "valeur": "Apporte des minéraux", "source": "Connaissances générales"}]}
+		self.assertEqual(self.spec(False, **plus)["caracteristiques"], [])
+		spec = self.spec(True, **plus)
+		self.assertEqual([c["nom"] for c in spec["caracteristiques"]], ["Cartouche de reminéralisation"])
+		self.assertIn(V.POINT_CONNAISSANCES, spec["points_a_verifier"])              # ce qui n'a pas de source se confirme
+		deja = self.spec(True, points_a_verifier=["Les ajouts sur l’option UV reposent sur des connaissances générales, à confirmer."])
+		self.assertNotIn(V.POINT_CONNAISSANCES, deja["points_a_verifier"])           # le point de l'IA suffit
+		self.assertNotIn(V.POINT_CONNAISSANCES, self.spec(False)["points_a_verifier"])
+
+	def test_numeros_de_liste_et_rangs_ne_sont_pas_des_valeurs(self):
+		requete = {"variante": {"reference": "OS-7", "attributs": self.ATTRIBUTS}, "fiche_produit": {"rubriques": self.RUBRIQUES, "caracteristiques": self.CARACS}}
+		connus = V.nombres_connus(requete)
+		self.assertTrue({1, 2, 3, 4, 5, 6, 7, 75, 24} <= connus); self.assertNotIn(8, connus)
+		# « Débit : 50 » n'est dans aucune donnée : signalé. Les numéros 6 et 7 de la liste et « 7 étapes », non.
+		self.assertEqual(V.verifier_nombres(self.spec(), connus)["points_a_verifier"],
+			["Valeurs écrites pour cette variante absentes des données, à confirmer : 50"])
+		lignes = [c for c in self.reponse()["caracteristiques"] if c.get("nom") != "Débit"]
+		self.assertEqual(V.verifier_nombres(self.spec(caracteristiques=lignes), connus)["points_a_verifier"], [])
+		spec = self.spec(caracteristiques=lignes)
+		spec["sections"][1]["texte"] += "\n8. Lampe de 11 W à changer tous les 12 mois"
+		points = V.verifier_nombres(spec, connus)["points_a_verifier"]
+		self.assertEqual(len(points), 1)
+		self.assertIn("11, 12", points[0]); self.assertNotIn("8", points[0])         # le numéro de la ligne n'est pas une valeur
+		self.assertEqual(V.nombres_connus({"document": "3 filtres"}), {3})            # sans variante (traitement d'un point) : inchangé
+
+	def test_derivation_a_sa_place_dans_la_fiche(self):
+		ctx_mere = {"article": {"name": "OS", "item_name": "Osmoseur", "brand": "AquaJad", "attributs": []},
+			"variantes": [{"name": "OS-7", "item_name": "Osmoseur, Minérale + UV 7 Stages", "brand": "AquaJad", "attributs": self.ATTRIBUTS}],
+			"images": [], "sources": [], "consignes": "", "logo": ""}
+		mere = S.normaliser({"titre": "OS — Osmoseur — AquaJad", "resume": "Un osmoseur.",
+			"sections": [{**r, "article": ""} for r in self.RUBRIQUES[:1]]
+				+ [{**self.RUBRIQUES[1], "article": "", "tableau": [["Étape", "Rôle"], ["1", "Sédiments"]]}] + [{**self.RUBRIQUES[2], "article": ""}],
+			"caracteristiques": [{**c, "article": "", "source": "Article OS"} for c in self.CARACS], "points_a_verifier": []}, ctx_mere)
+		spec = self.spec()
+		ctx = V.contexte_variante(ctx_mere, ctx_mere["variantes"][0], [], "DOC-1", "e", spec["retirees"])
+		self.assertEqual(ctx["fiche_variante"]["caracteristiques_retirees"], ["Lampe UV automatique", "Tension"])
+		c = V.deriver(mere, ctx, spec)
+		self.assertEqual(c["titre"], "OS-7 — Osmoseur, Minérale + UV 7 Stages — AquaJad")
+		# La rubrique adaptée prend la place de celle du produit, garde son tableau et devient propre à la variante.
+		self.assertEqual([(s["titre"], s["article"]) for s in c["sections"]],
+			[("Spécificités de ce modèle", "OS-7"), ("Applications", ""), ("Étapes de filtration", "OS-7"), ("Entretien", "")])
+		etapes = c["sections"][2]
+		self.assertIn("— 7 étapes", etapes["texte"]); self.assertEqual(etapes["tableau"], [["Étape", "Rôle"], ["1", "Sédiments"]])
+		# Tableau : « Débit » remplacé à sa place et dans sa catégorie, les lignes écartées absentes, les ajouts rangés.
+		self.assertEqual([(x.get("categorie", ""), x["nom"], x["valeur"], x["article"]) for x in c["caracteristiques"]], [
+			("Performances", "Débit", "50", "OS-7"), ("Filtration", "Postfiltre", "Charbon actif", ""),
+			("Filtration", "Nombre d’étapes de filtration", "7", "OS-7"), ("", "Module ultraviolet", "Présent", "OS-7")])
+		self.assertEqual(S.normaliser(c, ctx), c)
+		# Actualisation sans appel IA : ce qui est propre à la variante est repris de sa fiche, les lignes écartées de son contexte.
+		repris = {**V.reprendre_specificites(c, "OS-7"), "retirees": ctx["fiche_variante"]["caracteristiques_retirees"]}
+		self.assertEqual(V.deriver(mere, ctx, repris), c)
+		# Sans rien d'adapté ni d'écarté, la fiche reprend le produit tel quel.
+		simple = V.deriver(mere, V.contexte_variante(ctx_mere, ctx_mere["variantes"][0], [], "DOC-1", "e"),
+			{"resume": "", "sections": [], "caracteristiques": [], "points_a_verifier": []})
+		self.assertEqual([s["article"] for s in simple["sections"]], ["", "", ""])
+		self.assertEqual([x["nom"] for x in simple["caracteristiques"]], [x["nom"] for x in self.CARACS])
+		self.assertNotIn("caracteristiques_retirees", V.contexte_variante(ctx_mere, ctx_mere["variantes"][0], [], "DOC-1", "e")["fiche_variante"])
+
+
+class TestGalerieSurLaPageEnCours(unittest.TestCase):
+	"""16/11/2026 : « pourquoi les photos d'illustration ne sont pas directement en dessous de l'image principale ? » —
+	une mosaïque qui ne tient pas sous ce qui précède se range en grille compacte au lieu de partir page suivante."""
+
+	def source(self, n, **mise_en_page):
+		ctx = contexte_mere()
+		ctx["images"] = [{"image": f"/files/p{i}.jpg", "nom": f"p{i}.jpg", "hash": f"h{i}", "pages": "", "legende": f"Vue {i}", "article": ""} for i in range(n)]
+		ctx["mise_en_page"] = {"qr_url": "https://exemple.tn/p", "qr_legende": "En ligne", **mise_en_page}
+		assets = {"images": [f"images/image-{i}.png" for i in range(n)], "qr": "images/qr.png"}
+		return L.source(contenu_mere(ctx) | {"legendes": [f"Vue {i}" for i in range(n)]}, ctx, assets=assets)
+
+	def test_mosaique_ou_grille_selon_la_place(self):
+		tex = self.source(4)                                                     # 3 vues + le QR : 3 petites cases
+		self.assertIn(r"\newif\ifdpgrille", tex)
+		debut, sinon, fin = tex.index(r"\dpchoixgalerie{136}{91}"), tex.index("\n\\else\n"), tex.index("\n\\fi\n")
+		grille, mosaique = tex[debut:sinon], tex[sinon:fin]
+		self.assertIn("\\ifdpgrille\n" + r"\docsection{Le produit en images}", grille)
+		self.assertNotIn(r"\dpmesuremosaique", grille); self.assertIn("height=45mm", grille)
+		self.assertEqual(grille.count(r"\begin{minipage}[t]{0.220\linewidth}"), 4)   # une rangée de quatre cases, QR compris
+		self.assertIn(r"\Needspace{136mm}\docsection{Le produit en images}", mosaique)
+		self.assertIn(r"\dpmesuremosaique{22}{3}{55}{26}", mosaique)
+		for partie in (grille, mosaique):                                        # les mêmes photos et le QR des deux côtés
+			self.assertEqual([partie.count(f"images/image-{i}.png") for i in (1, 2, 3)], [1, 1, 1]); self.assertEqual(partie.count("images/qr.png"), 1)
+		self.assertEqual(tex.count(r"\ifdpgrille"), 2)                            # la déclaration et le choix
+
+	def test_plus_de_quatre_cases_deux_rangees_plus_basses(self):
+		tex = self.source(7)                                                     # 6 vues + le QR
+		self.assertIn(r"\dpchoixgalerie{136}{134}", tex)                         # 2 rangées de 35 mm
+		self.assertIn("height=35mm", tex[tex.index(r"\dpchoixgalerie"):tex.index("\n\\else\n")])
+
+	def test_sans_choix_quand_il_n_y_a_rien_a_choisir(self):
+		self.assertNotIn(r"\dpchoixgalerie{", self.source(4, galerie_pleine_page=1))     # page réservée : la mosaïque y tient
+		self.assertNotIn(r"\dpchoixgalerie{", self.source(4, style_galerie="grille", colonnes_photos=3))
+		self.assertNotIn(r"\dpchoixgalerie{", self.source(1, qr_url=""))                 # aucune illustration

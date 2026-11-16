@@ -586,6 +586,58 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Fiche de variante adaptée à sa configuration (16/11/2026, v0.59.0)
+
+Demandes, à la lecture des 45 fiches d’AP-M : « dans Étapes de filtration, vu que la configuration ajoute des options,
+il faut les ajouter ; pareil pour Installation et entretien, pareil pour le tableau technique » ; « aussi dans
+Application, il faut enrichir avec ce qu’ajoute la spécificité de cette variante » ; « dans le titre, il faut tout le
+temps faire comme AP-M : réf — nom de l’article — marque » ; « pourquoi les photos d’illustration ne sont pas
+directement en dessous de l’image principale ? ».
+
+**La fiche du produit n’est plus reprise telle quelle : l’IA l’adapte à la configuration** (`variantes.py`, toujours
+UN appel par variante — celui des spécificités, étendu). La réponse porte, en plus :
+- `rubriques_adaptees` : sous son titre exact, chaque rubrique de la fiche du produit que la configuration change
+  (une étape en plus, un usage, l’entretien d’un composant ajouté, « 5 étapes » → « 7 étapes »). Le reste est recopié
+  mot pour mot ; une rubrique que rien ne change n’est pas rendue et reste « reprise de la fiche du produit ». La
+  rubrique adaptée prend la place de l’originale, garde son illustration et son tableau, et devient « propre à
+  cette variante » (`deriver`). Un titre inconnu, un texte identique ou une seconde adaptation sont écartés.
+- `caracteristiques` : les lignes que la configuration ajoute au tableau (nombre d’étapes, composants ajoutés), dans
+  les catégories du dossier ; une ligne de même nom qu’une ligne du produit la remplace à sa place.
+  `caracteristiques_non_applicables` : les lignes du produit qui décrivent une option que la variante n’a pas —
+  écartées, et gardées dans le contexte de la fiche (`fiche_variante.caracteristiques_retirees`) pour une
+  actualisation sans appel IA.
+- **D’où viennent les ajouts** : de la fiche du produit (qui peut décrire les options de la gamme) et de l’article de
+  la variante. Pour une option que ces données ne décrivent pas, tout dépend de la case « Compléter avec les
+  connaissances générales » du dossier (étape Préparer) : **décochée**, l’IA ne nomme que ce que la configuration
+  établit (« 6. Étape de minéralisation ») et pose un point à vérifier qui renvoie à la fiche du produit ;
+  **cochée**, elle décrit ce qui est habituel pour ce composant (rôle, usage, geste d’entretien), source
+  « Connaissances générales », sans aucun chiffre, avec un point à vérifier par fiche (`POINT_CONNAISSANCES`).
+  Le chemin conseillé : décrire chaque option une fois dans la fiche du produit, la valider, puis actualiser —
+  les 45 fiches disent alors la même chose, sans point à confirmer une par une.
+- **Garde-fous** inchangés (nombre absent des données, mention de conformité, photo jamais source d’une
+  caractéristique), avec deux précisions : le numéro d’une ligne de liste n’est pas une valeur, et un décompte
+  annoncé par la configuration (« 7 Stages ») admet ses rangs (« étape n° 6 »).
+- **À actualiser** : ce que l’IA écrit dépend désormais du texte des rubriques et du tableau de la fiche du produit
+  (`empreinte_commune`), de la case « connaissances générales » et de la version de la consigne (`FORMAT`). Les
+  modifier fait réécrire les fiches (un appel par variante) ; valider la fiche du produit ou changer sa mise en
+  page, non. Les fiches créées avant cette version sont toutes « à actualiser ».
+- Essais réels du 16/11/2026 sur AP-M-DF-7-MU-SM, rien d’enregistré, environ 20 s par appel. Case décochée : étapes
+  6 et 7 nommées, trois lignes au tableau, un point qui renvoie à la fiche du produit. Case cochée : Applications,
+  Équipements, Étapes (7, avec le rôle de la reminéralisation et de l’ultraviolet) et Entretien adaptés, trois
+  lignes au tableau, aucun chiffre ajouté, un point « connaissances générales ».
+
+**Titre** : `structure.titre_reference` — « référence — nom de l’article — marque » pour toute fiche de variante et,
+à la rédaction, pour la fiche technique du produit (il reste modifiable à l’étape Relire ; les manuels gardent le
+titre proposé par l’IA). Le nom est raccourci s’il le faut, jamais la référence ni la marque. Le titre d’une version
+passe de 140 à 255 caractères (`Document Produit.titre`, migration).
+
+**Photos sous l’image principale** (`latex.source`, `\dpchoixgalerie`) : la mosaïque de « Le produit en images »
+demande une hauteur minimale (136 mm avec trois petites cases) ; quand il en restait un peu moins sous la
+présentation, tout le bloc partait page suivante et laissait une demi-page vide. S’il reste la place d’une grille
+compacte (quatre cases par rangée, 45 mm de haut, 35 mm sur deux rangées), les mêmes photos et le QR s’y rangent sur
+la page en cours ; sinon, comme avant, la mosaïque commence la page suivante. Le choix se fait à la composition,
+d’après la place réellement restante. La fiche du produit AP-M, où la mosaïque tenait déjà, ne change pas.
+
 ### Dossier d’exemple et présentation de base (16/11/2026, v0.58.0)
 
 Demande : « la version actuelle d’AP-M, je veux qu’elle soit patchée pour que, lorsque je pousse en prod, elle soit
@@ -814,6 +866,7 @@ commandes : **Créer / actualiser les fiches**, **Valider les fiches prêtes**, 
 **Photos lues — observations…**. Les cases limitent une commande aux variantes cochées.
 
 **Une fiche de variante = la fiche du produit + les spécificités de la variante** (`documents_produit/variantes.py`).
+*Depuis la v0.59.0, la partie reprise est adaptée à la configuration de la variante : voir « Fiche de variante adaptée à sa configuration » plus haut.*
 - La partie commune est la dernière fiche technique française du produit, reprise SANS IA (`partie_commune`) :
   rubriques et caractéristiques de toute la gamme (portée vide ou référence du parent) ou de cette variante. Mêmes
   phrases et mêmes chiffres d’une fiche à l’autre.

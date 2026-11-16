@@ -50,7 +50,8 @@
    "fieldtype": "Data",
    "label": "Titre",
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "length": 255
   },
   {
    "fieldname": "langue",

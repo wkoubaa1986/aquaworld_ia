@@ -74,6 +74,21 @@ def categories(*listes):
 	return list(CATEGORIES_DEFAUT)
 
 
+LIMITE_TITRE = 255   # « référence — nom de l'article — marque » d'une variante dépasse les 140 caractères d'un champ Data
+
+
+def titre_reference(reference, nom, marque=""):
+	"""Le titre d'une fiche technique, toujours de la même forme (demande 16/11/2026 : « il faut tout le temps faire
+	comme AP-M : réf — nom de l'article — marque ») : « AP-M-DF-7-MU-SM — Osmoseur … — AquaJad ». Le nom seul sans
+	référence, la marque omise si elle manque ; le nom est raccourci s'il le faut, jamais la référence ni la marque. Pur."""
+	reference, nom, marque = (" ".join(str(x or "").split()) for x in (reference, nom, marque))
+	debut, fin = (reference + " — ") if reference and nom else reference, (" — " + marque) if marque else ""
+	place = LIMITE_TITRE - len(debut) - len(fin)
+	if len(nom) > place:
+		nom = nom[:max(0, place - 1)].rstrip(" ,;") + "…"
+	return (debut + nom + fin).strip()
+
+
 def categorie_admise(valeur, liste):
 	"""La catégorie de `liste` que désigne `valeur` (casse et espaces près), écrite comme dans la liste ; « » sinon.
 	Sert à ce que rend l'IA : elle classe dans les catégories données, elle n'en crée pas. Pur."""
@@ -276,7 +291,7 @@ def normaliser(data, contexte):
 		return valeur
 
 	out = {
-		"titre": texte(data.get("titre", ""), 140),
+		"titre": texte(data.get("titre", ""), LIMITE_TITRE),
 		"resume": texte(data.get("resume", "")),
 		"sections": [],
 		"caracteristiques": [],

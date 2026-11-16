@@ -262,6 +262,10 @@ Le tableau des variantes et les photos sont ajoutés par le système.
 	data.pop("libelles", None)
 	if "gamme" not in requete["contexte"]:
 		data.pop("gamme", None)   # pas de gamme à présenter : un texte rendu quand même n'est pas gardé
+	if genre == S.TYPES[0] and isinstance(data, dict):
+		# Le titre d'une fiche technique a toujours la même forme (16/11/2026) ; il reste modifiable à l'étape Relire.
+		data["titre"] = S.titre_reference(ctx["article"]["name"], ctx["article"].get("item_name", ""),
+			ctx.get("marque_document") or ctx["article"].get("brand") or "")
 	contenu = S.normaliser(S.depuis_ia(data), ctx)
 	contenu["points_a_verifier"] += _points_gamme(contenu.get("gamme"), requete)
 	if ctx.get("plan"):

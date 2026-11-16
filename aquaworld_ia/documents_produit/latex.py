@@ -501,6 +501,14 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 % Sous-titre dans une rubrique (ligne « ## Titre » du texte) : jamais séparé du paragraphe qui le suit.
 \newcommand{\docsoustitre}[1]{\@startsection{subsection}{2}{\z@}{-1.6ex \@plus -.5ex \@minus -.2ex}{.3ex \@plus .2ex}{\normalfont\normalsize\bfseries\color{aqua}\titrefont}*{#1}}
 \newdimen\dpreste\newdimen\dppetite\newdimen\dpcolonne
+% Galerie à la mesure de la page : la mosaïque (titre compris) demande #1 mm. S'il en reste moins sur la page en cours
+% mais au moins #2 mm, une grille compacte prend sa place (\dpgrilletrue) au lieu de laisser la page à moitié vide.
+\newif\ifdpgrille
+\newcommand{\dpchoixgalerie}[2]{\par\penalty\z@
+  \dpreste=\dimexpr\pagegoal-\pagetotal\relax
+  \ifdim\pagegoal=\maxdimen\dpreste=\textheight\fi
+  \global\dpgrillefalse
+  \ifdim\dpreste<#1mm\relax\ifdim\dpreste<#2mm\relax\else\global\dpgrilletrue\fi\fi}
 % Mosaïque à la mesure de la page : #1 écarts entre petites (mm), #2 nombre de petites, #3 hauteur voulue d'une
 % petite (mm), #4 hauteur minimale (mm). \dppetite et \dpcolonne (hauteur de la colonne = de la grande photo)
 % tiennent dans la place qui reste sur la page ; sur une page vide, la hauteur voulue.
@@ -687,12 +695,16 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			lignes.append(legende(labels["portee"] + " : " + ctx["images"][index]["article"]))
 		return "\n".join(x for x in lignes if x)
 
-	def galerie(indices, portee=True, extra=None):
+	def galerie(indices, portee=True, extra=None, grille=None):
 		"""Les photos `indices` en galerie ; `extra` (LaTeX) devient une vignette de plus, en dernier — le QR
-		prend ainsi la case libre de la grille au lieu de pendre sous la galerie (demande 06/11/2026)."""
+		prend ainsi la case libre de la grille au lieu de pendre sous la galerie (demande 06/11/2026).
+		`grille` = (colonnes, hauteur en mm) impose une grille régulière, quel que soit le style choisi : la forme
+		compacte d'une mosaïque qui ne tient pas sur la page en cours (16/11/2026)."""
 		colonnes = disposition.get("colonnes_photos", 1)
 		hauteur = disposition.get("hauteur_vignettes", 55)
 		style_galerie = M.valeur(disposition, "style_galerie")
+		if grille:
+			colonnes, hauteur, style_galerie = grille[0], grille[1], "grille"
 		tete = []
 		if style_galerie == "mosaique" and len(indices) + (1 if extra else 0) >= 2 and indices:
 			# Mosaïque : la photo désignée (photo_grande, sinon la première) en grand à gauche, jusqu'à trois petites
@@ -778,7 +790,7 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			return cadrer(lignes)
 		if colonnes == 1:
 			return tete + [photo(i, .8, 85 if disposition.get("photos_variantes") else 120, portee) for i in indices] + ([extra] if extra else [])
-		if disposition.get("galerie_pleine_page") and indices:
+		if disposition.get("galerie_pleine_page") and indices and not grille:
 			# Remplir la page : la hauteur des vignettes vient du nombre de rangées, pas du réglage manuel.
 			hauteur = hauteur_pleine_page(len(indices) + (1 if extra else 0), colonnes, bool(disposition.get("legendes_galerie", 1)))
 		contenus = [photo(i, 1, hauteur, portee) for i in indices] + ([extra] if extra else [])
@@ -1082,12 +1094,31 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 		# une galerie d'une photo par ligne n'en avait pas.
 		style_bloc = M.valeur(disposition, "style_galerie")
 		cases = len(illustrations) + (1 if qr_illustrations else 0)
+		galerie_posee = False
 		if style_bloc == "mosaique" and cases >= 2 and illustrations:
 			# Assez de place pour le titre et la mosaïque à sa hauteur minimale, sinon page suivante ; au-delà, la
 			# mosaïque prend la place qui reste (voir galerie).
 			petites = min(3, cases - 1)
 			besoin = MOSAIQUE_MIN * petites + (11 if disposition.get("legendes_galerie", 1) else 4) * (petites - 1) + 8 + 28
-			blocs["illustrations"].append(r"\Needspace{" + str(besoin) + r"mm}\docsection{" + t(labels["illustrations"]) + "}")
+			titre_bloc = r"\docsection{" + t(labels["illustrations"]) + "}"
+			if disposition.get("galerie_pleine_page"):
+				blocs["illustrations"].append(r"\Needspace{" + str(besoin) + "mm}" + titre_bloc)
+			else:
+				# Quand la mosaïque ne tient pas sous ce qui précède (demande 16/11/2026 : « pourquoi les photos ne sont pas
+				# directement en dessous de l'image principale ? » — une fiche de variante à trois vues et un QR demandait
+				# 136 mm, il en restait 134 : tout le bloc partait page suivante), les mêmes photos se rangent en grille
+				# compacte sur la page en cours, s'il y a la place d'une grille ; sinon, comme avant, page suivante.
+				colonnes_grille = min(4, cases)
+				rangees = -(-cases // colonnes_grille)
+				hauteur_grille = min(disposition.get("hauteur_vignettes", 55), 45 if rangees == 1 else 35)
+				besoin_grille = rangees * (hauteur_grille + 18) + 28
+				blocs["illustrations"] += [
+					r"\dpchoixgalerie{" + str(besoin) + "}{" + str(besoin_grille) + "}",
+					r"\ifdpgrille", titre_bloc,
+					*galerie(illustrations, extra=qr_illustrations, grille=(colonnes_grille, hauteur_grille)),
+					r"\else", r"\Needspace{" + str(besoin) + "mm}" + titre_bloc,
+					*galerie(illustrations, extra=qr_illustrations), r"\fi"]
+				galerie_posee = True
 		elif regrouper or disposition.get("colonnes_photos", 1) > 1 or style_bloc == "libre" or (qr_illustrations and not illustrations):
 			# Le titre ne reste pas seul en bas de page quand la première rangée ne tient pas dessous.
 			blocs["illustrations"].append(r"\needspace{60mm}\docsection{" + t(labels["illustrations"]) + "}")
@@ -1096,7 +1127,8 @@ def source(contenu, ctx, langue="fr", rtl=False, numero=1, valide=False, assets=
 			# que tout le bloc ne tient pas, et laissait la moitié de la page vide ; ce titre-ci ne l'attire pas — la
 			# page se remplit (titre et première photo), la suite passe à la page suivante.
 			blocs["illustrations"].append(r"\docsectionsouple{" + t(labels["illustrations"]) + "}")
-		blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
+		if not galerie_posee:
+			blocs["illustrations"].extend(galerie(illustrations, extra=qr_illustrations))
 		if disposition.get("galerie_pleine_page"):
 			blocs["illustrations"].append(r"\clearpage")   # la page lui est réservée : les blocs suivants repartent sur une page neuve
 	for cle in disposition["ordre"]:
