@@ -158,3 +158,46 @@ class TestPhotosProduit(unittest.TestCase):
 			texte = "\n".join(p.get_text() for p in doc)
 			self.assertIn(v1, texte)
 			self.assertIn(v2, texte)
+
+
+class TestFichierLisibleParRattachement(unittest.TestCase):
+	"""16/11/2026 : un employé ouvre un dossier produit qu'il n'a pas créé — il lit un fichier public, ou un fichier
+	privé rattaché à un document qu'il peut lire, jamais un fichier d'un dossier dont l'article lui est fermé."""
+
+	def lisible(self, lisibles, user="employe@example.com", **fichier):
+		from types import SimpleNamespace
+		from unittest.mock import patch
+
+		from aquaworld_ia.documents_produit import contexte as C
+
+		doc = SimpleNamespace(**{"is_private": 1, "attached_to_doctype": None, "attached_to_name": None, **fichier})
+		doc.get = lambda cle, defaut=None: getattr(doc, cle, defaut)
+		droit = lambda doctype, ptype="read", doc=None, user=None, **k: (doctype, doc) in lisibles   # noqa: E731
+		with patch("frappe.has_permission", side_effect=droit):
+			return C.lisible_par_rattachement(doc, user)
+
+	def test_public_ou_rattache_a_un_document_lisible(self):
+		self.assertTrue(self.lisible(set(), is_private=0, attached_to_doctype="Item", attached_to_name="AP-M"))      # photo publique d'un article
+		self.assertTrue(self.lisible(set(), is_private=0))                                                            # public, sans rattachement
+		self.assertTrue(self.lisible({("Letter Head", "Officiel")}, attached_to_doctype="Letter Head", attached_to_name="Officiel"))
+		self.assertTrue(self.lisible({("Brand", "AquaJad")}, attached_to_doctype="Brand", attached_to_name="AquaJad"))
+		self.assertTrue(self.lisible({("Dossier Produit", "DPR-1")}, attached_to_doctype="Dossier Produit", attached_to_name="DPR-1"))
+
+	def test_ce_qui_reste_ferme(self):
+		self.assertFalse(self.lisible(set()))                                                                         # privé, sans rattachement
+		self.assertFalse(self.lisible(set(), attached_to_doctype="Journal Entry", attached_to_name="JV-1"))           # document non lisible
+		self.assertFalse(self.lisible(set(), attached_to_doctype="Dossier Produit", attached_to_name="DPR-1"))        # dossier d'un article fermé
+		self.assertFalse(self.lisible(set(), is_private=0, attached_to_doctype="Dossier Produit", attached_to_name="DPR-1"))   # même public
+		self.assertFalse(self.lisible(set(), is_private=0, attached_to_doctype="Document Produit", attached_to_name="DOC-1"))
+		self.assertFalse(self.lisible({("Item", "AP-M")}, user="Guest", is_private=0, attached_to_doctype="Item", attached_to_name="AP-M"))
+
+	def test_un_document_disparu_ne_donne_aucun_droit(self):
+		from types import SimpleNamespace
+		from unittest.mock import patch
+
+		from aquaworld_ia.documents_produit import contexte as C
+
+		doc = SimpleNamespace(is_private=1, attached_to_doctype="Brand", attached_to_name="Disparue")
+		doc.get = lambda cle, defaut=None: getattr(doc, cle, defaut)
+		with patch("frappe.has_permission", side_effect=Exception("introuvable")):
+			self.assertFalse(C.lisible_par_rattachement(doc, "employe@example.com"))

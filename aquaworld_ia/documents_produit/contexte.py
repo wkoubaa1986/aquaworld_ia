@@ -37,13 +37,34 @@ def fichier_lisible(url, *, silencieux=False):
 		frappe.flags.mute_messages = muet_avant
 
 
+def lisible_par_rattachement(doc, user=None):
+	"""Un fichier que l'utilisateur ne possède pas mais qu'il peut déjà obtenir par son lien (16/11/2026 : sur un site
+	où les droits de File sont « lecture si propriétaire », un employé n'ouvrait aucun dossier produit qu'il n'avait
+	pas créé — ni les photos des articles, ni le logo de la marque, ni celui de l'en-tête) : un fichier public, ou un
+	fichier privé rattaché à un document qu'il a le droit de lire. La règle de l'app reste la première : un fichier
+	d'un dossier ou d'un document produit demande l'accès à ce dossier, donc à son article."""
+	from aquaworld_ia.documents_produit.permissions import fichier_permission
+
+	user = user or frappe.session.user
+	if user == "Guest" or fichier_permission(doc, "read", user) is False:
+		return False
+	if not doc.is_private:
+		return True
+	if not (doc.attached_to_doctype and doc.attached_to_name):
+		return False
+	try:
+		return bool(frappe.has_permission(doc.attached_to_doctype, "read", doc=doc.attached_to_name, user=user))
+	except Exception:
+		return False
+
+
 def _fichier_lisible(url):
 	if not isinstance(url, str) or not url.startswith(("/files/", "/private/files/")):
 		frappe.throw(_("Ajoutez le fichier dans les pièces jointes de l’article ou du dossier."))
 	noms = frappe.get_all("File", filters={"file_url": url}, pluck="name")
 	for name in noms:
 		doc = frappe.get_doc("File", name)
-		if doc.has_permission("read"):
+		if doc.has_permission("read") or lisible_par_rattachement(doc):
 			if (doc.file_size or 0) > MAX_OCTETS:
 				frappe.throw(_("Un fichier dépasse 30 Mo. Sélectionnez les pages utiles."))
 			return doc

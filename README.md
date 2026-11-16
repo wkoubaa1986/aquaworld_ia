@@ -629,6 +629,16 @@ l’en-tête que j’ai créé aussi ».
   ne peut pas lire sont ignorés.
 - Le patch v0_58 pose la base d’AP-M là où les Réglages n’en ont pas encore.
 
+**Un employé ouvre un dossier qu’il n’a pas créé** (`contexte.lisible_par_rattachement`). Sur un site où les droits
+de File sont « lecture si propriétaire » (la prod), un compte sans rôle System Manager n’ouvrait aucun dossier
+produit qu’il n’avait pas créé : « Vous ne pouvez pas lire ce fichier » dès la première photo de l’article.
+Le module lit désormais aussi un fichier **public**, ou un fichier **privé rattaché à un document que
+l’utilisateur a le droit de lire** (article, marque, en-tête, dossier) — des fichiers qu’il peut déjà obtenir par
+leur lien. Restent fermés : un fichier privé sans rattachement, celui d’un document qu’il ne lit pas, et tout
+fichier d’un dossier ou d’un document produit dont l’article lui est fermé (`permissions.fichier_permission`).
+Essayé le 16/11/2026 avec les comptes de l’équipe : les deux dossiers du dev s’ouvrent, la fiche validée et son
+PDF se lisent, l’en-tête de base est repris à la création ; une pièce de comptabilité reste refusée.
+
 ### Logo en filigrane (13/11/2026, v0.57.0)
 
 Demandes du 09/11 et du 13/11/2026 : « mon logo de l'entreprise très transparent en arrière-plan sur toute la
