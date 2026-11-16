@@ -95,5 +95,61 @@ class TestFichiersDoubles(unittest.TestCase):
 
 		src = inspect.getsource(T)
 		self.assertIn("f.flags.copy_from_existing_file = True", src)
-		self.assertEqual(src.count("fiche_fichier_existant("), 4)                     # définition + fixtures + travail + copie d'un design
+		self.assertEqual(src.count("fiche_fichier_existant("), 5)                     # définition + fixtures + travail + copie d'un design + dossier d'exemple
 		self.assertNotIn('"doctype": "File", "file_name"', src)
+
+
+class TestDossierExemple(unittest.TestCase):
+	"""16/11/2026 : le dossier AP-M et sa fiche validée arrivent en prod comme exemple pour l'équipe."""
+
+	def test_lignes_ajoutees_sans_doublon(self):
+		existantes = [{"article": "AP-M-A"}, {"article": "AP-M-B"}]
+		copie = [{"article": "AP-M-B"}, {"article": "AP-M-C"}, {"article": "AP-M-C"}, {"article": ""}, {"article": "AP-M-D"}]
+		self.assertEqual(T.lignes_a_ajouter(existantes, copie, "article"), [{"article": "AP-M-C"}, {"article": "AP-M-D"}])
+		self.assertEqual(T.lignes_a_ajouter([], [{"image": "/files/a.jpg", "legende": "x"}], "image"), [{"image": "/files/a.jpg", "legende": "x"}])
+		self.assertEqual(T.lignes_a_ajouter(existantes, [], "article"), [])
+		ajouts = T.lignes_a_ajouter([], copie[:1], "article")
+		self.assertIsNot(ajouts[0], copie[0])                                    # la copie n'est pas modifiée par le dossier
+
+	def test_copie_comparee_sans_la_date_de_l_export(self):
+		a = {"article": "AP-M", "depuis": "2026-11-11", "exporte_de": {"modifie": "x"}, "dossier": {"consignes": "c"}, "marque": None, "documents": [], "fichiers": []}
+		self.assertEqual(T.copie_comparable(a), T.copie_comparable({**a, "exporte_de": {"modifie": "y"}}))
+		self.assertNotEqual(T.copie_comparable(a), T.copie_comparable({**a, "dossier": {"consignes": "d"}}))
+		self.assertNotEqual(T.copie_comparable(a), T.copie_comparable({**a, "documents": [{"origine": "DOC-P-2026-00042"}]}))
+
+	def test_la_copie_d_ap_m_rangee_dans_l_app_est_complete(self):
+		import json
+		import os
+
+		from aquaworld_ia.documents_produit import mise_en_page as M
+		from aquaworld_ia.documents_produit import structure as S
+
+		chemin = T._fiche_dossier("AP-M")
+		with open(chemin, encoding="utf-8") as f:
+			copie = json.load(f)
+		racine = os.path.join(os.path.dirname(chemin), "fichiers")
+		self.assertEqual(copie["article"], "AP-M")
+		self.assertEqual(M.configuration(copie["dossier"]["mises_en_page"]), copie["dossier"]["mises_en_page"])   # enregistrable telle quelle
+		self.assertTrue(copie["dossier"]["variantes"] and copie["dossier"]["images"] and copie["dossier"]["entete"])
+		self.assertTrue(copie["documents"])
+		for doc in copie["documents"]:
+			# Le contenu est déjà dans la forme enregistrée : c'est ce qui fait reconnaître la version déjà présente.
+			self.assertEqual(S.normaliser(doc["contenu"], doc["contexte"]), doc["contenu"])
+			self.assertEqual(doc["contenu"]["points_a_verifier"], [])
+			self.assertEqual(doc["langue"], "fr")
+			if doc["statut"] == "Validé":
+				self.assertIn("pdf", doc)                                          # une version validée arrive avec son PDF
+			for champ, _extension in T._PIECES:
+				if doc.get(champ):
+					self.assertTrue(os.path.getsize(os.path.join(racine, doc[champ])) > 0, doc[champ])
+		with open(os.path.join(racine, copie["documents"][0]["pdf"]), "rb") as f:
+			self.assertEqual(f.read(5), b"%PDF-")
+		for e in copie["fichiers"]:
+			self.assertTrue(os.path.getsize(os.path.join(racine, e["fichier"])) > 0, e["fichier"])
+		cites = set(T.urls_fichiers(copie["dossier"]))
+		self.assertTrue({e["url"] for e in copie["fichiers"]} >= {u for u in cites if u.startswith("/private/")})   # les fichiers privés du dossier voyagent
+		if copie["marque"]:
+			self.assertIn(copie["marque"]["image"], {e["url"] for e in copie["fichiers"]})
+		# La présentation de base tirée de la copie ne porte ni le QR ni les photos d'AP-M.
+		for disposition in M.base(copie["dossier"]["mises_en_page"]).values():
+			self.assertFalse({"qr_url", "qr_legende", "photo_grande", "largeurs_photos"} & set(disposition))

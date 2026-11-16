@@ -1,0 +1,215 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=18mm,headheight=16pt]{geometry}
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{eso-pic,adjustbox}
+\usepackage{paracol}
+\usepackage{needspace}
+\usepackage[table]{xcolor}
+\usepackage{array,longtable,booktabs}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\definecolor{aqua}{HTML}{087E8B}
+\colorlet{aquafort}{aqua!22}\colorlet{aquamoyen}{aqua!13}\colorlet{aquaclair}{aqua!5}
+\renewcommand{\arraystretch}{1.3}
+\hypersetup{hidelinks}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{4em}
+\newcommand{\titrefont}{}
+\newcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\phantomsection\addcontentsline{toc}{section}{#1}}
+\makeatletter
+\newcommand{\docsectionsouple}[1]{\@secpenalty=\z@ \docsection{#1}\@secpenalty=-300\relax}
+% Sous-titre dans une rubrique (ligne « ## Titre » du texte) : jamais séparé du paragraphe qui le suit.
+\newcommand{\docsoustitre}[1]{\@startsection{subsection}{2}{\z@}{-1.6ex \@plus -.5ex \@minus -.2ex}{.3ex \@plus .2ex}{\normalfont\normalsize\bfseries\color{aqua}\titrefont}*{#1}}
+\newdimen\dpreste\newdimen\dppetite\newdimen\dpcolonne
+% Mosaïque à la mesure de la page : #1 écarts entre petites (mm), #2 nombre de petites, #3 hauteur voulue d'une
+% petite (mm), #4 hauteur minimale (mm). \dppetite et \dpcolonne (hauteur de la colonne = de la grande photo)
+% tiennent dans la place qui reste sur la page ; sur une page vide, la hauteur voulue.
+\newcommand{\dpmesuremosaique}[4]{\par\if@nobreak\nobreak\else\penalty\z@\fi
+  \dpreste=\dimexpr\pagegoal-\pagetotal-10mm\relax
+  \ifdim\pagegoal=\maxdimen\dpreste=\dimexpr\textheight-10mm\relax\fi
+  \dppetite=\dimexpr(\dpreste-#1mm-8mm)/#2\relax
+  \ifdim\dppetite>#3mm\dppetite=#3mm\fi
+  \ifdim\dppetite<#4mm\dppetite=#4mm\fi
+  \dpcolonne=\dimexpr#2\dppetite+#1mm\relax}
+\makeatother
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+\renewcommand{\docsection}[1]{\section*{\color{aqua}\titrefont #1}\vspace{-11pt}\noindent{\color{aqua}\rule{\linewidth}{0.6pt}}\par\vspace{2pt}\phantomsection\addcontentsline{toc}{section}{#1}}
+\renewcommand{\contentsname}{Sommaire}
+\setmainfont{Noto Sans}
+\newfontfamily\latinfont{Noto Sans}
+\newfontfamily\symbolfont{DejaVu Sans}
+\geometry{top=35.07mm,headheight=17.07mm,headsep=6mm,bottom=30.89mm,footskip=20.89mm}
+\fancyhead[C]{\includegraphics[width=174.00mm,height=17.07mm,keepaspectratio]{images/entete-haut.png}}
+\fancyfoot[C]{\begin{minipage}[b]{\textwidth}\centering\includegraphics[width=174.00mm,height=8.89mm,keepaspectratio]{images/entete-bas.png}\par\centering\small\thepage\end{minipage}}
+
+\begin{document}
+
+\newcommand{\AWproduit}{\special{pdf:literal direct /AWproduit gs}}
+\newcommand{\AWnormal}{\special{pdf:literal direct /AWnormal gs}}
+\let\AWimage\includegraphics
+\renewcommand{\includegraphics}[2][]{\AWnormal\AWimage[#1]{#2}\AWproduit}
+\AddToShipoutPictureBG{\special{pdf:put @resources << /ExtGState << /AWproduit << /Type /ExtGState /BM /Multiply >> /AWnormal << /Type /ExtGState /BM /Normal >> >> >>}\AWproduit}
+\AddToShipoutPictureBG{\AWnormal \AtPageCenter{\makebox(0,0){\AWimage[width=0.85\paperwidth]{images/filigrane.png}}}\AWproduit}
+\begingroup\raggedright
+{\LARGE\bfseries\color{aqua}\titrefont AP-M — Osmoseur domestique avec pompe et socle métallique —  AquaJad}\par
+\endgroup
+\begingroup\setlength{\parskip}{1pt}\color{aqua}\tableofcontents\endgroup\par\medskip
+\clearpage
+\long\def\dptexte{L’osmoseur domestique AquaJad AP-M est équipé d’une pompe et d’un socle métallique. Il comprend trois porte-filtres opaques, un robinet trèfle, un réservoir de 3,2 G et une purge manuelle.\par}%
+\newsavebox{\dpboitetexte}%
+\begin{lrbox}{\dpboitetexte}\begin{minipage}[c]{\dimexpr0.45\linewidth-2.70mm\relax}\setlength{\parskip}{6pt}\dptexte\end{minipage}\end{lrbox}%
+\ifdim\dimexpr\ht\dpboitetexte+\dp\dpboitetexte\relax>.5\textheight
+\setlength{\columnsep}{6mm}\columnratio{0.45}
+\begin{paracol}{2}
+\dptexte
+\switchcolumn
+\begin{center}\includegraphics[width=1.00\linewidth,height=100mm,keepaspectratio]{images/image-0.png}\end{center}
+{\centering\small Osmoseur Domestique, avec pompe, socle métallique\par}
+\end{paracol}
+\else
+\par\noindent \usebox{\dpboitetexte}\hspace{6mm}\begin{minipage}[t]{\dimexpr0.55\linewidth-3.30mm\relax}\setlength{\parskip}{6pt}{\centering$\vcenter{\hbox{\includegraphics[width=1.00\linewidth,height=100mm,keepaspectratio]{images/image-0.png}}}$\par}
+{\centering\small Osmoseur Domestique, avec pompe, socle métallique\par}\end{minipage}\par
+\fi
+\Needspace{87mm}\docsection{Le produit en images}
+\dpmesuremosaique{11}{2}{55}{20}
+\noindent\begin{minipage}[c][\dimexpr\dpcolonne+8mm\relax][c]{0.62\linewidth}\small \begin{center}\includegraphics[width=1.00\linewidth,height=\dpcolonne,keepaspectratio]{images/image-1.png}\end{center}\end{minipage}\hfill\begin{minipage}[c][\dimexpr\dpcolonne+8mm\relax][c]{0.35\linewidth}\small \begin{center}\includegraphics[width=1.00\linewidth,height=\dppetite,keepaspectratio]{images/image-2.png}\end{center}
+\begingroup\centering
+\href{https://aquaworldservicing.com/?post_type=product&p=1343}{\includegraphics[width=22mm]{images/qr.png}}\par
+{\small Voir le produit en ligne}\par
+\endgroup\end{minipage}\par\medskip
+\docsection{Application \& Certifications}
+L’AquaJad AP-M est destiné à l’eau de boisson et aux préparations alimentaires : cuisine, soupes, café, thé et glaçons.
+
+
+
+L’eau osmosée contribue à limiter les dépôts de calcaire dans les bouilloires et les appareils compatibles. Son utilisation dans une cafetière, une machine à café, une machine à glaçons ou un réfrigérateur avec distributeur d’eau dépend des exigences du fabricant de cet appareil : qualité de l’eau, teneur en minéraux, pression et débit. Certains appareils nécessitent une teneur minimale en minéraux.\par
+\rowcolors{2}{aquaclair}{aquamoyen}
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr\linewidth/2-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr\linewidth/2-2\tabcolsep\relax}}
+\toprule
+\rowcolor{aquafort}\bfseries\color{aqua} Repère & \bfseries\color{aqua} Objet\\\endhead
+CE & Marquage de conformité.\\
+RoHS & Restriction des substances dangereuses dans les équipements électriques et électroniques.\\
+NSF & Certification pour le traitement de l’eau.\\
+\bottomrule\end{longtable}
+\docsection{Équipements communs}
+Toutes les variantes de l’AquaJad AP-M comprennent les équipements suivants :
+
+- Une pompe intégrée au système de traitement de l’eau.
+
+- Un socle métallique qui sert de support à l’ensemble.
+
+- Trois porte-filtres opaques : ces boîtiers accueillent les cartouches de filtration.
+
+- Un robinet trèfle pour distribuer l’eau traitée.
+
+- Un réservoir pour conserver une réserve d’eau traitée avant son utilisation.
+
+- Une purge manuelle, dont le déclenchement se fait par une intervention de l’utilisateur.\par
+\docsection{Étapes de filtration}
+Étapes de filtration — 5 étapes
+
+1. Préfiltre à sédiments en polypropylène — PP, 5 µm
+
+   Retient les particules en suspension, notamment le sable, la rouille et les sédiments. Protège les étages suivants contre l’encrassement.
+
+2. Préfiltre à charbon actif en granulés — UDF
+
+   Réduit le chlore et les composés responsables de goûts et d’odeurs indésirables.
+
+3. Préfiltre à charbon actif en bloc — CTO
+
+   Complète le traitement au charbon actif et contribue à protéger la membrane contre le chlore résiduel.
+
+4. Membrane d’osmose inverse — RO
+
+   Sépare l’eau osmosée du concentrat évacué au rejet. Réduit fortement les sels dissous, notamment le calcium et le magnésium responsables de la dureté.
+
+5. Postfiltre à charbon actif
+
+   Assure la finition de l’eau après stockage pour améliorer son goût et son odeur avant distribution au robinet.\par
+\docsection{Installation et entretien}
+- Installation :
+
+  - Arrivée d’eau : raccorder l’appareil à une arrivée d’eau potable froide.
+
+  - Raccordements : prévoir une évacuation et une alimentation électrique adaptée à proximité.
+
+  - Emplacement : choisir un endroit accessible, protégé du gel et de la chaleur.
+
+  - Première mise en service : effectuer le rinçage initial et vérifier l’absence de fuite conformément à la notice.
+
+
+
+- Entretien :
+
+  - Les fréquences ci-dessous sont indicatives. Elles dépendent de la qualité de l’eau, de la consommation et des prescriptions des composants installés.
+
+  - Préfiltre à sédiments en polypropylène : remplacer la cartouche tous les 3 à 6 mois, ou plus tôt si elle se colmate.
+
+  - Préfiltres à charbon en granulés et en bloc : remplacer les cartouches tous les 6 mois pour maintenir leur efficacité et protéger la membrane.
+
+  - Membrane d’osmose inverse : contrôler le débit et les performances. La remplacer selon son état, généralement tous les 2 à 3 ans.
+
+  - Postfiltre à charbon : remplacer la cartouche généralement une fois par an, selon la notice du filtre.
+
+  - Réservoir et circuit d’eau : nettoyer et désinfecter selon la procédure et la fréquence prévues par le fabricant. Contrôler la pression d’air du réservoir vide d’eau.
+
+  - Pompe, raccords et robinet : à chaque entretien, vérifier l’absence de fuite, le bon fonctionnement et l’état des connexions.\par
+\docsection{Caractéristiques techniques}
+\rowcolors{2}{aquaclair}{aquamoyen}
+\begin{longtable}{>{\raggedright\arraybackslash}p{.36\linewidth}>{\raggedright\arraybackslash}p{.56\linewidth}}
+\toprule\rowcolor{aquafort}\bfseries\color{aqua} Caractéristique & \bfseries\color{aqua} Valeur\\\endhead
+\rowcolor{white}\multicolumn{2}{l}{\rule{0pt}{2.8ex}\bfseries\color{aqua} Performances}\\*
+Production maximale d’eau osmosée & 284 L/jour (75 GPD)\\
+\rowcolor{white}\multicolumn{2}{l}{\rule{0pt}{2.8ex}\bfseries\color{aqua} Filtration}\\*
+Nombre de porte-filtres opaques & 3\\
+Capacité de la membrane & 284 L/jour (75 GPD)\\
+Préfiltre n° 1 — sédiments & 10" Polypropylène (PP), filtration à 5 µm\\
+Préfiltre n° 2 — charbon granulé & 10" Charbon actif en granulés UDF\\
+Préfiltre n° 3 — charbon bloc & 10 " Charbon actif en bloc compact CTO\\
+Matériau du postfiltre & Charbon actif\\
+\rowcolor{white}\multicolumn{2}{l}{\rule{0pt}{2.8ex}\bfseries\color{aqua} Hydraulique}\\*
+Capacité du réservoir & 12,1 L (3,2 G)\\
+Pression de précharge du réservoir à vide & 0,5 bar\\
+Pression d’entrée & 1 à 3 bar\\
+Pression de fonctionnement en amont de la membrane & 4 à 6 bar\\
+Robinet d'entrée de raccordement & 3/8 pouce\\
+Matériau des raccords & Plastique\\
+Diamètre de la tuyauterie & 6,35 mm (1/4 pouce)\\
+\rowcolor{white}\multicolumn{2}{l}{\rule{0pt}{2.8ex}\bfseries\color{aqua} Électrique}\\*
+Tension de l’adaptateur & 24 V\\
+Courant maximal de l’adaptateur & 1,3 A\\
+Tension Pompe & 24 V\\
+Puissance Nominale Pompe & 30 W\\
+\rowcolor{white}\multicolumn{2}{l}{\rule{0pt}{2.8ex}\bfseries\color{aqua} Équipements fournis}\\*
+Type de robinet & Col de cygne à poignée trèfle (alliage de zinc chromé)\\
+Collier de rejet & Présent\\
+Purge & Manuelle\\
+\bottomrule\end{longtable}
+\Needspace{60mm}\docsection{Gamme et configurations}
+La gamme AquaJad AP-M comprend 45 variantes selon trois axes de choix : 3 marques de membrane, 12 configurations de filtration et 2 possibilités de mélange entre eau osmosée et eau filtrée. Les membranes sont de marque AquaJad, DowFilmtec ou Vontron ; AquaJad reste la marque commerciale de l’osmoseur. Les configurations comportent de 5 à 8 étapes de filtration et portent les désignations Classique, Minérale, Alcaline, UV (ultraviolet) ou UV Automatique, seules ou associées selon la version. L’option « Avec mixage » permet de mélanger l’eau osmosée et l’eau filtrée, tandis que l’option « Sans mixage » ne réalise pas ce mélange. Pour choisir, repérez dans le tableau ci-dessous la marque de membrane, la configuration de filtration et la présence ou l’absence de mixage souhaitées.\par
+\Needspace{45mm}
+\rowcolors{2}{aquaclair}{aquamoyen}
+\begin{longtable}{>{\raggedright\arraybackslash}m{\dimexpr0.2200\linewidth-2\tabcolsep\relax}>{\centering\arraybackslash}m{\dimexpr0.2600\linewidth-2\tabcolsep\relax}>{\centering\arraybackslash}m{\dimexpr0.2600\linewidth-2\tabcolsep\relax}>{\centering\arraybackslash}m{\dimexpr0.2600\linewidth-2\tabcolsep\relax}}
+\toprule\rowcolor{aquafort}\bfseries\color{aqua} Configuration de filtration & \multicolumn{3}{>{\centering\arraybackslash}m{\dimexpr0.7800\linewidth-2\tabcolsep\relax}}{\bfseries\color{aqua} Marque de membrane}\\
+\rowcolor{aquafort} & \bfseries\color{aqua} AquaJad & \bfseries\color{aqua} Vontron & \bfseries\color{aqua} DowFilmtec\\\endhead
+Classique 5 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-4.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Classique 5 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-3.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} AquaJad, Classique 5 Stages, Avec mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-34.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Classique 5 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-33.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} Vontron, Classique 5 Stages, Avec mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-19.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Classique 5 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-18.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} DowFilmtec, Classique 5 Stages, Avec mixage\\
+Minérale 6 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-10.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Minérale 6 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-40.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Minérale 6 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-25.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Minérale 6 Stages, Sans mixage\\
+Alcaline 6 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-2.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Alcaline 6 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-32.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Alcaline 6 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-17.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Alcaline 6 Stages, Sans mixage\\
+UV 6 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-12.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, UV 6 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-11.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} AquaJad, UV 6 Stages, Avec mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-42.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, UV 6 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-41.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} Vontron, UV 6 Stages, Avec mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-27.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, UV 6 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-26.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} DowFilmtec, UV 6 Stages, Avec mixage\\
+UV Automatique 6 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-14.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, UV Automatique 6 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-13.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} AquaJad, UV Automatique 6 Stages, Avec mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-44.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, UV Automatique 6 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-43.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} Vontron, UV Automatique 6 Stages, Avec mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-29.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, UV Automatique 6 Stages, Sans mixage\par\smallskip \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-28.png}\par {\color[HTML]{1F5FBF}{\symbolfont ■}} DowFilmtec, UV Automatique 6 Stages, Avec mixage\\
+Minérale + Alcaline 7 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-7.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Minérale + Alcaline 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-37.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Minérale + Alcaline 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-22.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Minérale + Alcaline 7 Stages, Sans mixage\\
+Minérale + UV 7 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-8.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Minérale + UV 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-38.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Minérale + UV 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-23.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Minérale + UV 7 Stages, Sans mixage\\
+Minérale + UV Automatique 7 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-9.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Minérale + UV Automatique 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-39.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Minérale + UV Automatique 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-24.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Minérale + UV Automatique 7 Stages, Sans mixage\\
+Alcaline + UV 7 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-0.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Alcaline + UV 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-30.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Alcaline + UV 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-15.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Alcaline + UV 7 Stages, Sans mixage\\
+Alcaline + UV Automatique 7 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-1.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Alcaline + UV Automatique 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-31.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Alcaline + UV Automatique 7 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-16.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Alcaline + UV Automatique 7 Stages, Sans mixage\\
+Minérale + Alcaline + UV 8 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-5.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Minérale + Alcaline + UV 8 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-35.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Minérale + Alcaline + UV 8 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-20.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Minérale + Alcaline + UV 8 Stages, Sans mixage\\
+Minérale + Alcaline + UV Automatique 8 Stages & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-6.png}\par {\color[HTML]{C00000}{\symbolfont ■}} AquaJad, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-36.png}\par {\color[HTML]{C00000}{\symbolfont ■}} Vontron, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage & \includegraphics[height=12mm,width=\linewidth,keepaspectratio]{images/variante-21.png}\par {\color[HTML]{C00000}{\symbolfont ■}} DowFilmtec, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage\\
+\bottomrule\end{longtable}
+\vspace{-6pt}{\small Système de mélange (eau osmosée/ eau filtrée) : {\color[HTML]{C00000}{\symbolfont ■}} Sans mixage\quad {\color[HTML]{1F5FBF}{\symbolfont ■}} Avec mixage}\par\medskip
+\end{document}

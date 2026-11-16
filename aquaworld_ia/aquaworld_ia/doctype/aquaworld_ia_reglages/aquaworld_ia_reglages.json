@@ -40,6 +40,8 @@
   "documents_produit_liens",
   "categories_caracteristiques",
   "logo_filigrane",
+  "entete_base",
+  "mise_en_page_base",
   "sb_manuels_2",
   "glossaire_global",
   "instructions_globales",
@@ -282,6 +284,19 @@
    "fieldtype": "Attach Image",
    "label": "Logo du filigrane",
    "description": "Le logo posé très pâle en fond de page des fiches et manuels, quand le filigrane est activé dans un dossier (étape Présenter). Vide : la goutte AquaWorld livrée avec l’application."
+  },
+  {
+   "fieldname": "entete_base",
+   "fieldtype": "Link",
+   "options": "Letter Head",
+   "label": "En-tête de base des nouveaux dossiers",
+   "description": "L’en-tête que reçoit tout nouveau dossier produit ; il reste modifiable dans chaque dossier (étape Présenter). Vide : aucun en-tête d’office."
+  },
+  {
+   "fieldname": "mise_en_page_base",
+   "fieldtype": "Long Text",
+   "label": "Mise en page de base des nouveaux dossiers",
+   "description": "Tout nouveau dossier produit part de cette mise en page (fiche technique et manuel), puis se règle à l’étape Présenter. Elle se remplit depuis un dossier : étape Présenter, bouton « Faire de cette présentation la base des nouveaux dossiers ». Vide : la mise en page d’origine de l’application. Les dossiers existants ne changent pas."
   },
   {
    "fieldname": "sb_manuels_2",

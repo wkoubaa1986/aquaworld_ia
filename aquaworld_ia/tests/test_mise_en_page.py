@@ -860,3 +860,45 @@ class TestGalerieLibreEtPolices(unittest.TestCase):
 				self.assertTrue(doc[1].search_for("Utilisation"))          # la première rubrique ouvre la page 2
 				self.assertFalse(doc[0].search_for("Le modèle TEST-P-V"))
 
+
+
+class TestPresentationDeBase(unittest.TestCase):
+	"""16/11/2026 : la mise en page d'un dossier (AP-M) devient celle dont part tout nouveau dossier."""
+
+	AP_M = {"fiche": {"position_photo": "droite", "largeur_photo": 55, "hauteur_photo": 100, "style_titres": "souligne", "sommaire": 2,
+			"photos_variantes": 2, "filigrane": 1, "filigrane_largeur": 85, "qr_alignement": "centre", "qr_legende": "Voir le produit en ligne",
+			"qr_url": "https://aquaworldservicing.com/?post_type=product&p=1343", "photo_grande": "/files/AP-M.jpg",
+			"style_galerie": "libre", "largeurs_photos": {"/files/AP-M.jpg": 60}},
+		"manuel": {"qr_url": "https://aquaworldservicing.com/?post_type=product&p=1343", "qr_legende": "Voir le produit en ligne"}}
+
+	def test_la_base_ne_garde_rien_du_produit(self):
+		base = M.base(__import__("json").dumps(self.AP_M))
+		self.assertEqual(set(base), {"fiche", "manuel"})
+		for disposition in base.values():
+			for cle in ("qr_url", "qr_legende", "photo_grande", "largeurs_photos"):
+				self.assertNotIn(cle, disposition)
+		self.assertEqual((base["fiche"]["style_titres"], base["fiche"]["sommaire"], base["fiche"]["filigrane"], base["fiche"]["qr_alignement"]),
+			("souligne", 2, 1, "centre"))
+		self.assertEqual(base["manuel"], M.normaliser())                         # un manuel resté d'origine : rien de particulier
+		self.assertEqual(M.base(base), base)                                    # relue des Réglages : inchangée
+		self.assertEqual(M.base(""), {}); self.assertEqual(M.base(None), {}); self.assertEqual(M.base({}), {})
+		for invalide in ("pas du json", '{"affiche": {}}', '{"fiche": {"couleur": "rouge"}}', "[]"):
+			with self.subTest(invalide=invalide), self.assertRaises(ValueError):
+				M.base(invalide)
+
+	def test_un_nouveau_dossier_part_de_la_base_avec_son_propre_qr(self):
+		base, url = M.base(self.AP_M), "https://aquaworldservicing.com/?post_type=product&p=77"
+		depart = M.initiale(url, base)
+		self.assertEqual(set(depart), {"fiche", "manuel"})
+		self.assertEqual((depart["fiche"]["qr_url"], depart["fiche"]["qr_legende"], depart["fiche"]["qr_alignement"]), (url, "Voir le produit en ligne", "centre"))
+		self.assertEqual({k: v for k, v in depart["fiche"].items() if k not in ("qr_url", "qr_legende")}, base["fiche"])
+		self.assertEqual(M.configuration(depart), depart)                       # enregistrable tel quel
+		sans_site = M.initiale("", base)                                        # article hors du site : la base, sans QR
+		self.assertEqual(sans_site, base)
+		self.assertIsNot(sans_site["fiche"], base["fiche"])
+		self.assertEqual(M.initiale(url, {"fiche": base["fiche"]})["manuel"], M.initiale(url)["manuel"])   # base de la fiche seule
+		self.assertEqual(M.initiale("", {"fiche": base["fiche"]}), {"fiche": base["fiche"]})
+		self.assertEqual(M.initiale(url), M.initiale(url, {}))                  # sans base : comme avant
+		self.assertEqual(M.initiale("", None), {})
+		# Une base qui porterait encore une adresse (saisie à la main) ne la donne jamais à un autre produit.
+		self.assertNotIn("qr_url", M.initiale("", {"fiche": self.AP_M["fiche"]})["fiche"])

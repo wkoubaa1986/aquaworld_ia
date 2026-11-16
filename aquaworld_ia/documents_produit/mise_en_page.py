@@ -226,15 +226,17 @@ def configuration(valeur):
 LEGENDE_QR_SITE = "Voir le produit en ligne"
 
 
-def initiale(url_site):
+def initiale(url_site, base=None):
 	"""Les mises en page d'un nouveau dossier (demande 12/11/2026 : « si le produit est sur le site web, pourquoi le QR
 	code ne se crée pas automatiquement ? ») : le QR du lien de la boutique, avec sa légende, sur la fiche et le
-	manuel — {} sans lien valide. Position, taille et légende se règlent ensuite à l'étape Présenter ; vider
-	l'adresse retire le QR. PURE."""
-	if not isinstance(url_site, str) or not QR_URL.fullmatch(url_site.strip()) or len(url_site.strip()) > 500:
-		return {}
-	disposition = normaliser({"qr_url": url_site.strip(), "qr_legende": LEGENDE_QR_SITE})
-	return {cle: copy.deepcopy(disposition) for cle in TYPES.values()}
+	manuel. Position, taille et légende se règlent ensuite à l'étape Présenter ; vider l'adresse retire le QR.
+	`base` (16/11/2026) : la mise en page de base des Réglages ({"fiche": …, "manuel": …}, voir `base`), dont le
+	nouveau dossier part ; le QR du produit s'y ajoute. {} sans lien valide ni base. PURE."""
+	base = {cle: de_base(v) for cle, v in (base or {}).items() if cle in TYPES.values()}
+	qr = {}
+	if isinstance(url_site, str) and QR_URL.fullmatch(url_site.strip()) and len(url_site.strip()) <= 500:
+		qr = {"qr_url": url_site.strip(), "qr_legende": LEGENDE_QR_SITE}
+	return {cle: normaliser({**base.get(cle, {}), **qr}) for cle in TYPES.values() if qr or cle in base}
 
 
 def valeur(disposition, cle):
@@ -264,3 +266,19 @@ def portable(disposition):
 	m.pop("photo_grande", None)
 	m.pop("largeurs_photos", None)
 	return m
+
+
+def de_base(disposition):
+	"""Ce qu'une mise en page a de commun à tous les produits (demande 16/11/2026 : « le setting de mise en page, je
+	le veux le setting de base, celui d'AP-M ») : sa partie portable, sans l'adresse du QR ni sa légende, propres au
+	produit — sa position, sa taille et son alignement sont gardés."""
+	m = portable(disposition)
+	m.pop("qr_url", None)
+	m.pop("qr_legende", None)
+	return m
+
+
+def base(valeur):
+	"""La mise en page de base des nouveaux dossiers, tirée des mises en page d'un dossier ou relue des Réglages :
+	{"fiche": …, "manuel": …}, {} si elle est vide. Lève ValueError si elle est invalide."""
+	return {cle: de_base(v) for cle, v in configuration(valeur).items()}

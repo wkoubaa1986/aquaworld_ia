@@ -1,0 +1,2428 @@
+{
+ "article": "AP-M",
+ "depuis": "2026-11-11",
+ "documents": [
+  {
+   "contenu": {
+    "caracteristiques": [
+     {
+      "article": "",
+      "categorie": "Performances",
+      "nom": "Production maximale d’eau osmosée",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "GPD",
+      "valeur": "75"
+     },
+     {
+      "article": "",
+      "categorie": "Filtration",
+      "nom": "Nombre de porte-filtres opaques",
+      "source": "Article AP-M",
+      "unite": "",
+      "valeur": "3"
+     },
+     {
+      "article": "",
+      "categorie": "Filtration",
+      "nom": "Capacité de la membrane",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "GPD",
+      "valeur": "75"
+     },
+     {
+      "article": "",
+      "categorie": "Filtration",
+      "nom": "Préfiltre n° 1 — sédiments",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "µm",
+      "valeur": "10\" Polypropylène (PP), filtration à 5"
+     },
+     {
+      "article": "",
+      "categorie": "Filtration",
+      "nom": "Préfiltre n° 2 — charbon granulé",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "UDF",
+      "valeur": "10\" Charbon actif en granulés"
+     },
+     {
+      "article": "",
+      "categorie": "Filtration",
+      "nom": "Préfiltre n° 3 — charbon bloc",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "CTO",
+      "valeur": "10 \" Charbon actif en bloc compact"
+     },
+     {
+      "article": "",
+      "categorie": "Filtration",
+      "nom": "Matériau du postfiltre",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "",
+      "valeur": "Charbon actif"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Capacité du réservoir",
+      "source": "Article AP-M",
+      "unite": "G",
+      "valeur": "3,2"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Pression de précharge du réservoir à vide",
+      "source": "Saisie manuelle",
+      "unite": "bar",
+      "valeur": "0,5"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Pression d’entrée",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "bar",
+      "valeur": "1 à 3"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Pression de fonctionnement en amont de la membrane",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "bar",
+      "valeur": "4 à 6"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Robinet d'entrée de raccordement",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "pouce",
+      "valeur": "3/8"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Matériau des raccords",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "",
+      "valeur": "Plastique"
+     },
+     {
+      "article": "",
+      "categorie": "Hydraulique",
+      "nom": "Diamètre de la tuyauterie",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "pouce",
+      "valeur": "1/4"
+     },
+     {
+      "article": "",
+      "categorie": "Électrique",
+      "nom": "Tension de l’adaptateur",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "V",
+      "valeur": "24"
+     },
+     {
+      "article": "",
+      "categorie": "Électrique",
+      "nom": "Courant maximal de l’adaptateur",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "A",
+      "valeur": "1,3"
+     },
+     {
+      "article": "",
+      "categorie": "Électrique",
+      "nom": "Tension Pompe",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "V",
+      "valeur": "24"
+     },
+     {
+      "article": "",
+      "categorie": "Électrique",
+      "nom": "Puissance Nominale Pompe",
+      "source": "Saisie manuelle",
+      "unite": "W",
+      "valeur": "30"
+     },
+     {
+      "article": "",
+      "categorie": "Équipements fournis",
+      "nom": "Type de robinet",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "(alliage de zinc chromé)",
+      "valeur": "Col de cygne à poignée trèfle"
+     },
+     {
+      "article": "",
+      "categorie": "Équipements fournis",
+      "nom": "Collier de rejet",
+      "source": "Information de l’entreprise (13/11/2026)",
+      "unite": "",
+      "valeur": "Présent"
+     },
+     {
+      "article": "",
+      "categorie": "Équipements fournis",
+      "nom": "Purge",
+      "source": "Information de l’entreprise (16/11/2026)",
+      "unite": "",
+      "valeur": "Manuelle"
+     }
+    ],
+    "gamme": "La gamme AquaJad AP-M comprend 45 variantes selon trois axes de choix : 3 marques de membrane, 12 configurations de filtration et 2 possibilités de mélange entre eau osmosée et eau filtrée. Les membranes sont de marque AquaJad, DowFilmtec ou Vontron ; AquaJad reste la marque commerciale de l’osmoseur. Les configurations comportent de 5 à 8 étapes de filtration et portent les désignations Classique, Minérale, Alcaline, UV (ultraviolet) ou UV Automatique, seules ou associées selon la version. L’option « Avec mixage » permet de mélanger l’eau osmosée et l’eau filtrée, tandis que l’option « Sans mixage » ne réalise pas ce mélange. Pour choisir, repérez dans le tableau ci-dessous la marque de membrane, la configuration de filtration et la présence ou l’absence de mixage souhaitées.",
+    "legendes": [
+     "Osmoseur Domestique, avec pompe, socle métallique",
+     "",
+     ""
+    ],
+    "libelles": {
+     "autres": "Autres caractéristiques",
+     "brouillon": "BROUILLON — À RELIRE",
+     "caracteristiques": "Caractéristiques techniques",
+     "commun": "Toute la gamme",
+     "configuration": "Configuration",
+     "illustrations": "Le produit en images",
+     "marque": "Marque",
+     "parametre": "Caractéristique",
+     "photo": "Photo",
+     "portee": "Modèles concernés",
+     "reference": "Référence",
+     "sommaire": "Sommaire",
+     "sources": "Sources documentaires",
+     "unite": "Unité",
+     "valeur": "Valeur",
+     "variantes": "Gamme et configurations",
+     "version": "Version"
+    },
+    "points_a_verifier": [],
+    "points_resolus": [
+     "CE — Vérifier la déclaration UE de conformité du fabricant et son application à la référence exacte du modèle concerné avant de mentionner le marquage CE.",
+     "RoHS — Confirmer la conformité relative à la restriction des substances dangereuses dans les équipements électriques et électroniques à partir des documents du fabricant, pour le modèle concerné.",
+     "NSF — Obtenir les justificatifs précisant la norme, les références certifiées et le périmètre couvert avant toute mention de certification. La certification d’un composant ne constitue pas une certification de l’osmoseur complet.",
+     "CE : obtenir la déclaration UE de conformité du fabricant pour le modèle concerné avant d’affirmer sa conformité.",
+     "RoHS : obtenir les documents du fabricant confirmant la conformité des équipements électriques et électroniques concernés.",
+     "NSF : obtenir les justificatifs précisant la norme, les références certifiées et le périmètre couvert, en distinguant les composants de l’osmoseur complet.",
+     "Préciser les définitions techniques des filtres UDF et CTO : le texte fourni ne les donne pas.",
+     "Confirmer si la dimension de 1/4 pouce s’applique aussi au raccord du robinet d’entrée ; la valeur existante de 3/8 pouce pour les raccords reste inchangée.",
+     "Confirmer l’utilisation de l’eau produite pour boire, cuisiner et préparer des glaçons.",
+     "Confirmer la compatibilité de l’eau produite avec les machines à café et les appareils à glaçons.",
+     "Documenter les performances de traitement et la qualité sanitaire de l’eau obtenue avant de la qualifier de « propre et saine ».",
+     "Documenter les éventuels avantages sur le goût, les odeurs et les dépôts de calcaire avant de les mentionner.",
+     "Confirmer l’aptitude de l’eau produite à la consommation et à la préparation des aliments selon la qualité de l’eau d’entrée et la configuration choisie.",
+     "Confirmer la compatibilité de l’eau produite avec les exigences de la machine à café utilisée.",
+     "Confirmer la présence du collier de rejet dans l’équipement commun à toutes les variantes. Préciser sa référence, ses dimensions et les raccordements compatibles avant de l’ajouter à la rubrique.",
+     "Confirmer l’unité « G » utilisée pour la capacité du réservoir de 3,2 G et préciser s’il s’agit du volume total ou du volume d’eau utilisable.",
+     "Documenter les caractéristiques de la pompe et la fonction exacte de la purge manuelle pour pouvoir détailler davantage ces équipements.",
+     "Confirmer la composition et l’ordre exact des cinq étapes pour les configurations classiques de l’AquaJad AP-M.",
+     "Documenter la matière et la finesse de filtration du préfiltre PP, ainsi que les particules retenues.",
+     "Confirmer la composition des cartouches UDF et CTO et leurs fonctions respectives : les données fournies ne permettent pas de détailler leur différence ni les substances qu’elles réduisent.",
+     "Documenter les substances réduites par la membrane et le rôle précis du postfiltre à charbon, sans attribuer de performances non justifiées.",
+     "Préciser l’ordre et la fonction des étapes supplémentaires des variantes minérales, alcalines, UV et UV automatiques.",
+     "Confirmer les conditions d’installation et les caractéristiques de l’alimentation électrique dans la notice de l’AP-M.",
+     "Valider les fréquences d’entretien pour les composants effectivement installés : le texte initial mentionne support.ispringfilter.com, sans document établissant leur application à l’AP-M.",
+     "Obtenir la procédure de nettoyage et de désinfection ainsi que les modalités de contrôle de la pression d’air du réservoir.",
+     "Documenter l’entretien des éléments supplémentaires des variantes concernées : cartouches minérales, alcalines et système ultraviolet.",
+     "Préciser la signification de l’unité « G » du réservoir, sa capacité en litres et le volume d’eau réellement disponible.",
+     "Documenter le débit de production, les performances de filtration et les conditions dans lesquelles elles sont mesurées.",
+     "Préciser la qualité d’eau admissible à l’entrée, les limites de pression et de température ainsi que les caractéristiques de l’alimentation électrique.",
+     "Fournir les dimensions, les raccords et les exigences d’installation.",
+     "Documenter la composition des étapes de filtration, les effets des configurations Minérale et Alcaline, ainsi que le fonctionnement des versions UV et UV Automatique.",
+     "Préciser le fonctionnement et les possibilités de réglage du mixage.",
+     "Fournir les références des consommables, les procédures et fréquences de remplacement des filtres et de la membrane, ainsi que les consignes de nettoyage et de purge manuelle. Aucun manuel ni aucune procédure d’entretien n’est fourni.",
+     "Confirmer la capacité de 75 GPD de la membrane et la compatibilité de la pompe avec cette capacité pour les références concernées.",
+     "Obtenir la tension et le courant de fonctionnement de la pompe pour déterminer sa puissance électrique en watts ; la seule mention d’un adaptateur de 1,3 A maximum ne permet pas de l’estimer.",
+     "Confirmer, pour les versions Classique à 5 étapes, la composition demandée : filtre PP de 10 pouces à 5 micromètres, filtres UDF et CTO de 10 pouces, membrane et post-filtre T33 à charbon actif de noix de coco. Ne pas généraliser cette composition aux configurations à 6, 7 ou 8 étapes.",
+     "Confirmer le diamètre des tubes de 1/4 de pouce pour les références concernées.",
+     "Fournir les justificatifs CE, NSF et RoHS, avec leur périmètre exact : appareil complet ou composants concernés.",
+     "La consommation réelle de la pompe en watts n’est pas fournie ; les caractéristiques maximales de l’adaptateur ne suffisent pas à la déterminer.",
+     "La longueur du filtre CTO est absente du texte.",
+     "Préciser le composant concerné par les mentions CE, NSF et RoHS ainsi que les références applicables."
+    ],
+    "resume": "L’osmoseur domestique AquaJad AP-M est équipé d’une pompe et d’un socle métallique. Il comprend trois porte-filtres opaques, un robinet trèfle, un réservoir de 3,2 G et une purge manuelle.",
+    "sections": [
+     {
+      "article": "",
+      "source": "Article AP-M",
+      "tableau": [
+       [
+        "Repère",
+        "Objet"
+       ],
+       [
+        "CE",
+        "Marquage de conformité."
+       ],
+       [
+        "RoHS",
+        "Restriction des substances dangereuses dans les équipements électriques et électroniques."
+       ],
+       [
+        "NSF",
+        "Certification pour le traitement de l’eau."
+       ]
+      ],
+      "texte": "L’AquaJad AP-M est destiné à l’eau de boisson et aux préparations alimentaires : cuisine, soupes, café, thé et glaçons.\n\nL’eau osmosée contribue à limiter les dépôts de calcaire dans les bouilloires et les appareils compatibles. Son utilisation dans une cafetière, une machine à café, une machine à glaçons ou un réfrigérateur avec distributeur d’eau dépend des exigences du fabricant de cet appareil : qualité de l’eau, teneur en minéraux, pression et débit. Certains appareils nécessitent une teneur minimale en minéraux.",
+      "titre": "Application & Certifications"
+     },
+     {
+      "article": "",
+      "source": "Article AP-M",
+      "texte": "Toutes les variantes de l’AquaJad AP-M comprennent les équipements suivants :\n- Une pompe intégrée au système de traitement de l’eau.\n- Un socle métallique qui sert de support à l’ensemble.\n- Trois porte-filtres opaques : ces boîtiers accueillent les cartouches de filtration.\n- Un robinet trèfle pour distribuer l’eau traitée.\n- Un réservoir pour conserver une réserve d’eau traitée avant son utilisation.\n- Une purge manuelle, dont le déclenchement se fait par une intervention de l’utilisateur.",
+      "titre": "Équipements communs"
+     },
+     {
+      "article": "",
+      "source": "Saisie manuelle",
+      "texte": "Étapes de filtration — 5 étapes\n1. Préfiltre à sédiments en polypropylène — PP, 5 µm\n   Retient les particules en suspension, notamment le sable, la rouille et les sédiments. Protège les étages suivants contre l’encrassement.\n2. Préfiltre à charbon actif en granulés — UDF\n   Réduit le chlore et les composés responsables de goûts et d’odeurs indésirables.\n3. Préfiltre à charbon actif en bloc — CTO\n   Complète le traitement au charbon actif et contribue à protéger la membrane contre le chlore résiduel.\n4. Membrane d’osmose inverse — RO\n   Sépare l’eau osmosée du concentrat évacué au rejet. Réduit fortement les sels dissous, notamment le calcium et le magnésium responsables de la dureté.\n5. Postfiltre à charbon actif\n   Assure la finition de l’eau après stockage pour améliorer son goût et son odeur avant distribution au robinet.",
+      "titre": "Étapes de filtration"
+     },
+     {
+      "article": "",
+      "source": "Article AP-M ; rubrique fournie « Installation et entretien » — saisie manuelle",
+      "texte": "- Installation :\n  - Arrivée d’eau : raccorder l’appareil à une arrivée d’eau potable froide.\n  - Raccordements : prévoir une évacuation et une alimentation électrique adaptée à proximité.\n  - Emplacement : choisir un endroit accessible, protégé du gel et de la chaleur.\n  - Première mise en service : effectuer le rinçage initial et vérifier l’absence de fuite conformément à la notice.\n\n- Entretien :\n  - Les fréquences ci-dessous sont indicatives. Elles dépendent de la qualité de l’eau, de la consommation et des prescriptions des composants installés.\n  - Préfiltre à sédiments en polypropylène : remplacer la cartouche tous les 3 à 6 mois, ou plus tôt si elle se colmate.\n  - Préfiltres à charbon en granulés et en bloc : remplacer les cartouches tous les 6 mois pour maintenir leur efficacité et protéger la membrane.\n  - Membrane d’osmose inverse : contrôler le débit et les performances. La remplacer selon son état, généralement tous les 2 à 3 ans.\n  - Postfiltre à charbon : remplacer la cartouche généralement une fois par an, selon la notice du filtre.\n  - Réservoir et circuit d’eau : nettoyer et désinfecter selon la procédure et la fréquence prévues par le fabricant. Contrôler la pression d’air du réservoir vide d’eau.\n  - Pompe, raccords et robinet : à chaque entretien, vérifier l’absence de fuite, le bon fonctionnement et l’état des connexions.",
+      "titre": "Installation et entretien"
+     }
+    ],
+    "titre": "AP-M — Osmoseur domestique avec pompe et socle métallique —  AquaJad",
+    "variantes": [
+     {
+      "article": "AP-M-AJ-7-AU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Alcaline + UV 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-7-AUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Alcaline + UV Automatique 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-6-A-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Alcaline 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-5-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Classique 5 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-AJ-5-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Classique 5 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-8-MAU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + Alcaline + UV 8 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-8-MAUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV Automatique 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-7-MA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + Alcaline 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-7-MU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + UV 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-7-MUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + UV Automatique 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-6-M-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-6-U-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV 6 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-AJ-6-U-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-AJ-6-UA-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV Automatique 6 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-AJ-6-UA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV Automatique 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-7-AU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Alcaline + UV 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-7-AUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Alcaline + UV Automatique 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-6-A-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Alcaline 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-5-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Classique 5 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-DF-5-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Classique 5 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-8-MAU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + Alcaline + UV 8 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-8-MAUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV Automatique 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-7-MA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + Alcaline 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-7-MU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + UV 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-7-MUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + UV Automatique 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-6-M-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-6-U-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV 6 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-DF-6-U-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-DF-6-UA-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV Automatique 6 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-DF-6-UA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV Automatique 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-7-AU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Alcaline + UV 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-7-AUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Alcaline + UV Automatique 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-6-A-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Alcaline 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-5-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Classique 5 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-V-5-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Classique 5 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-8-MAU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + Alcaline + UV 8 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-8-MAUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV Automatique 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-7-MA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + Alcaline 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-7-MU-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + UV 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-7-MUA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + UV Automatique 7 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-6-M-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-6-U-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV 6 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-V-6-U-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV 6 Stages, Sans mixage"
+     },
+     {
+      "article": "AP-M-V-6-UA-AM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV Automatique 6 Stages, Avec mixage"
+     },
+     {
+      "article": "AP-M-V-6-UA-SM",
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "marque": "AquaJad",
+      "nom": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV Automatique 6 Stages, Sans mixage"
+     }
+    ]
+   },
+   "contexte": {
+    "article": {
+     "attributs": [
+      {
+       "nom": "Marque de membrane",
+       "valeur": ""
+      },
+      {
+       "nom": "Configuration de filtration",
+       "valeur": ""
+      },
+      {
+       "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+       "valeur": ""
+      }
+     ],
+     "brand": "AquaJad",
+     "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.",
+     "image": "/files/AP-M.jpg",
+     "item_name": "Osmoseur Domestique, avec pompe, socle métallique",
+     "name": "AP-M"
+    },
+    "consignes": "Public : particuliers, sans connaissance technique. Vocabulaire simple, phrases courtes, pas d’abréviations sans explication. Mettre en avant le confort d’usage, la qualité de l’eau obtenue et la simplicité d’entretien. Donner les gestes d’entretien courants (changement des filtres, nettoyage) avec leur fréquence quand elle est documentée.",
+    "entete": {
+     "bas": {
+      "html": "<div style=\"text-align:center;color:#08477c;font-size:8pt;line-height:1.2;border-top:1px solid #08477c;padding-top:5px\">Aqua World &amp; Servicing : 22 rue du parc, La soukra Ariana, Tunisie<br/>www.aquaworldservicing.com</div>"
+     },
+     "haut": {
+      "html": "<div style=\"border-bottom:1px solid #08477c;padding-bottom:5px\"><table style=\"width:100%;border-collapse:collapse\"><tbody><tr><td style=\"width:33.33%;vertical-align:middle;padding:2px 5px;color:#08477c;font-size:8pt;line-height:1.2\"><img height=\"45\" src=\"asset-0.png\" style=\"width:189px;height:45px\" width=\"189\"/><br/></td><td style=\"width:33.33%;vertical-align:middle;padding:2px 5px;color:#08477c;font-size:8pt;line-height:1.2;text-align:right\"><strong>Service commercial</strong><br/><em>Ventes, B2B, Partenariats</em><br/>sales@aquaworldservicing.com<br/>+216 51 511 918</td><td style=\"width:33.33%;vertical-align:middle;padding:2px 5px;color:#08477c;font-size:8pt;line-height:1.2;text-align:left\"><strong>Support technique</strong><br/><em>Assistance, Diagnostic, Études</em><br/>support@aquaworldservicing.com<br/>+216 56 511 406</td></tr></tbody></table></div>"
+     },
+     "nom": "AquaWorld — En-tête officiel · Fiches techniques & manuels",
+     "ressources": [
+      {
+       "fichier": "/private/files/Logo-AquaWorld-2e58c3c.png",
+       "nom": "asset-0.png",
+       "sha256": "5a8053c5715f559a76144ac59e85b9a1c7b0ab831f59b79f20ae67f9321e920e"
+      }
+     ]
+    },
+    "images": [
+     {
+      "article": "",
+      "hash": "bde45dad15846586124fa1177f7c7368",
+      "image": "/files/AP-M.jpg",
+      "legende": "Osmoseur Domestique, avec pompe, socle métallique",
+      "nom": "AP-M.jpg",
+      "pages": ""
+     },
+     {
+      "article": "",
+      "hash": "29c7cf645ba22912c2ff6c1e5b5d9432",
+      "image": "/files/AP-M-A.jpg",
+      "legende": "",
+      "nom": "AP-M-V-5-SM-A.jpg",
+      "pages": ""
+     },
+     {
+      "article": "",
+      "hash": "9aa4a05437e74d0e8f6b664ca790c5f0",
+      "image": "/private/files/Aquajad.png",
+      "legende": "",
+      "nom": "Aquajad.png",
+      "pages": ""
+     }
+    ],
+    "logo": "/private/files/Aquajad.png",
+    "logo_hash": "9aa4a05437e74d0e8f6b664ca790c5f0",
+    "mise_en_page": {
+     "alignement_titre": "gauche",
+     "alignement_vertical_photo": "centre",
+     "couleur": "#087E8B",
+     "filigrane": 1,
+     "filigrane_largeur": 85,
+     "hauteur_photo": 100,
+     "largeur_photo": 55,
+     "ordre": [
+      "presentation",
+      "illustrations",
+      "rubriques",
+      "caracteristiques",
+      "variantes"
+     ],
+     "photos_variantes": 2,
+     "position_photo": "droite",
+     "qr_alignement": "centre",
+     "qr_legende": "Voir le produit en ligne",
+     "qr_url": "https://aquaworldservicing.com/?post_type=product&p=1343",
+     "sommaire": 2,
+     "style_titres": "souligne"
+    },
+    "preuves": [],
+    "sources": [],
+    "variantes": [
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Alcaline + UV 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-AU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Alcaline + UV 7 Stages, Sans mixage",
+      "name": "AP-M-AJ-7-AU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Alcaline + UV Automatique 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-AU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Alcaline + UV Automatique 7 Stages, Sans mixage",
+      "name": "AP-M-AJ-7-AUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Alcaline 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-A-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Alcaline 6 Stages, Sans mixage",
+      "name": "AP-M-AJ-6-A-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Classique 5 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Classique 5 Stages, Avec mixage",
+      "name": "AP-M-AJ-5-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Classique 5 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Classique 5 Stages, Sans mixage",
+      "name": "AP-M-AJ-5-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Minérale + Alcaline + UV 8 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-8-MAU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + Alcaline + UV 8 Stages, Sans mixage",
+      "name": "AP-M-AJ-8-MAU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV Automatique 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Minérale + Alcaline + UV Automatique 8 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-8-MAU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage",
+      "name": "AP-M-AJ-8-MAUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Minérale + Alcaline 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MA-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + Alcaline 7 Stages, Sans mixage",
+      "name": "AP-M-AJ-7-MA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Minérale + UV 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + UV 7 Stages, Sans mixage",
+      "name": "AP-M-AJ-7-MU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Minérale + UV Automatique 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale + UV Automatique 7 Stages, Sans mixage",
+      "name": "AP-M-AJ-7-MUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : Minérale 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-M-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, Minérale 6 Stages, Sans mixage",
+      "name": "AP-M-AJ-6-M-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : UV 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV 6 Stages, Avec mixage",
+      "name": "AP-M-AJ-6-U-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : UV 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV 6 Stages, Sans mixage",
+      "name": "AP-M-AJ-6-U-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : UV Automatique 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV Automatique 6 Stages, Avec mixage",
+      "name": "AP-M-AJ-6-UA-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "AquaJad"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : AquaJad, Configuration de filtration : UV Automatique 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, AquaJad, UV Automatique 6 Stages, Sans mixage",
+      "name": "AP-M-AJ-6-UA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Alcaline + UV 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-AU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Alcaline + UV 7 Stages, Sans mixage",
+      "name": "AP-M-DF-7-AU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Alcaline + UV Automatique 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-AU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Alcaline + UV Automatique 7 Stages, Sans mixage",
+      "name": "AP-M-DF-7-AUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Alcaline 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-A-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Alcaline 6 Stages, Sans mixage",
+      "name": "AP-M-DF-6-A-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Classique 5 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Classique 5 Stages, Avec mixage",
+      "name": "AP-M-DF-5-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Classique 5 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Classique 5 Stages, Sans mixage",
+      "name": "AP-M-DF-5-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Minérale + Alcaline + UV 8 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-8-MAU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + Alcaline + UV 8 Stages, Sans mixage",
+      "name": "AP-M-DF-8-MAU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV Automatique 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Minérale + Alcaline + UV Automatique 8 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-8-MAU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage",
+      "name": "AP-M-DF-8-MAUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Minérale + Alcaline 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MA-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + Alcaline 7 Stages, Sans mixage",
+      "name": "AP-M-DF-7-MA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Minérale + UV 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + UV 7 Stages, Sans mixage",
+      "name": "AP-M-DF-7-MU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Minérale + UV Automatique 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale + UV Automatique 7 Stages, Sans mixage",
+      "name": "AP-M-DF-7-MUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : Minérale 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-M-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, Minérale 6 Stages, Sans mixage",
+      "name": "AP-M-DF-6-M-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : UV 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV 6 Stages, Avec mixage",
+      "name": "AP-M-DF-6-U-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : UV 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV 6 Stages, Sans mixage",
+      "name": "AP-M-DF-6-U-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : UV Automatique 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV Automatique 6 Stages, Avec mixage",
+      "name": "AP-M-DF-6-UA-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "DowFilmtec"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : DowFilmtec, Configuration de filtration : UV Automatique 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, DowFilmtec, UV Automatique 6 Stages, Sans mixage",
+      "name": "AP-M-DF-6-UA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Alcaline + UV 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-AU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Alcaline + UV 7 Stages, Sans mixage",
+      "name": "AP-M-V-7-AU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Alcaline + UV Automatique 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-AU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Alcaline + UV Automatique 7 Stages, Sans mixage",
+      "name": "AP-M-V-7-AUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Alcaline 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Alcaline 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-A-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Alcaline 6 Stages, Sans mixage",
+      "name": "AP-M-V-6-A-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Classique 5 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Classique 5 Stages, Avec mixage",
+      "name": "AP-M-V-5-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Classique 5 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Classique 5 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Classique 5 Stages, Sans mixage",
+      "name": "AP-M-V-5-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Minérale + Alcaline + UV 8 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-8-MAU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + Alcaline + UV 8 Stages, Sans mixage",
+      "name": "AP-M-V-8-MAU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline + UV Automatique 8 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Minérale + Alcaline + UV Automatique 8 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-8-MAU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + Alcaline + UV Automatique 8 Stages, Sans mixage",
+      "name": "AP-M-V-8-MAUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + Alcaline 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Minérale + Alcaline 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MA-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + Alcaline 7 Stages, Sans mixage",
+      "name": "AP-M-V-7-MA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Minérale + UV 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + UV 7 Stages, Sans mixage",
+      "name": "AP-M-V-7-MU-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale + UV Automatique 7 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Minérale + UV Automatique 7 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-7-MU-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale + UV Automatique 7 Stages, Sans mixage",
+      "name": "AP-M-V-7-MUA-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "Minérale 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : Minérale 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-M-SM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, Minérale 6 Stages, Sans mixage",
+      "name": "AP-M-V-6-M-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : UV 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV 6 Stages, Avec mixage",
+      "name": "AP-M-V-6-U-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : UV 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV 6 Stages, Sans mixage",
+      "name": "AP-M-V-6-U-SM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Avec mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : UV Automatique 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Avec mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV Automatique 6 Stages, Avec mixage",
+      "name": "AP-M-V-6-UA-AM"
+     },
+     {
+      "attributs": [
+       {
+        "nom": "Marque de membrane",
+        "valeur": "Vontron"
+       },
+       {
+        "nom": "Configuration de filtration",
+        "valeur": "UV Automatique 6 Stages"
+       },
+       {
+        "nom": "Système de mélange (eau osmosée/ eau filtrée)",
+        "valeur": "Sans mixage"
+       }
+      ],
+      "brand": "AquaJad",
+      "description": "3 portes-filtres opaques, avec robinet trèfle, réservoir 3,2 G, purge manuelle et socle métallique.  **Caractéristiques de cette configuration :**, Marque de membrane : Vontron, Configuration de filtration : UV Automatique 6 Stages, Système de mélange (eau osmosée/ eau filtrée) : Sans mixage",
+      "image": "/files/AP-M-AJ-6-U-AM.jpg",
+      "item_name": "Osmoseur Domestique, avec pompe, socle métallique, Vontron, UV Automatique 6 Stages, Sans mixage",
+      "name": "AP-M-V-6-UA-SM"
+     }
+    ]
+   },
+   "langue": "fr",
+   "libelle_langue": "Français",
+   "numero": 20,
+   "origine": "DOC-P-2026-00041",
+   "pdf": "fiche-fr.pdf",
+   "pdf_origine": "/private/files/DOC-P-2026-00041-frf1b005.pdf",
+   "rtl": 0,
+   "source_latex": "fiche-fr.tex",
+   "source_latex_origine": "/private/files/DOC-P-2026-00041-frdde56e.tex",
+   "statut": "Validé",
+   "type_document": "Fiche technique"
+  }
+ ],
+ "dossier": {
+  "categories_caracteristiques": "",
+  "connaissances_generales": 0,
+  "consignes": "Public : particuliers, sans connaissance technique. Vocabulaire simple, phrases courtes, pas d’abréviations sans explication. Mettre en avant le confort d’usage, la qualité de l’eau obtenue et la simplicité d’entretien. Donner les gestes d’entretien courants (changement des filtres, nettoyage) avec leur fréquence quand elle est documentée.",
+  "entete": "AquaWorld — En-tête officiel · Fiches techniques & manuels",
+  "images": [
+   {
+    "article": "",
+    "image": "/files/AP-M.jpg",
+    "legende": "Osmoseur Domestique, avec pompe, socle métallique"
+   },
+   {
+    "article": "",
+    "image": "/files/AP-M-A.jpg",
+    "legende": ""
+   },
+   {
+    "article": "",
+    "image": "/private/files/Aquajad.png",
+    "legende": ""
+   }
+  ],
+  "logo_marque_avec_entete": 0,
+  "marque_document": "",
+  "mises_en_page": {
+   "fiche": {
+    "alignement_titre": "gauche",
+    "alignement_vertical_photo": "centre",
+    "couleur": "#087E8B",
+    "filigrane": 1,
+    "filigrane_largeur": 85,
+    "hauteur_photo": 100,
+    "largeur_photo": 55,
+    "ordre": [
+     "presentation",
+     "illustrations",
+     "rubriques",
+     "caracteristiques",
+     "variantes"
+    ],
+    "photos_variantes": 2,
+    "position_photo": "droite",
+    "qr_alignement": "centre",
+    "qr_legende": "Voir le produit en ligne",
+    "qr_url": "https://aquaworldservicing.com/?post_type=product&p=1343",
+    "sommaire": 2,
+    "style_titres": "souligne"
+   },
+   "manuel": {
+    "alignement_titre": "gauche",
+    "couleur": "#087E8B",
+    "hauteur_photo": 65,
+    "largeur_photo": 65,
+    "ordre": [
+     "presentation",
+     "illustrations",
+     "rubriques",
+     "caracteristiques",
+     "variantes"
+    ],
+    "position_photo": "apres",
+    "qr_legende": "Voir le produit en ligne",
+    "qr_url": "https://aquaworldservicing.com/?post_type=product&p=1343"
+   }
+  },
+  "plans": {},
+  "sources": [],
+  "variantes": [
+   {
+    "article": "AP-M-AJ-7-AU-SM"
+   },
+   {
+    "article": "AP-M-AJ-7-AUA-SM"
+   },
+   {
+    "article": "AP-M-AJ-6-A-SM"
+   },
+   {
+    "article": "AP-M-AJ-5-AM"
+   },
+   {
+    "article": "AP-M-AJ-5-SM"
+   },
+   {
+    "article": "AP-M-AJ-8-MAU-SM"
+   },
+   {
+    "article": "AP-M-AJ-8-MAUA-SM"
+   },
+   {
+    "article": "AP-M-AJ-7-MA-SM"
+   },
+   {
+    "article": "AP-M-AJ-7-MU-SM"
+   },
+   {
+    "article": "AP-M-AJ-7-MUA-SM"
+   },
+   {
+    "article": "AP-M-AJ-6-M-SM"
+   },
+   {
+    "article": "AP-M-AJ-6-U-AM"
+   },
+   {
+    "article": "AP-M-AJ-6-U-SM"
+   },
+   {
+    "article": "AP-M-AJ-6-UA-AM"
+   },
+   {
+    "article": "AP-M-AJ-6-UA-SM"
+   },
+   {
+    "article": "AP-M-DF-7-AU-SM"
+   },
+   {
+    "article": "AP-M-DF-7-AUA-SM"
+   },
+   {
+    "article": "AP-M-DF-6-A-SM"
+   },
+   {
+    "article": "AP-M-DF-5-AM"
+   },
+   {
+    "article": "AP-M-DF-5-SM"
+   },
+   {
+    "article": "AP-M-DF-8-MAU-SM"
+   },
+   {
+    "article": "AP-M-DF-8-MAUA-SM"
+   },
+   {
+    "article": "AP-M-DF-7-MA-SM"
+   },
+   {
+    "article": "AP-M-DF-7-MU-SM"
+   },
+   {
+    "article": "AP-M-DF-7-MUA-SM"
+   },
+   {
+    "article": "AP-M-DF-6-M-SM"
+   },
+   {
+    "article": "AP-M-DF-6-U-AM"
+   },
+   {
+    "article": "AP-M-DF-6-U-SM"
+   },
+   {
+    "article": "AP-M-DF-6-UA-AM"
+   },
+   {
+    "article": "AP-M-DF-6-UA-SM"
+   },
+   {
+    "article": "AP-M-V-7-AU-SM"
+   },
+   {
+    "article": "AP-M-V-7-AUA-SM"
+   },
+   {
+    "article": "AP-M-V-6-A-SM"
+   },
+   {
+    "article": "AP-M-V-5-AM"
+   },
+   {
+    "article": "AP-M-V-5-SM"
+   },
+   {
+    "article": "AP-M-V-8-MAU-SM"
+   },
+   {
+    "article": "AP-M-V-8-MAUA-SM"
+   },
+   {
+    "article": "AP-M-V-7-MA-SM"
+   },
+   {
+    "article": "AP-M-V-7-MU-SM"
+   },
+   {
+    "article": "AP-M-V-7-MUA-SM"
+   },
+   {
+    "article": "AP-M-V-6-M-SM"
+   },
+   {
+    "article": "AP-M-V-6-U-AM"
+   },
+   {
+    "article": "AP-M-V-6-U-SM"
+   },
+   {
+    "article": "AP-M-V-6-UA-AM"
+   },
+   {
+    "article": "AP-M-V-6-UA-SM"
+   }
+  ]
+ },
+ "exporte_de": {
+  "dossier": "DPR-2026-00002",
+  "modifie": "2026-11-16 11:40:25.827958"
+ },
+ "fichiers": [
+  {
+   "fichier": "Aquajad.png",
+   "prive": 1,
+   "url": "/private/files/Aquajad.png"
+  },
+  {
+   "fichier": "Logo-AquaWorld-2e58c3c.png",
+   "prive": 1,
+   "url": "/private/files/Logo-AquaWorld-2e58c3c.png"
+  }
+ ],
+ "marque": {
+  "image": "/private/files/Aquajad.png",
+  "name": "AquaJad"
+ }
+}

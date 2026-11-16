@@ -276,7 +276,7 @@ class DocumentsProduit {
       <label class="dp-label">Taille (mm)<input class="form-control dp-qr-taille" type="number" min="15" max="40" step="1" value="${m.qr_taille}"></label></div>
       <div class="dp-actions" style="margin-top:8px">${this.data.lien_woocommerce?.url?`<button type="button" class="btn btn-default btn-sm dp-qr-woo">Reprendre le lien WooCommerce de l’article</button><span class="dp-muted">${dpEsc(this.data.lien_woocommerce.serveur)} · produit n° ${dpEsc(this.data.lien_woocommerce.id)}</span>`:'<span class="dp-muted">L’article parent n’est pas lié à WooCommerce : saisissez le lien à la main.</span>'}</div>
       <p class="dp-muted dp-qr-status" role="status"></p></div>
-      <div class="dp-actions" style="margin-top:14px"><button class="btn btn-default btn-sm dp-copy-layout">Reprendre la présentation d’un autre dossier…</button><button class="btn btn-default btn-sm dp-reset-layout">Disposition initiale</button></div>
+      <div class="dp-actions" style="margin-top:14px"><button class="btn btn-default btn-sm dp-copy-layout">Reprendre la présentation d’un autre dossier…</button>${frappe.user.has_role('System Manager')?'<button class="btn btn-default btn-sm dp-set-base" title="Tout nouveau dossier produit partira de la mise en page (fiche et manuel) et de l’en-tête de ce dossier">Faire de cette présentation la base des nouveaux dossiers…</button>':''}<button class="btn btn-default btn-sm dp-reset-layout">Disposition initiale</button></div>
       <p class="dp-muted dp-layout-status" role="status" style="margin-top:10px">La mise en page s’applique en générant le PDF d’une version, sans nouvelle rédaction IA.</p>
       </div><div class="dp-preview-column"><div class="dp-actions dp-preview-switch"><b>Pages PDF en direct</b><span class="dp-muted dp-live-status"></span></div>
       <div class="dp-layout-preview"></div>
@@ -318,6 +318,7 @@ class DocumentsProduit {
     });
     z.find('.dp-saut-page').on('change',()=>{this.layouts[this.activeTab]={...this.layoutValues(),sauts_page:z.find('.dp-saut-page:checked').map((_,el)=>el.dataset.block).get()};this.renderLayoutPreview();this.layoutChanged();});
     z.find('.dp-copy-layout').on('click',()=>this.copierPresentation());
+    z.find('.dp-set-base').on('click',()=>this.definirPresentationBase());
     // Ordre des photos depuis le bloc « Le produit en images » (demande 07/11/2026) : on déplace la carte de l'étape
     // Préparer (seule source de l'ordre), puis le panneau se re-rend ; l'aperçu suit.
     z.find('.dp-photo-up,.dp-photo-down').on('click',e=>{
@@ -334,6 +335,15 @@ class DocumentsProduit {
     this.renderColumnChoices();this.renderLayoutOrder();this.renderLayoutPreview();
     z.closest('.dp-card').addClass('dp-live-on');
     this.planifierPages('layout',300);
+  }
+  definirPresentationBase() {
+    // La mise en page et l'en-tête de ce dossier deviennent ceux dont part tout nouveau dossier (demande 16/11/2026) ;
+    // rangés dans les Réglages, ils s'y retirent en vidant les deux champs. Les dossiers existants ne changent pas.
+    frappe.confirm('Tout nouveau dossier produit partira de la mise en page de ce dossier (fiche technique et manuel) et de son en-tête. Le QR code et les photos restent propres à chaque produit. Les dossiers existants ne changent pas.<br><br>Continuer ?',async()=>{
+      if(this.dirty)await this.saveDocument();await this.saveConfig();
+      const r=await dpCall('definir_presentation_base',{name:this.name});
+      frappe.show_alert({message:`Présentation de base : celle de « ${dpEsc(r.source)} »${r.entete?', en-tête « '+dpEsc(r.entete)+' »':', sans en-tête'}.`,indicator:'green'});
+    });
   }
   async copierPresentation() {
     // Même présentation pour un autre produit (demande 07/11/2026) : mise en page, marque et en-tête, consignes et plan des

@@ -336,6 +336,239 @@ def appliquer_design(nom: str, dossier: str | None = None, forcer: int = 0) -> d
 	return {"etat": "applique", "champs": sorted(valeurs), "fichiers": poses}
 
 
+# ------------------------------------------------------------------ un dossier produit emporté comme exemple
+# Demande 16/11/2026 : « la version actuelle d'AP-M, je veux qu'elle soit patchée pour que, lorsque je pousse en
+# prod, elle soit poussée comme exemple pour mes employés ». Le dossier (présentation, variantes, photos) et la
+# dernière version française de chaque document, avec son PDF, sont rangés dans `contenu/dossiers/<clé>/` ; un patch
+# les recrée sur l'autre site. Les autres versions, les fiches par variante et les traductions ne voyagent pas.
+
+DOSSIER_PRODUIT, DOCUMENT_PRODUIT = "Dossier Produit", "Document Produit"
+DOSSIER_EXEMPLES = os.path.join(DOSSIER, "dossiers")
+_CHAMPS_DOSSIER = ("entete", "marque_document", "logo_marque_avec_entete", "consignes", "connaissances_generales",
+                   "categories_caracteristiques", "mises_en_page", "plans")
+_TABLES_DOSSIER = {"variantes": ("article",), "sources": ("fichier", "pages", "article"), "images": ("image", "legende", "article")}
+_CHAMPS_JSON = ("mises_en_page", "plans")
+_PIECES = (("pdf", ".pdf"), ("source_latex", ".tex"))   # l'archive LaTeX (aussi lourde que le PDF) se refait sur place
+
+
+def _fiche_dossier(cle: str, dossier: str | None = None) -> str:
+	return os.path.join(dossier or DOSSIER_EXEMPLES, cle, "dossier.json")
+
+
+def lignes_a_ajouter(existantes: list[dict], copie: list[dict], cle: str) -> list[dict]:
+	"""Les lignes de la copie absentes d'une table (comparées sur `cle`), dans l'ordre de la copie, sans doublon. Pur."""
+	vues, ajouts = {r.get(cle) for r in existantes}, []
+	for r in copie:
+		if r.get(cle) and r[cle] not in vues:
+			vues.add(r[cle])
+			ajouts.append(dict(r))
+	return ajouts
+
+
+def copie_comparable(copie: dict) -> dict:
+	"""Ce qui, dans une copie de dossier, dit si elle est encore celle du site (pas la date de l'export). Pur."""
+	return {k: copie.get(k) for k in ("article", "dossier", "marque", "documents", "fichiers")}
+
+
+def _copie_dossier(nom: str, depuis: str) -> tuple[dict, list[tuple[str, str]]]:
+	"""(la copie, les fichiers à ranger [(chemin sur le site, nom dans la copie)]) d'un dossier de ce site."""
+	from aquaworld_ia.documents_produit import marques
+
+	d = frappe.get_doc(DOSSIER_PRODUIT, nom)
+	cle = d.article
+	champs = {}
+	for k in _CHAMPS_DOSSIER:
+		v = d.get(k)
+		champs[k] = (json.loads(v) if v else {}) if k in _CHAMPS_JSON else (v if v not in (None, "") else (0 if d.meta.get_field(k).fieldtype == "Check" else ""))
+	for table, cles in _TABLES_DOSSIER.items():
+		champs[table] = [{c: r.get(c) or "" for c in cles} for r in d.get(table)]
+	documents, a_ranger = [], []
+	for genre, court in (("Fiche technique", "fiche"), ("Manuel d'utilisation", "manuel")):
+		versions = frappe.get_all(DOCUMENT_PRODUIT, filters={"dossier": nom, "type_document": genre, "langue": "fr", "variante": ["is", "not set"]},
+		                          fields=["name"], order_by="numero desc, creation desc", limit=1)
+		if not versions:
+			continue
+		v = frappe.get_doc(DOCUMENT_PRODUIT, versions[0].name)
+		doc = {"origine": v.name, "type_document": v.type_document, "langue": v.langue, "libelle_langue": v.libelle_langue, "rtl": int(v.rtl or 0),
+		       "numero": int(v.numero), "statut": v.statut, "contenu": json.loads(v.contenu_json), "contexte": json.loads(v.contexte_json)}
+		for champ, extension in _PIECES:
+			if v.get(champ):
+				src = _chemin_site(v.get(champ))
+				if not os.path.exists(src):
+					frappe.throw(f"Fichier absent du disque : {v.get(champ)}")
+				doc[champ] = f"{court}-{v.langue}{extension}"
+				doc[champ + "_origine"] = v.get(champ)
+				a_ranger.append((src, doc[champ]))
+		documents.append(doc)
+	marque = marques.effective(d)
+	logo = frappe.db.get_value("Brand", marque, "image") if marque else None
+	# Parmi les fichiers cités, ceux apparus sur ce site depuis `depuis` : l'autre site a déjà les précédents.
+	fichiers = []
+	for url in urls_fichiers({"dossier": champs, "documents": [{"contenu": x["contenu"], "contexte": x["contexte"]} for x in documents], "logo": logo}):
+		fiches = frappe.get_all("File", filters={"file_url": url}, fields=["file_name", "is_private", "creation"], order_by="creation asc")
+		if not fiches or str(fiches[0].creation) < depuis:
+			continue
+		src = _chemin_site(url)
+		if not os.path.exists(src):
+			frappe.throw(f"Fichier absent du disque : {url}")
+		fichiers.append({"fichier": os.path.basename(url), "url": url, "prive": int(fiches[0].is_private or 0)})
+		a_ranger.append((src, os.path.basename(url)))
+	if len({n for _, n in a_ranger}) != len(a_ranger):
+		frappe.throw("Deux fichiers de ce dossier portent le même nom : la copie ne peut pas les ranger côte à côte.")
+	copie = {"article": cle, "depuis": str(depuis), "exporte_de": {"dossier": nom, "modifie": str(d.modified)}, "dossier": champs,
+	         "marque": {"name": marque, "image": logo} if marque and logo and any(f["url"] == logo for f in fichiers) else None,
+	         "documents": documents, "fichiers": fichiers}
+	return json.loads(json.dumps(copie, ensure_ascii=False, default=str)), a_ranger
+
+
+def exporter_dossier(nom: str, depuis: str, dossier: str | None = None) -> dict:
+	"""Range dans l'app l'état actuel d'un dossier produit : sa présentation, ses variantes, ses photos, et la
+	dernière version française de la fiche et du manuel du produit avec son PDF. `depuis` : la date de la copie de
+	l'autre site vers celui-ci (« 2026-11-11 ») — parmi les fichiers cités, seuls ceux apparus depuis voyagent, les
+	photos des articles y sont déjà. La copie porte la référence de l'article, pas le nom du dossier."""
+	copie, a_ranger = _copie_dossier(nom, depuis)
+	cible = os.path.join(dossier or DOSSIER_EXEMPLES, copie["article"])
+	if os.path.isdir(cible):
+		shutil.rmtree(cible)
+	os.makedirs(os.path.join(cible, "fichiers"))
+	poids = 0
+	for src, fichier in a_ranger:
+		shutil.copyfile(src, os.path.join(cible, "fichiers", fichier))
+		poids += os.path.getsize(src)
+	with open(_fiche_dossier(copie["article"], dossier), "w", encoding="utf-8") as f:
+		json.dump(copie, f, ensure_ascii=False, indent=1, sort_keys=True)
+		f.write("\n")
+	return {"cle": copie["article"], "dossier": nom, "documents": [f"{x['origine']} ({x['type_document']} v{x['numero']}, {x['statut']})" for x in copie["documents"]],
+	        "fichiers": [n for _, n in a_ranger], "mo": round(poids / 1048576, 2)}
+
+
+def etat_copie_dossier(cle: str, dossier: str | None = None) -> dict:
+	"""La copie rangée dans l'app est-elle encore l'état du dossier de ce site ? À regarder avant de pousser : un
+	dossier retouché, ou une version plus récente, part dans son état de l'export — relancer `exporter_dossier`."""
+	if not os.path.exists(_fiche_dossier(cle, dossier)):
+		return {"copie": None, "a_jour": False}
+	with open(_fiche_dossier(cle, dossier), encoding="utf-8") as f:
+		copie = json.load(f)
+	nom = frappe.db.get_value(DOSSIER_PRODUIT, {"article": copie["article"]}, "name")
+	if not nom:
+		return {"copie": [x["origine"] for x in copie["documents"]], "site": None, "a_jour": False}
+	actuelle = _copie_dossier(nom, copie["depuis"])[0]
+	differences = [k for k, v in copie_comparable(copie).items() if v != copie_comparable(actuelle)[k]]
+	return {"copie": [x["origine"] for x in copie["documents"]], "site": [x["origine"] for x in actuelle["documents"]],
+	        "a_jour": not differences, "differences": differences}
+
+
+def appliquer_dossier(cle: str, dossier: str | None = None) -> dict:
+	"""Recrée sur ce site le dossier produit rangé dans l'app, comme exemple : fichiers posés (jamais écrasés) avec
+	leur fiche File, logo de la marque s'il manque, dossier créé — ou complété s'il existe déjà pour cet article :
+	sa présentation devient celle de la copie, ses variantes et photos sont gardées —, puis chaque version ajoutée
+	à la suite avec son PDF. Rien n'est écrit si l'article n'existe pas ici, ou si ces versions y sont déjà (le dev
+	lui-même, un second passage). Ne valide pas la transaction. -> {etat, dossier, documents, remarques}."""
+	if not os.path.exists(_fiche_dossier(cle, dossier)):
+		return {"etat": "sans_copie"}
+	with open(_fiche_dossier(cle, dossier), encoding="utf-8") as f:
+		copie = json.load(f)
+	from frappe.utils.file_manager import save_file
+
+	from aquaworld_ia.documents_produit import service as API
+	from aquaworld_ia.documents_produit import structure as S
+	from aquaworld_ia.documents_produit.entetes import instantane
+
+	racine, article = os.path.join(os.path.dirname(_fiche_dossier(cle, dossier)), "fichiers"), copie["article"]
+	a = frappe.db.get_value("Item", article, ["disabled", "variant_of"], as_dict=True)
+	if not a or a.disabled or a.variant_of:
+		return {"etat": "article_absent", "article": article}
+	nom = frappe.db.get_value(DOSSIER_PRODUIT, {"article": article}, "name")
+	deja = set()
+	if nom:
+		deja = {S.empreinte(json.loads(c)) for c in frappe.get_all(DOCUMENT_PRODUIT, filters={"dossier": nom}, pluck="contenu_json")}
+	manquants = [x for x in copie["documents"] if S.empreinte(S.normaliser(x["contenu"], x["contexte"])) not in deja]
+	if nom and not manquants:
+		return {"etat": "deja_present", "dossier": nom}
+	remarques = []
+
+	# 1. Les fichiers apparus sur le site d'origine, à leur adresse, avec leur fiche File (rattachée plus bas).
+	for e in copie["fichiers"]:
+		src, dest = os.path.join(racine, e["fichier"]), _chemin_site(e["url"])
+		if not os.path.exists(src):
+			frappe.throw(f"Fichier absent de la copie du dossier : {e['fichier']}")
+		if not os.path.exists(dest):
+			os.makedirs(os.path.dirname(dest), exist_ok=True)
+			shutil.copyfile(src, dest)
+		if not frappe.db.exists("File", {"file_url": e["url"]}):
+			fiche_fichier_existant({"file_name": e["fichier"], "file_url": e["url"], "is_private": e["prive"]})
+
+	# 2. Le logo de la marque, lu sur la fiche Brand à chaque composition : posé seulement s'il n'y en a pas.
+	marque = copie.get("marque")
+	if marque and frappe.db.exists("Brand", marque["name"]):
+		actuel = frappe.db.get_value("Brand", marque["name"], "image")
+		if not actuel:
+			frappe.db.set_value("Brand", marque["name"], "image", marque["image"])
+			frappe.clear_document_cache("Brand", marque["name"])
+			remarques.append(f"logo posé sur la marque {marque['name']}")
+		elif actuel != marque["image"]:
+			remarques.append(f"la marque {marque['name']} a déjà un autre logo ({actuel}) : gardé")
+
+	# 3. Le dossier.
+	champs = copie["dossier"]
+	entete = champs.get("entete") or ""
+	if entete:
+		try:
+			instantane(entete)
+		except Exception:
+			remarques.append(f"en-tête « {entete} » absent ou inutilisable ici : dossier laissé sans en-tête")
+			entete = ""
+	d = frappe.get_doc(DOSSIER_PRODUIT, nom) if nom else frappe.new_doc(DOSSIER_PRODUIT)
+	avant = d.get("mises_en_page") if nom else None
+	d.article = article
+	for k in _CHAMPS_DOSSIER:
+		if not d.meta.has_field(k):
+			continue
+		v = entete if k == "entete" else champs.get(k)
+		d.set(k, (json.dumps(v, ensure_ascii=False) if v else "") if k in _CHAMPS_JSON else v)
+	actives = set(frappe.get_all("Item", filters={"variant_of": article, "disabled": 0}, pluck="name"))
+	ecartees = [r["article"] for r in champs.get("variantes", []) if r["article"] not in actives]
+	if ecartees:
+		remarques.append(f"{len(ecartees)} variante(s) absente(s) ou désactivée(s) ici, non reprise(s) : " + ", ".join(ecartees[:10]))
+	for r in lignes_a_ajouter([x.as_dict() for x in d.variantes], [r for r in champs.get("variantes", []) if r["article"] in actives], "article"):
+		d.append("variantes", r)
+	retenues = {r.article for r in d.variantes}
+	for table, colonne in (("sources", "fichier"), ("images", "image")):
+		for r in lignes_a_ajouter([x.as_dict() for x in d.get(table)], champs.get(table, []), colonne):
+			if not frappe.db.exists("File", {"file_url": r[colonne]}):
+				remarques.append(f"fichier absent ici, non repris : {r[colonne]}")
+			elif r.get("article") and r["article"] not in retenues:
+				remarques.append(f"fichier d’une variante non reprise, laissé : {r[colonne]}")
+			else:
+				d.append(table, r)
+	d.save() if nom else d.insert()
+	if nom and avant and avant != d.get("mises_en_page"):
+		d.add_comment("Info", "Mise en page remplacée par celle du dossier d’exemple. Ancienne : " + avant)
+	for e in copie["fichiers"]:
+		for f in frappe.get_all("File", filters={"file_url": e["url"], "attached_to_name": ["is", "not set"]}, pluck="name"):
+			frappe.db.set_value("File", f, {"attached_to_doctype": DOSSIER_PRODUIT, "attached_to_name": d.name}, update_modified=False)
+
+	# 4. Les versions, à la suite de celles du site, avec leur PDF.
+	crees = []
+	for x in manquants:
+		v = API.nouvelle_version(d.name, x["type_document"], x["contenu"], x["contexte"], x["langue"], x["libelle_langue"], x["rtl"],
+		                         numero_minimum=x["numero"])
+		urls = {}
+		for champ, extension in _PIECES:
+			if x.get(champ):
+				with open(os.path.join(racine, x[champ]), "rb") as f:
+					urls[champ] = save_file(f"{v.name}-{v.langue}{extension}", f.read(), DOCUMENT_PRODUIT, v.name, is_private=1).file_url
+		if urls:
+			v.update(urls)
+			if urls.get("pdf") and x["statut"] == "Validé":
+				v.statut = "Validé"
+			v.flags.document_produit_interne = True
+			v.save()
+		crees.append(f"{v.name} ({v.type_document} v{v.numero}, {v.statut})")
+	d.add_comment("Info", "Dossier d’exemple apporté depuis la copie rangée dans l’application (" + ", ".join(crees) + ").")
+	return {"etat": "applique", "dossier": d.name, "cree": not nom, "documents": crees, "remarques": remarques}
+
+
 def numero_serie(nom: str):
 	"""(préfixe, numéro) d'un nom de série « MAN-2026-0004 » → ("MAN-2026-", 4) ; None sinon. Pur."""
 	import re

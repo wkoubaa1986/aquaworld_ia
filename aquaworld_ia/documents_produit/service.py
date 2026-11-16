@@ -38,6 +38,31 @@ def categories_caracteristiques(d=None):
 	return S.categories(getattr(d, "categories_caracteristiques", None) or "", reglages().get("categories_caracteristiques") or "")
 
 
+def presentation_base():
+	"""Ce dont part un nouveau dossier (Réglages, 16/11/2026) : {"mises_en_page": {fiche, manuel}, "entete": nom}.
+	Une mise en page illisible ou un en-tête disparu, désactivé ou que l'utilisateur ne peut pas lire sont ignorés :
+	créer un dossier ne doit jamais échouer à cause de la présentation de base."""
+	from aquaworld_ia.documents_produit.entetes import instantane
+	from aquaworld_ia.ia.client import reglages
+
+	r = reglages()
+	try:
+		mises_en_page = M.base(r.get("mise_en_page_base") or "")
+	except ValueError:
+		mises_en_page = {}
+	entete = r.get("entete_base") or ""
+	if entete:
+		muet_avant = frappe.flags.mute_messages
+		frappe.flags.mute_messages = True   # un en-tête illisible n'est pas un message pour qui crée un dossier
+		try:
+			instantane(entete)
+		except Exception:
+			entete = ""
+		finally:
+			frappe.flags.mute_messages = muet_avant
+	return {"mises_en_page": mises_en_page, "entete": entete}
+
+
 def _lisible(appel):
 	"""Un refus du traitement (« rien à ajouter », « précisez l'information »…) est un message pour l'utilisateur.
 	Levé tel quel, il partait en « erreur serveur » avec sa trace (13/11/2026, « Compléter avec l'IA » sur un texte
@@ -135,9 +160,13 @@ def creer(article):
 	for ligne in initiales(parent, a):
 		if not ligne["article"] or ligne["article"] in retenues:
 			d.append("images", ligne)
-	depart = M.initiale(C.lien_woocommerce(parent.name).get("url", ""))
+	# Depuis le 16/11/2026, le dossier part de la présentation de base des Réglages (mise en page et en-tête).
+	base = presentation_base()
+	depart = M.initiale(C.lien_woocommerce(parent.name).get("url", ""), base["mises_en_page"])
 	if depart:
 		d.mises_en_page = json.dumps(depart, ensure_ascii=False)
+	if base["entete"]:
+		d.entete = base["entete"]
 	d.insert()
 	return {"name": d.name}
 
@@ -470,6 +499,22 @@ def copier_presentation(name, source, elements):
 	return {"source": s.titre, "repris": repris, "modified": d.modified}
 
 
+@frappe.whitelist()
+def definir_presentation_base(name):
+	"""La mise en page (fiche et manuel) et l'en-tête de ce dossier deviennent ceux dont part tout nouveau dossier
+	(demande 16/11/2026 : « le setting de mise en page, je le veux le setting de base, celui d'AP-M »). Rangés dans les
+	Réglages ; ni le QR du produit, ni ses photos ne sont repris. Les dossiers existants ne changent pas.
+	Réservé au responsable du système : c'est un choix pour toute l'équipe."""
+	frappe.only_for("System Manager")
+	d = dossier(name)
+	r = frappe.get_single("Aquaworld IA Reglages")
+	base = M.base(d.get("mises_en_page"))
+	r.mise_en_page_base = json.dumps(base, ensure_ascii=False) if base else ""
+	r.entete_base = d.get("entete") or ""
+	r.save()
+	return {"source": d.titre, "entete": r.entete_base, "types": sorted(base)}
+
+
 def _plan_derniere_version(name, genre):
 	"""Le plan tiré de la dernière version française du produit : ses rubriques et leurs sous-titres."""
 	v = frappe.get_all(C.DOCUMENT, filters={"dossier": name, "langue": "fr", "type_document": genre, "variante": ["is", "not set"]},
@@ -502,8 +547,10 @@ def lien_variante(v):
 
 
 def nouvelle_version(parent, genre, contenu, ctx, langue="fr", libelle="Français", rtl=0, source_fr=None,
-		variante=None, version_mere=None, empreinte_variante=None):
-	"""Les versions se numérotent par document : type, langue et, pour une fiche de variante, la variante."""
+		variante=None, version_mere=None, empreinte_variante=None, numero_minimum=0):
+	"""Les versions se numérotent par document : type, langue et, pour une fiche de variante, la variante.
+	`numero_minimum` : pour une version apportée d'un autre site avec son PDF, qui imprime son numéro
+	(transfert.appliquer_dossier) — elle le garde s'il est libre."""
 	dossier(parent, "write", True)
 	contenu = S.normaliser(contenu, ctx)
 	maximum = frappe.db.sql(
@@ -520,7 +567,7 @@ def nouvelle_version(parent, genre, contenu, ctx, langue="fr", libelle="Françai
 			"langue": langue,
 			"libelle_langue": libelle,
 			"rtl": cint(rtl),
-			"numero": int(maximum) + 1,
+			"numero": max(int(maximum) + 1, cint(numero_minimum)),
 			"statut": "Brouillon",
 			"source_fr": source_fr,
 			"variante": variante or None,

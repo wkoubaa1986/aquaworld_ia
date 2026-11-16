@@ -586,6 +586,49 @@ PDF restent conservés. Une photo associée à une variante absente de la versio
 d’abord une nouvelle rédaction avec cette variante. Une variante décochée ne réaffecte
 jamais silencieusement ses photos à toute la gamme.
 
+### Dossier d’exemple et présentation de base (16/11/2026, v0.58.0)
+
+Demande : « la version actuelle d’AP-M, je veux qu’elle soit patchée pour que, lorsque je pousse en prod, elle soit
+poussée comme exemple pour mes employés ; le setting de mise en page, je le veux le setting de base, celui d’AP-M ;
+l’en-tête que j’ai créé aussi ».
+
+**Un dossier produit emporté du dev vers la prod** (`transfert.py`, section « dossier produit emporté comme exemple »).
+- **En dev** : `bench --site mysite.localhost execute aquaworld_ia.transfert.exporter_dossier --kwargs
+  "{'nom': 'DPR-2026-00002', 'depuis': '2026-11-11'}"` range dans `contenu/dossiers/<article>/` le dossier
+  (présentation, consignes, plan, variantes, photos, sources) et la **dernière version française** de la fiche et du
+  manuel du produit, avec son PDF et sa source LaTeX (`dossier.json` + `fichiers/`). `depuis` est la date de la
+  copie de la prod vers le dev : parmi les fichiers cités, seuls ceux apparus depuis voyagent (les photos des
+  articles sont déjà en prod). Ne voyagent pas : les versions précédentes, les fiches par variante, les
+  traductions, l’archive ZIP (aussi lourde que le PDF, elle se refait par « PDF »).
+- **Au déploiement** : un patch appelle `transfert.appliquer_dossier(cle)` — fichiers posés (jamais écrasés) avec
+  leur fiche File rattachée au dossier, logo de la marque posé sur sa fiche Brand si elle n’en a pas, dossier créé
+  sous le prochain nom libre, version ajoutée avec son numéro d’origine (le PDF l’imprime), son statut et son PDF.
+  Un dossier déjà présent pour l’article est complété : il prend la présentation de la copie (l’ancienne mise en
+  page est gardée en commentaire), garde ses variantes et photos, et reçoit la version à la suite des siennes.
+  Rien n’est écrit si l’article n’existe pas sur le site, ou si la version y est déjà (le dev lui-même, un second
+  passage). Un en-tête absent, une variante désactivée ou un fichier manquant sont laissés de côté et signalés dans
+  le bilan, sans bloquer.
+- **Avant de pousser** : `bench --site mysite.localhost execute aquaworld_ia.transfert.etat_copie_dossier
+  --kwargs "{'cle': 'AP-M'}"` dit si la copie rangée est encore l’état du dev (`a_jour`, `differences`). Un dossier
+  retouché ou une version plus récente part dans son état de l’export : relancer `exporter_dossier`.
+- Premier usage : AP-M, fiche technique version 20 validée le 16/11/2026 (patch `v0_58.dossier_exemple_ap_m`).
+  L’en-tête officiel, lui, arrive par le patch `v0_48.entete_officiel_fiches_manuels`, qui passe avant.
+
+**Présentation de base des nouveaux dossiers** (Réglages, section « Fiches techniques et manuels — en-têtes »).
+- Deux champs : « En-tête de base des nouveaux dossiers » (`entete_base`) et « Mise en page de base des nouveaux
+  dossiers » (`mise_en_page_base`, `{"fiche": …, "manuel": …}`). Tout dossier créé ensuite part de cette mise en
+  page et de cet en-tête (`service.creer`, `service.presentation_base`), puis se règle à l’étape Présenter ; le QR
+  code reste celui du produit sur le site. Les dossiers existants ne changent pas.
+- La base ne garde rien de propre à un produit (`mise_en_page.de_base`) : ni l’adresse du QR ni sa légende, ni la
+  photo en grand de la mosaïque, ni les largeurs par photo.
+- Elle se remplit depuis un dossier : étape **Présenter**, bouton « Faire de cette présentation la base des nouveaux
+  dossiers… » (`service.definir_presentation_base`, réservé au rôle System Manager). Vider les deux champs revient à
+  la mise en page d’origine de l’application. Une mise en page saisie à la main et invalide est refusée à
+  l’enregistrement des Réglages.
+- Créer un dossier n’échoue jamais à cause de la base : une mise en page illisible ou un en-tête que l’utilisateur
+  ne peut pas lire sont ignorés.
+- Le patch v0_58 pose la base d’AP-M là où les Réglages n’en ont pas encore.
+
 ### Logo en filigrane (13/11/2026, v0.57.0)
 
 Demandes du 09/11 et du 13/11/2026 : « mon logo de l'entreprise très transparent en arrière-plan sur toute la
