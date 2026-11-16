@@ -73,15 +73,32 @@ def titre_variante(info, marque=""):
 	return S.titre_reference(info["name"], info.get("item_name") or "", marque or info.get("brand") or "")
 
 
-def contexte_variante(ctx_mere, info, photos, mere, empreinte_specifiques, retirees=()):
+def logo_de_galerie(images, logo, logo_hash=""):
+	"""Le logo de la marque, quand il figure parmi les photos communes du dossier (demande 16/11/2026 : « pourquoi la
+	marque, lorsque je la mets, ne figure pas sur la mosaïque ? » — sur la fiche du produit il y est parce que son
+	fichier est l'une des photos du dossier ; une fiche de variante ne prenait que les photos de sa variante).
+	`images` : celles du dossier (`contexte.images_contexte`) ; reconnu à son adresse ou à son contenu. -> la photo, ou None."""
+	if not logo and not logo_hash:
+		return None
+	for im in images or []:
+		if not im.get("article") and ((logo and im.get("image") == logo) or (logo_hash and im.get("hash") == logo_hash)):
+			return {"image": im["image"], "nom": im.get("nom", ""), "hash": im.get("hash", ""), "legende": im.get("legende", "")}
+	return None
+
+
+def contexte_variante(ctx_mere, info, photos, mere, empreinte_specifiques, retirees=(), logo=None):
 	"""Le contexte d'une fiche de variante : celui de la fiche du produit, réduit à cette variante et à ses photos.
 	`variante` marque le document pour la composition (bloc de référence, pas de colonne « Modèles concernés »).
 	`retirees` : les lignes du tableau du produit écartées pour cette variante, gardées pour une actualisation
-	sans appel IA (clé absente quand il n'y en a pas)."""
+	sans appel IA (clé absente quand il n'y en a pas). `logo` (`logo_de_galerie`) : le logo de la marque suit les
+	photos de la variante, en dernier — il prend la dernière case de la mosaïque, comme sur la fiche du produit."""
 	ctx = copy.deepcopy({k: v for k, v in ctx_mere.items() if k != "preuves"})
 	ctx["variantes"] = [copy.deepcopy(info)]
 	ctx["images"] = [{"image": p["image"], "nom": p["nom"], "hash": p["empreinte"], "pages": "",
 		"legende": p["legende"], "article": ""} for p in photos]
+	if logo and not any(im["image"] == logo["image"] or (logo.get("hash") and im["hash"] == logo["hash"]) for im in ctx["images"]):
+		ctx["images"].append({"image": logo["image"], "nom": logo.get("nom", ""), "hash": logo.get("hash", ""), "pages": "",
+			"legende": logo.get("legende", ""), "article": ""})
 	ctx["variante"] = info["name"]
 	ctx["fiche_variante"] = {"mere": mere, "empreinte_specifiques": empreinte_specifiques}
 	if retirees:
@@ -311,10 +328,14 @@ def empreinte_specifiques(info, photos, observations, commune="", connaissances=
 		"commune": commune, "connaissances": bool(connaissances), "format": FORMAT})
 
 
-def empreinte_variante(mere, mere_validee, info, photos, observations, commune="", connaissances=False):
-	"""Ce dont dépend toute la fiche : en plus, la version de la fiche du produit reprise et son statut."""
-	return S.empreinte({"mere": mere, "validee": bool(mere_validee),
-		"specifiques": empreinte_specifiques(info, photos, observations, commune, connaissances)})
+def empreinte_variante(mere, mere_validee, info, photos, observations, commune="", connaissances=False, logo=None):
+	"""Ce dont dépend toute la fiche : en plus, la version de la fiche du produit reprise, son statut et le logo de
+	la marque placé dans la galerie (clé absente sans logo). Le logo ne fait rien réécrire par l'IA."""
+	base = {"mere": mere, "validee": bool(mere_validee),
+		"specifiques": empreinte_specifiques(info, photos, observations, commune, connaissances)}
+	if logo:
+		base["logo_galerie"] = [logo.get("image", ""), logo.get("hash", ""), logo.get("legende", "")]
+	return S.empreinte(base)
 
 
 def valeurs_gamme(variantes):
@@ -416,6 +437,19 @@ def dernieres_fiches(name):
 	return resultat
 
 
+def logo_du_dossier(d):
+	"""Le logo de la marque du dossier s'il est parmi ses photos (`logo_de_galerie`) ; None sinon, ou si un fichier
+	du dossier n'est pas lisible."""
+	from aquaworld_ia.documents_produit import contexte as C
+	from aquaworld_ia.documents_produit import marques
+
+	try:
+		logo = marques.logo(marques.effective(d), tolerer_absent=True)
+		return logo_de_galerie(C.images_contexte(d), logo.get("logo", ""), logo.get("logo_hash", "")) if logo.get("logo") else None
+	except Exception:
+		return None
+
+
 def plan(d, articles=None):
 	"""Pour chaque variante du dossier (ou `articles`) : ses données, ses photos choisies et les empreintes qui
 	disent si sa fiche est à jour. -> {mere, observations, photos, lignes: {article: {...}}}"""
@@ -427,6 +461,7 @@ def plan(d, articles=None):
 	mere = mere_courante(d.name)
 	contenu_mere = json.loads(frappe.db.get_value(C.DOCUMENT, mere.name, "contenu_json")) if mere else {}
 	connaissances = bool(d.get("connaissances_generales"))
+	logo = logo_du_dossier(d)
 	photos = O.photos_articles(articles)
 	observations = O.charger([p["empreinte"] for liste in photos.values() for p in liste])
 	lignes = {}
@@ -438,9 +473,10 @@ def plan(d, articles=None):
 			"info": info, "photos": choisies,
 			"lues": sum(1 for p in choisies if p["empreinte"] in observations and not observations[p["empreinte"]].get("perimee")),
 			"empreinte_specifiques": empreinte_specifiques(info, choisies, observations, commune, connaissances),
-			"empreinte": empreinte_variante(mere.name, mere.statut == "Validé", info, choisies, observations, commune, connaissances) if mere else "",
+			"empreinte": empreinte_variante(mere.name, mere.statut == "Validé", info, choisies, observations, commune, connaissances, logo) if mere else "",
 		}
-	return {"mere": mere, "observations": observations, "photos": photos, "lignes": lignes, "connaissances": connaissances}
+	return {"mere": mere, "observations": observations, "photos": photos, "lignes": lignes, "connaissances": connaissances,
+		"logo_galerie": logo}
 
 
 def empreintes_courantes(d):
@@ -654,7 +690,7 @@ def creer_fiches(d, articles, forcer, progression):
 		ligne = p["lignes"][a]
 		try:
 			ctx = contexte_variante(ctx_mere, ligne["info"], ligne["photos"], mere.name, ligne["empreinte_specifiques"],
-				specs[a].get("retirees") or ())
+				specs[a].get("retirees") or (), p["logo_galerie"])
 			ctx = API.presentation_actuelle(ctx, d, GENRE, a)
 			contenu = deriver(contenu_mere, ctx, specs[a], mere.statut == "Validé", mere.numero)
 			v = API.nouvelle_version(d.name, GENRE, contenu, ctx, variante=a, version_mere=mere.name,

@@ -639,6 +639,14 @@ correctif, une grille compacte de remplacement — retour de l’utilisateur : �
 changeant sa taille ? ». La mosaïque reste donc la mosaïque et se réduit davantage : minimum de **20 mm** (118 mm
 pour trois petites cases). La fiche du produit AP-M, où elle tenait déjà, ne change pas.
 
+**Le logo de la marque dans la galerie des variantes** (`variantes.logo_de_galerie`, « pourquoi la marque, lorsque je
+la mets, ne figure pas sur la mosaïque ? »). Sur la fiche du produit, le logo AquaJad est dans la mosaïque parce que
+son fichier est l’une des photos du dossier ; une fiche de variante ne prenait que les photos de sa variante. Quand
+le logo de la marque du dossier (reconnu à son adresse ou à son contenu) figure parmi les photos communes du
+dossier, il suit désormais les photos de chaque variante, en dernier : dernière petite case de la mosaïque — sur une
+variante qui a déjà quatre photos, la mosaïque est pleine et le QR passe juste en dessous (choix de l’utilisateur).
+Ajouter ou retirer le logo des photos du dossier fait passer les fiches « à actualiser », sans appel IA.
+
 **Légendes centrées par défaut** (`mise_en_page.PHOTOS_DEFAUTS["legende_alignement"]` = « centre », « gauche »
 avant ; « pourquoi les légendes des photos ne sont pas centrées en dessous de la photo ? ») : les photos sont
 centrées dans leur case, la légende alignée à gauche s’en décalait. Vaut pour la photo de présentation et la

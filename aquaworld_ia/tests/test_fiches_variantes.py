@@ -527,3 +527,46 @@ class TestMosaiqueSousLaPresentation(unittest.TestCase):
 		self.assertIn(r"{\raggedright\small Vue 1\par}", self.source(3, legende_alignement="gauche"))             # le choix « à gauche » reste possible
 		self.assertNotIn("legende_alignement", M.normaliser({"legende_alignement": "centre"}))                     # le défaut n'est pas enregistré
 		self.assertEqual(M.normaliser({"legende_alignement": "gauche"})["legende_alignement"], "gauche")
+
+
+class TestLogoDeLaMarqueDansLaGalerie(unittest.TestCase):
+	"""16/11/2026 : « pourquoi la marque, lorsque je la mets, ne figure pas sur la mosaïque ? » — le logo de la marque
+	placé parmi les photos du dossier suit dans la galerie de chaque fiche de variante, en dernier."""
+
+	DOSSIER = [
+		{"image": "/files/OS.jpg", "nom": "OS.jpg", "hash": "h-os", "legende": "Osmoseur", "article": ""},
+		{"image": "/private/files/Aquajad.png", "nom": "Aquajad.png", "hash": "h-logo", "legende": "", "article": ""},
+		{"image": "/files/OS-7.jpg", "nom": "OS-7.jpg", "hash": "h-7", "legende": "", "article": "OS-7"},
+	]
+
+	def test_reconnu_a_son_adresse_ou_a_son_contenu(self):
+		logo = {"image": "/private/files/Aquajad.png", "nom": "Aquajad.png", "hash": "h-logo", "legende": ""}
+		self.assertEqual(V.logo_de_galerie(self.DOSSIER, "/private/files/Aquajad.png", "autre"), logo)
+		self.assertEqual(V.logo_de_galerie(self.DOSSIER, "/files/copie-du-logo.png", "h-logo"), logo)        # même fichier sous une autre adresse
+		self.assertIsNone(V.logo_de_galerie(self.DOSSIER, "/files/autre-logo.png", "h-autre"))               # logo absent des photos du dossier
+		self.assertIsNone(V.logo_de_galerie(self.DOSSIER, "", ""))                                           # marque sans logo
+		self.assertIsNone(V.logo_de_galerie(self.DOSSIER, "/files/OS-7.jpg", "h-7"))                         # une photo de variante n'est pas le logo
+		self.assertIsNone(V.logo_de_galerie([], "/private/files/Aquajad.png", "h-logo"))
+
+	def test_dernier_de_la_galerie_sans_doublon(self):
+		ctx_mere, info = contexte_mere(), contexte_mere()["variantes"][1]
+		photos = O.choisir_photos(photos_nd(), observations_nd())
+		logo = V.logo_de_galerie(self.DOSSIER, "/private/files/Aquajad.png")
+		ctx = V.contexte_variante(ctx_mere, info, photos, "DOC-1", "e", (), logo)
+		self.assertEqual([im["image"] for im in ctx["images"]], [p["image"] for p in photos] + ["/private/files/Aquajad.png"])
+		self.assertEqual(ctx["images"][-1], {"image": "/private/files/Aquajad.png", "nom": "Aquajad.png", "hash": "h-logo", "pages": "", "legende": "", "article": ""})
+		c = V.deriver(contenu_mere(ctx_mere), ctx, specificites())
+		self.assertEqual(len(c["legendes"]), len(ctx["images"])); self.assertEqual(c["legendes"][-1], "")
+		# Le logo déjà parmi les photos de la variante n'est pas répété ; sans logo, la galerie est celle d'avant.
+		deja = V.contexte_variante(ctx_mere, info, photos, "DOC-1", "e", (), {**logo, "image": "/files/autre.png", "hash": photos[0]["empreinte"]})
+		self.assertEqual(len(deja["images"]), len(photos))
+		self.assertEqual(V.contexte_variante(ctx_mere, info, photos, "DOC-1", "e")["images"], ctx["images"][:-1])
+
+	def test_ajouter_ou_retirer_le_logo_actualise_sans_reecrire(self):
+		info, obs = contexte_mere()["variantes"][1], observations_nd()
+		photos = O.choisir_photos(photos_nd(), obs)
+		logo = V.logo_de_galerie(self.DOSSIER, "/private/files/Aquajad.png")
+		sans, avec = V.empreinte_variante("DOC-1", True, info, photos, obs), V.empreinte_variante("DOC-1", True, info, photos, obs, logo=logo)
+		self.assertNotEqual(sans, avec)                                                                       # la fiche est à actualiser
+		self.assertEqual(sans, V.empreinte_variante("DOC-1", True, info, photos, obs, logo=None))
+		self.assertEqual(V.empreinte_specifiques(info, photos, obs), V.empreinte_specifiques(info, photos, obs))   # … sans appel IA
