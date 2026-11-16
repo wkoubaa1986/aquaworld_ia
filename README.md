@@ -607,24 +607,28 @@ UN appel par variante — celui des spécificités, étendu). La réponse porte,
   écartées, et gardées dans le contexte de la fiche (`fiche_variante.caracteristiques_retirees`) pour une
   actualisation sans appel IA.
 - **D’où viennent les ajouts** : de la fiche du produit (qui peut décrire les options de la gamme) et de l’article de
-  la variante. Pour une option que ces données ne décrivent pas, tout dépend de la case « Compléter avec les
-  connaissances générales » du dossier (étape Préparer) : **décochée**, l’IA ne nomme que ce que la configuration
-  établit (« 6. Étape de minéralisation ») et pose un point à vérifier qui renvoie à la fiche du produit ;
-  **cochée**, elle décrit ce qui est habituel pour ce composant (rôle, usage, geste d’entretien), source
-  « Connaissances générales », sans aucun chiffre, avec un point à vérifier par fiche (`POINT_CONNAISSANCES`).
-  Le chemin conseillé : décrire chaque option une fois dans la fiche du produit, la valider, puis actualiser —
-  les 45 fiches disent alors la même chose, sans point à confirmer une par une.
+  la variante ; pour une option que ces données ne décrivent pas, des **connaissances générales** sur ce type de
+  composant (sa nature, ce qu’il apporte, le geste d’entretien courant), source « Connaissances générales », **sans
+  aucun chiffre** (fréquence, puissance, norme, modèle : « selon les prescriptions du fabricant »). Première version,
+  le matin : cela dépendait de la case « Compléter avec les connaissances générales » du dossier, et sans elle les
+  étapes ajoutées n’étaient que nommées — retour de l’utilisateur : « pourquoi il ne les a pas décrites ? On peut
+  utiliser le savoir commun s’il n’y a pas d’info dans l’article, pareil pour les caractéristiques ». C’est donc
+  toujours admis pour une fiche de variante (la case ne vaut plus que pour la rédaction de la fiche du produit). La
+  fiche le dit par une **note déjà levée** (`NOTE_CONNAISSANCES`, dans `points_resolus` : verte, elle ne bloque pas
+  la validation et se rouvre d’un clic) ; un point que l’IA écrirait quand même à ce sujet est écarté. Décrire une
+  option dans la fiche du produit reste le moyen d’imposer son texte aux 45 fiches.
 - **Garde-fous** inchangés (nombre absent des données, mention de conformité, photo jamais source d’une
   caractéristique), avec deux précisions : le numéro d’une ligne de liste n’est pas une valeur, et un décompte
   annoncé par la configuration (« 7 Stages ») admet ses rangs (« étape n° 6 »).
 - **À actualiser** : ce que l’IA écrit dépend désormais du texte des rubriques et du tableau de la fiche du produit
-  (`empreinte_commune`), de la case « connaissances générales » et de la version de la consigne (`FORMAT`). Les
+  (`empreinte_commune`) et de la version de la consigne (`FORMAT`). Les
   modifier fait réécrire les fiches (un appel par variante) ; valider la fiche du produit ou changer sa mise en
   page, non. Les fiches créées avant cette version sont toutes « à actualiser ».
-- Essais réels du 16/11/2026 sur AP-M-DF-7-MU-SM, rien d’enregistré, environ 20 s par appel. Case décochée : étapes
-  6 et 7 nommées, trois lignes au tableau, un point qui renvoie à la fiche du produit. Case cochée : Applications,
-  Équipements, Étapes (7, avec le rôle de la reminéralisation et de l’ultraviolet) et Entretien adaptés, trois
-  lignes au tableau, aucun chiffre ajouté, un point « connaissances générales ».
+- Essais réels du 16/11/2026, rien d’enregistré, 20 à 30 s par appel. AP-M-DF-7-MU-SM : Applications, Équipements,
+  Étapes (7, avec le rôle de la reminéralisation et de l’ultraviolet) et Entretien adaptés, trois lignes au tableau.
+  AP-M-AJ-7-AUA-SM : « 6. Cartouche alcaline — augmente le pH de l’eau après osmose », « 7. Traitement ultraviolet
+  automatique », deux lignes d’entretien « selon les prescriptions du fabricant », trois lignes au tableau, aucun
+  chiffre ajouté, aucun point rouge, la note verte.
 
 **Titre** : `structure.titre_reference` — « référence — nom de l’article — marque » pour toute fiche de variante et,
 à la rédaction, pour la fiche technique du produit (il reste modifiable à l’étape Relire ; les manuels gardent le

@@ -272,10 +272,10 @@ class TestDerivation(unittest.TestCase):
 		self.assertNotIn("Finition dorée claire", str(r))
 		self.assertEqual(r["fiche_produit"]["rubriques"][0], {"titre": "Applications", "texte": "Bureaux et cuisines.", "source": "Article FF"})
 		self.assertIn("Tu rédiges en français la fiche technique d'UNE variante", V.systeme())
-		self.assertNotIn("{CONNAISSANCES}", V.systeme()); self.assertNotIn("{CONNAISSANCES}", V.systeme(True))
-		self.assertIn("La fiche du produit ne décrit pas l'option", V.systeme())
-		self.assertNotIn("Le dossier autorise les connaissances générales", V.systeme())
-		self.assertIn("Le dossier autorise les connaissances générales", V.systeme(True))
+		# Le savoir commun est admis pour une option que les données ne décrivent pas (16/11/2026), jamais un chiffre.
+		self.assertIn("décris ce qui est habituel pour ce type de composant", V.systeme())
+		self.assertIn("Reste interdit sans donnée : toute valeur chiffrée", V.systeme())
+		self.assertNotIn("{", V.systeme().split("Réponds uniquement en JSON")[0])
 		self.assertIn("N'invente aucune valeur", V.systeme())
 		self.assertIn("aucune estimation", V.systeme())
 
@@ -294,8 +294,7 @@ class TestDerivation(unittest.TestCase):
 		# Ce que l'IA écrit ne dépend pas de la version de la fiche du produit (validation, mise en page) : repris tel quel…
 		self.assertEqual(V.empreinte_specifiques(self.info, self.photos, self.observations),
 			V.empreinte_specifiques(copy.deepcopy(self.info), self.photos, self.observations))
-		# … mais bien, depuis le 16/11/2026, du texte de ses rubriques et de son tableau, que l'IA adapte à la variante,
-		# et de l'option « connaissances générales » du dossier.
+		# … mais bien, depuis le 16/11/2026, du texte de ses rubriques et de son tableau, que l'IA adapte à la variante.
 		sections, caracs = V.partie_commune(self.mere, "FF-ND", "FF")
 		commune = V.empreinte_commune(sections, caracs)
 		self.assertEqual(commune, V.empreinte_commune(copy.deepcopy(sections), copy.deepcopy(caracs)))
@@ -305,9 +304,8 @@ class TestDerivation(unittest.TestCase):
 		self.assertEqual(len(autres | {commune}), 4)
 		base = V.empreinte_specifiques(self.info, self.photos, self.observations, commune)
 		self.assertNotEqual(base, V.empreinte_specifiques(self.info, self.photos, self.observations))
-		self.assertNotEqual(base, V.empreinte_specifiques(self.info, self.photos, self.observations, commune, True))
 		self.assertNotEqual(V.empreinte_variante("DOC-1", True, self.info, self.photos, self.observations, commune),
-			V.empreinte_variante("DOC-1", True, self.info, self.photos, self.observations, commune, True))
+			V.empreinte_variante("DOC-1", True, self.info, self.photos, self.observations))
 
 	def test_titre_long_tronque(self):
 		long = V.titre_variante({"name": "X-1", "item_name": "n" * 300}, "Marque")
@@ -417,17 +415,19 @@ class TestAdaptationALaConfiguration(unittest.TestCase):
 			"caracteristiques_non_applicables": ["lampe uv automatique", "Ligne inconnue", "Débit", {"texte": "Tension"}],
 			"points_a_verifier": [], **plus}
 
-	def spec(self, connaissances=False, **plus):
+	def spec(self, **plus):
 		return V.normaliser_specificites(self.reponse(**plus), "OS-7", [{"id": "P1"}], [a["nom"] for a in self.ATTRIBUTS],
-			rubriques=self.RUBRIQUES, caracteristiques=self.CARACS, categories=self.CATEGORIES, connaissances=connaissances)
+			rubriques=self.RUBRIQUES, caracteristiques=self.CARACS, categories=self.CATEGORIES)
 
 	def test_rubriques_adaptees_sous_le_titre_d_origine(self):
 		spec = self.spec()
 		self.assertEqual([s["titre"] for s in spec["sections"]], ["Spécificités de ce modèle", "Étapes de filtration"])
 		adaptee = spec["sections"][1]
 		self.assertIn("7. Module ultraviolet", adaptee["texte"])
-		self.assertEqual((adaptee["article"], adaptee["source"]), ("OS-7", "Saisie manuelle"))   # connaissances non autorisées : source d'origine
-		self.assertEqual(self.spec(True)["sections"][1]["source"], "Saisie manuelle ; Connaissances générales")
+		# Source d'origine, complétée quand l'IA dit s'être appuyée sur les connaissances générales.
+		self.assertEqual((adaptee["article"], adaptee["source"]), ("OS-7", "Saisie manuelle ; Connaissances générales"))
+		sans = self.spec(rubriques_adaptees=[{"titre": "Étapes de filtration", "texte": "Étapes de filtration — 7 étapes", "source": "Saisie manuelle"}])
+		self.assertEqual(sans["sections"][1]["source"], "Saisie manuelle")
 
 	def test_lignes_du_tableau_propres_a_la_variante(self):
 		spec = self.spec()
@@ -438,15 +438,22 @@ class TestAdaptationALaConfiguration(unittest.TestCase):
 		# « Non applicables » : seulement des lignes du produit, jamais une ligne que la variante redéfinit.
 		self.assertEqual(spec["retirees"], ["Lampe UV automatique", "Tension"])
 
-	def test_connaissances_generales_seulement_si_le_dossier_les_autorise(self):
-		plus = {"caracteristiques": [{"nom": "Cartouche de reminéralisation", "valeur": "Apporte des minéraux", "source": "Connaissances générales"}]}
-		self.assertEqual(self.spec(False, **plus)["caracteristiques"], [])
-		spec = self.spec(True, **plus)
-		self.assertEqual([c["nom"] for c in spec["caracteristiques"]], ["Cartouche de reminéralisation"])
-		self.assertIn(V.POINT_CONNAISSANCES, spec["points_a_verifier"])              # ce qui n'a pas de source se confirme
-		deja = self.spec(True, points_a_verifier=["Les ajouts sur l’option UV reposent sur des connaissances générales, à confirmer."])
-		self.assertNotIn(V.POINT_CONNAISSANCES, deja["points_a_verifier"])           # le point de l'IA suffit
-		self.assertNotIn(V.POINT_CONNAISSANCES, self.spec(False)["points_a_verifier"])
+	def test_savoir_commun_admis_et_signale_sans_bloquer(self):
+		"""« On peut utiliser le savoir commun s'il n'y a pas d'info dans l'article, pareil pour les caractéristiques »."""
+		plus = {"caracteristiques": [{"nom": "Cartouche de reminéralisation", "valeur": "Apporte des minéraux", "source": "Connaissances générales"}],
+			"points_a_verifier": ["Les ajouts sur l’option UV reposent sur des connaissances générales, à confirmer.", "Photo P2 : bols translucides."]}
+		spec = self.spec(**plus)
+		self.assertEqual([(c["nom"], c["source"]) for c in spec["caracteristiques"]], [("Cartouche de reminéralisation", "Connaissances générales")])
+		# Une note déjà levée (verte) le dit ; le point de l'IA sur le même sujet est écarté, les autres restent.
+		self.assertEqual(spec["points_resolus"], [V.NOTE_CONNAISSANCES])
+		self.assertEqual(spec["points_a_verifier"], ["Photo P2 : bols translucides."])
+		# Rien tiré des connaissances générales : ni note, ni point retiré.
+		neutre = self.spec(rubriques_adaptees=[], caracteristiques=[{"nom": "Nombre d’étapes", "valeur": "7", "source": "Article OS-7"}])
+		self.assertEqual(neutre["points_resolus"], [])
+		# Une valeur chiffrée ajoutée sans donnée reste un point qui bloque la validation.
+		chiffre = self.spec(caracteristiques=[{"nom": "Lampe UV", "valeur": "11 W", "source": "Connaissances générales"}])
+		connus = V.nombres_connus({"variante": {"attributs": self.ATTRIBUTS}, "fiche_produit": {"rubriques": self.RUBRIQUES, "caracteristiques": self.CARACS}})
+		self.assertIn("11", V.verifier_nombres(chiffre, connus)["points_a_verifier"][-1])
 
 	def test_numeros_de_liste_et_rangs_ne_sont_pas_des_valeurs(self):
 		requete = {"variante": {"reference": "OS-7", "attributs": self.ATTRIBUTS}, "fiche_produit": {"rubriques": self.RUBRIQUES, "caracteristiques": self.CARACS}}
@@ -487,6 +494,7 @@ class TestAdaptationALaConfiguration(unittest.TestCase):
 			("Performances", "Débit", "50", "OS-7"), ("Filtration", "Postfiltre", "Charbon actif", ""),
 			("Filtration", "Nombre d’étapes de filtration", "7", "OS-7"), ("", "Module ultraviolet", "Présent", "OS-7")])
 		self.assertEqual(S.normaliser(c, ctx), c)
+		self.assertEqual(c["points_resolus"], [V.NOTE_CONNAISSANCES]); self.assertEqual(c["points_a_verifier"], [])   # validable telle quelle
 		# Actualisation sans appel IA : ce qui est propre à la variante est repris de sa fiche, les lignes écartées de son contexte.
 		repris = {**V.reprendre_specificites(c, "OS-7"), "retirees": ctx["fiche_variante"]["caracteristiques_retirees"]}
 		self.assertEqual(V.deriver(mere, ctx, repris), c)
