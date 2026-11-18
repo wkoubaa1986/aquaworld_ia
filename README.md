@@ -204,6 +204,13 @@ ou **Côtés identiques** reprennent l’angle, même si on le change depuis la 
 Les facettes déjà personnalisées restent indépendantes ; **Revenir à la maquette automatique**
 sur la copie rétablit le lien avec la face source.
 
+**Une face « identique » qui a sa propre mise en page n’est pas recopiée** (une face dessinée à la main est
+gardée) : avec **Côtés identiques** coché, un côté gauche qui porte déjà un logo posé à la main reste tel quel.
+Depuis la v0.59.3 le Studio le dit sous les cases de l’étape « Mise en page » — « Côté gauche a sa propre mise en
+page : elle ne suit pas Côté droit » — avec le bouton **Recopier « Côté droit » sur « Côté gauche »**, qui retire la
+mise en page propre de la face (après confirmation). Avant, ce n’était dit que sur la face épinglée : la case
+semblait sans effet (constaté le 18/11/2026 sur EMB-2026-0010).
+
 **Panneau de droite** : les propriétés sont repliables, avec une section ouverte à la fois.
 Chaque pictogramme a aussi son volet pour la rotation et la couleur. La section, le pictogramme
 ouvert et le défilement sont conservés pendant les sauvegardes et les changements de sélection

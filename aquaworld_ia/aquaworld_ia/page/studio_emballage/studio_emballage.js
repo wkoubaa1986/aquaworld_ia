@@ -55,6 +55,30 @@ class StudioEmballage {
 	}
 
 	// ─── chargement ─────────────────────────────────────────────────────────────
+	/** « Face arrière identique » / « Côtés identiques » cochés, mais la face qui devrait copier a SA PROPRE mise en
+	 *  page : elle n'est pas recopiée (une face dessinée à la main est gardée). Avant le 18/11/2026 le Studio ne le
+	 *  disait que sur la face épinglée — la case semblait sans effet (« j'ai gauche = droit mais je ne le vois pas »).
+	 *  Dit ici, sous les cases, avec le geste qui lève le blocage. */
+	rendre_alertes_copie() {
+		const $z = this.$root ? this.$root.find('[data-role="alertes-copie"]') : null;
+		if (!$z || !$z.length) return;
+		const faces = ((this.data || {}).apercu || {}).faces || [];
+		const nom = (code) => this._esc(((faces.find((f) => f.code === code) || {}).libelle) || code);
+		$z.html(faces.filter((f) => f.copie_bloquee).map((f) => `<div class="se-alerte-copie" style="margin:2px 0 8px;padding:7px 9px;border-radius:8px;background:#fff7ed;color:#9a3412;font-size:12.5px;line-height:1.4">
+				⚠️ ${__("« {0} » a sa propre mise en page : elle ne suit pas « {1} ».", [nom(f.code), nom(f.copie_bloquee)])}
+				<button type="button" class="btn btn-xs btn-default" style="margin-top:5px;display:block" data-recopier="${this._esc(f.code)}" ${this.data.peut_ecrire ? "" : "disabled"}>${__("Recopier « {0} » sur « {1} »", [nom(f.copie_bloquee), nom(f.code)])}</button>
+			</div>`).join(""));
+		$z.find("[data-recopier]").on("click", (e) => {
+			const code = $(e.currentTarget).attr("data-recopier");
+			const face = faces.find((f) => f.code === code) || {};
+			frappe.confirm(__("La mise en page dessinée sur « {0} » sera remplacée par la copie de « {1} ». Continuer ?", [nom(code), nom(face.copie_bloquee)]), () => {
+				this.zone_sel = null;
+				delete this.mep[code];
+				this.modifier({ mise_en_page: this.mep }, true);
+			});
+		});
+	}
+
 	rendre() {
 		this.memoriser_panneau_proprietes();
 		const gauche = this.$root.find(".se-gauche")[0];
@@ -189,6 +213,7 @@ class StudioEmballage {
 					<label class="se-check"><input type="checkbox" data-champ="fond_continu" ${d.fond_continu ? "checked" : ""}> ${__("Fond continu sur toutes les faces (panorama découpé aux plis)")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="faces_identiques" ${d.faces_identiques ? "checked" : ""}> ${__("Face arrière identique à la face avant")}</label>
 					<label class="se-check"><input type="checkbox" data-champ="cotes_identiques" ${d.cotes_identiques ? "checked" : ""} title="${__("Avec le dos identique à l'avant, le code-barres et les avertissements sont dupliqués sur les deux côtés.")}"> ${__("Côtés identiques (gauche = droit)")}</label>
+					<div data-role="alertes-copie"></div>
 					<p class="text-muted small" style="margin:2px 0 6px">${__("Placez vos éléments sur le plan, puis créez le PDF à l’étape 4. L’IA est facultative.")}</p>
 					<details class="se-avance"><summary>${__("Création assistée par IA (facultatif)")}</summary><div class="se-btns" style="margin-top:6px"><button class="btn btn-sm btn-default" data-action="fond" ${this._dims_ok() ? "" : "disabled"}>${__("Fond IA · 1 image · ≈ {0} $", [(est.cout || 0).toFixed(2)])}</button>
 						<button class="btn btn-sm btn-default" data-action="integrer" ${this._dims_ok() ? "" : "disabled"} title="${__("L'IA fond ensemble l'image de fond, la photo du produit et les couleurs du logo sur une face, selon votre consigne")}">✨ ${__("Intégrer photo + fond (IA)")}</button></div>
@@ -329,6 +354,7 @@ class StudioEmballage {
 		$g.find("[data-modifier-media]").on("click", e => this.modifier_media($(e.currentTarget).attr("data-modifier-media")));
 		$g.find("[data-televerser]").on("click", (e) => this.televerser($(e.currentTarget).attr("data-televerser")));
 		$g.find("[data-effacer]").on("click", (e) => { e.preventDefault(); this.modifier({ [$(e.currentTarget).attr("data-effacer")]: "" }, true); });
+		this.rendre_alertes_copie();
 		$g.find("[data-bibliotheque]").on("click", (e) => this.bibliotheque($(e.currentTarget).attr("data-bibliotheque")));
 		$g.find("[data-garder]").on("click", (e) => this.garder($(e.currentTarget).attr("data-garder")));
 		$g.find("[data-action]").on("click", (e) => this.action($(e.currentTarget).attr("data-action")));

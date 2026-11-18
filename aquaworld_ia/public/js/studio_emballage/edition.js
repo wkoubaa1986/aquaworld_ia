@@ -88,6 +88,7 @@ class StudioEdition {
 		$s.html(`<p class="text-muted small">${__("Feuille <b>{0} × {1} mm</b>, fond perdu inclus. Survolez une face, cliquez pour l'épingler.", [a.feuille.w, a.feuille.h])}</p>${pb}${outils}${a.svg}`);
 		this.dessiner_decors_plan($s);
 		this.dessiner_contenus_plan($s);
+		if (this.rendre_alertes_copie) this.rendre_alertes_copie();      // le plan vient de changer : le blocage d'une copie aussi
 		const $choix = $s.find('[data-role="type-zone-plan"]');
 		if (this._type_ajout && [...($choix[0]?.options || [])].some(o => o.value === this._type_ajout)) $choix.val(this._type_ajout);
 		$choix.on("change", () => {

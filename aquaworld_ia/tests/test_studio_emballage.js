@@ -751,3 +751,17 @@ test("le décor d'une face suit la taille et le décalage comme dans le PDF", ()
 	assert.equal(instance._cadrage_fond({zoom: 0}).zoom, 0.2);
 	assert.equal(instance._cadrage_fond({zoom: ""}).zoom, 1);
 });
+
+test("une face « identique » qui a sa propre mise en page est signalée sous les cases, avec le geste qui lève le blocage", () => {
+	// 18/11/2026 : « dans cet emballage j'ai la face gauche = droit mais je ne vois pas ça » — le côté gauche avait un
+	// logo posé à la main : il n'était pas recopié, et le Studio ne le disait que sur la face épinglée.
+	const page = lireScript(path.join(__dirname, "..", "aquaworld_ia", "page", "studio_emballage", "studio_emballage.js"));
+	assert.match(page, /<div data-role="alertes-copie"><\/div>/);
+	assert.match(page, /rendre_alertes_copie\(\) \{/);
+	assert.match(page, /faces\.filter\(\(f\) => f\.copie_bloquee\)/);
+	assert.match(page, /data-recopier="\$\{this\._esc\(f\.code\)\}"/);
+	// le bouton retire la mise en page propre de la face ET redessine le panneau de gauche (l'alerte disparaît)
+	assert.match(page, /delete this\.mep\[code\];\s*this\.modifier\(\{ mise_en_page: this\.mep \}, true\);/);
+	// l'alerte suit le plan : elle est redessinée chaque fois que le plan l'est
+	assert.match(page, /if \(this\.rendre_alertes_copie\) this\.rendre_alertes_copie\(\);/);
+});
